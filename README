@@ -1,0 +1,20 @@
+The runs here are initial experiments to determine for what setups using doBranchDGMEC is most powerful. These runs should not be used for exact run time comparison; rather, these runs should be used to get a general idea of the computational bottlenecks and power of doBranchDGMEC and the related functions.
+
+All runs were performed on hexa.cs.duke.edu, which has 8 Dual Core AMD Opteron(tm) Processor 885 at 2613.712MHz, a total of 64GB RAM.
+
+For a given system, the runs are peformed using the following steps (the example is given with 1amu):
+
+(DEE)
+java -Xmx1024M KStar doDEE System.cfg DEE.cfg >! logDEE1amu.cfg
+
+
+(GBD)
+java -Xmx1024M KStar doDEE System.cfg DEEgg.cfg >! logGG1amu.cfg
+cd BranchDecomposition
+java -Xmx1024M -classpath .:jmatharray.jar BranchDecomposition ../gd_1amu ../gd_1amu_bd >! logBD1amu.out
+		gd_1amu_bd - will contain the branch Decomposition.
+cd ..
+java -Xmx1024M KStar doBranchDGMEC System.cfg GD.cfg >! logGD1amu.out
+
+
+For the doBranchDGMEC run, -Xmx may have to be increased significantly in some cases (e.g., 10000M-30000M).
