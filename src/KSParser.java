@@ -66,6 +66,8 @@ import java.util.*;
 import java.lang.Integer;
 import java.math.*;
 import java.lang.management.*; // added by Swati for computing CPU, USer and System time
+
+import BranchDecomposition.BranchTree;
 // import com.neva.*;   // Not compatible with linux
 
 import mpi.MPI;
@@ -5239,8 +5241,8 @@ RotamerSearch(m,sysStrNum,ligStrNum,hElect,hVDW,hSteric,true,true,0.0f,stericThr
 			numUnprunedRot[numInAS] = numLigRotamers - curPruned;
 		}
 		
-		BranchTree bt = new BranchTree(bdFile,m,numUnprunedRot,molResMap,invResMap,sysStrNum,numInAS,ligPresent);
-		bt.traverseTree(rs.sysLR, rs.ligROT, m, rl, grl, prunedRotAtRes, totalNumRotamers, rotamerIndexOffset, rs.getMinMatrix());
+//		BranchTree bt = new BranchTree(bdFile,m,numUnprunedRot,molResMap,invResMap,sysStrNum,numInAS,ligPresent);
+//		bt.traverseTree(rs.sysLR, rs.ligROT, m, rl, grl, prunedRotAtRes, totalNumRotamers, rotamerIndexOffset, rs.getMinMatrix());
 		
 		long stopTimeCPU = CPUTime();
 		long stopTimeUser = UserTime();
