@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,14 +36,13 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
-
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Strand.java
 //
-//  Version:           1.0
+//  Version:           2.1 beta
 //
 //
 // authors:
@@ -51,7 +50,8 @@
 //   ---------   -----------------    ------------------------    ----------------------------
 //     RHL        Ryan Lilien          Dartmouth College           ryan.lilien@dartmouth.edu
 //	   ISG		  Ivelin Georgiev	   Duke University			   ivelin.georgiev@duke.edu
-//
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -88,6 +88,7 @@ public class Strand implements Serializable{
 	int	number=-1;			// The number of the current strand
 	Residue	residue[];	// Array of residues in the strand
 	boolean isProtein = false;	// Is this strand a protein?
+	boolean rotTrans = false;
 
 	Strand(){
 		residue = new Residue[1];

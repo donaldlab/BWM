@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,23 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	MinDEEIntervals.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	 ---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
+//     MAH        Mark A. Hallen	Duke University         mah43@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -62,42 +64,7 @@
  * Computes the single and pair interval terms in the MinDEE/BD/BRDEE criteria. 
  * This class is not used for traditional DEE.
  */
-public class MinDEEIntervals {
-	
-	//two pairwise energy matrices: one for the min energies and one for the max
-	private float pairwiseMinEnergyMatrix [][][][][][] = null;
-	private float pairwiseMaxEnergyMatrix [][][][][][] = null;
-
-	//eliminated rotamers at position i, for all positions
-	private boolean eliminatedRotAtPos [] = null;
-	
-	//number of residues under consideration
-	private int numSiteResidues;
-	
-	//for each residue, number of possible amino acids
-	private int numTotalRot;
-	
-	//number of possible rotamers for the ligand
-	int numLigRot;
-	
-	//offset of the given rotamer in the total rotamer set (?152?)
-	int rotIndOffset[];
-	
-	//the number of AA types allowed for each AS residue
-	int numAAtypes[] = null;
-	
-	//the rotamer library
-	RotamerLibrary rl = null;
-	
-	//The system rotamer handler
-	StrandRotamers sysLR = null;
-	
-	//The mapping from AS position to actual residue numbers
-	int residueMap[] = null;
-	
-	//the single and pair interval terms in the MinDEE criterion
-	double indIntMinDEE[] = null;
-	double pairIntMinDEE[] = null;
+public class MinDEEIntervals extends DEE {
 	
 	//determines if the interval terms should be scaled
 	boolean scaleInt = false;
@@ -110,37 +77,23 @@ public class MinDEEIntervals {
 	
 	//the max distance at which an interaction between residues is counted
 	final float maxDist = 9.0f;
-	
-	//the current ligand amino acid index
-	int ligAANum = -1;
 
+        
 	//constructor
-	MinDEEIntervals(float arpMatrix[][][][][][], float arpMatrixMax[][][][][][], int numResInActiveSite, 
-			int numTotalRotamers, int numLigRotamers, int rotamerIndexOffset[], int resMap[],
-			StrandRotamers systemLRot, boolean prunedRotAtRes[], boolean scInt, float dist[][], float maxSc, RotamerLibrary rlP, StrandRotamers ligROT) {
-		
-		pairwiseMinEnergyMatrix = arpMatrix;
-		pairwiseMaxEnergyMatrix = arpMatrixMax;
-		
-		eliminatedRotAtPos = prunedRotAtRes;
-		rotIndOffset = rotamerIndexOffset;		
-		residueMap = resMap;
-		sysLR = systemLRot;
-		rl = rlP;
+	MinDEEIntervals(PairwiseEnergyMatrix arpMatrix, PairwiseEnergyMatrix arpMatrixMax, int numResMutable,
+			int strMut[][],	StrandRotamers strandLRot[], PrunedRotamers<Boolean> prunedRotAtRes, 
+			boolean scInt, float dist[][], float maxSc, int mutRes2StrandP[], int mutRes2MutIndexP[], boolean doPerts) {
+
+                init(arpMatrix, arpMatrixMax, numResMutable,
+			strMut, 0, strandLRot, prunedRotAtRes, true, null, null,
+                        null, false, false, mutRes2StrandP, mutRes2MutIndexP, false, false, 0,
+                        false, false, null, null, doPerts);
+
+
 		scaleInt = scInt;
 		asResDist = dist;
 		maxScale = maxSc;
-		
-		numSiteResidues = numResInActiveSite;		
-		numTotalRot = numTotalRotamers;				// ?152?
-		numLigRot = numLigRotamers;					// 0 if no ligand
-		if (numLigRot>0)
-			ligAANum = ligROT.getIndexOfNthAllowable(0,0);
-	
-		numAAtypes = new int[numSiteResidues];
-		for (int i=0; i<numAAtypes.length; i++) //the number of AAs allowed for each AS residue
-			numAAtypes[i] = sysLR.getNumAllowable(residueMap[i]);
-		
+                
 		if (!scaleInt) //no scaling performed
 			maxScale = 1.0f;
 	}
@@ -160,9 +113,9 @@ public class MinDEEIntervals {
 		if (!scaleInt)
 			return 1.0f;
 		else {
-			if ((pos1>=numSiteResidues)||(pos2>=numSiteResidues)) //one of the residues is the ligand, so scale with maxScale
+			/*if ((pos1>=numSiteResidues)||(pos2>=numSiteResidues)) //one of the residues is the ligand, so scale with maxScale
 				return maxScale;
-			else { //both residues are active site residues
+			else { //both residues are active site residues*/
 				if (asResDist[pos1][pos2] > maxDist)
 					return 0.0f;
 				else {
@@ -170,16 +123,16 @@ public class MinDEEIntervals {
 					float sf = maxScale * (float)Math.pow(( 1 - (float)Math.pow( (asResDist[pos1][pos2]/maxDist),(1/k) )),k);
 					return sf;
 				}
-			}
+			//}
 		}
 	}
 	
 	//Compute the two interval terms in the summation of the MinDEE criteria
 	public void compMinDEEIntervals(){
 		
-		int numRes = numSiteResidues;		
-		if (numLigRot!=0) //ligand is present
-			numRes++;
+		int numRes = numMutable;		
+		/*if (numLigRot!=0) //ligand is present
+			numRes++;*/
 		
 		indIntMinDEE = new double[numRes];
 		pairIntMinDEE = new double[numRes];
@@ -197,7 +150,7 @@ public class MinDEEIntervals {
 		double sum = 0;
 		
 		//get the contribution from the active site residue rotamers
-		for (int curPos=0; curPos<numSiteResidues; curPos++){
+		for (int curPos=0; curPos<numMutable; curPos++){
 			
 			if (curPos != withoutPos){
 				
@@ -205,12 +158,12 @@ public class MinDEEIntervals {
 			}
 		}
 		
-		if (numLigRot!=0){ //there is a ligand
+		/*if (numLigRot!=0){ //there is a ligand
 			//get the contribution from the ligand rotamers: there is only one ligand residue,
 			//so there is only one position j here for which to add
 			if (withoutPos!=numSiteResidues) //if we are not currently checking ligand rotamers for pruning
 				sum += maxScale*LigandMaxIndInt();
-		}
+		}*/
 	
 		return sum;
 	}
@@ -223,13 +176,14 @@ public class MinDEEIntervals {
 		
 		int numRotForAAatPos;
 		
+		int str=mutRes2Strand[atPos];
+		int strResNum=strandMut[str][mutRes2MutIndex[atPos]];
+		
 		for (int AA=0; AA<numAAtypes[atPos]; AA++){
 			
-			int curAA = sysLR.getIndexOfNthAllowable(residueMap[atPos],AA);
+			int curAA = strandRot[str].getIndexOfNthAllowable(strResNum,AA);
 			
-			numRotForAAatPos = rl.getNumRotForAAtype(curAA);
-			if (numRotForAAatPos==0)	//ala or gly
-				numRotForAAatPos = 1;
+			numRotForAAatPos = getNumRot( str, strResNum, curAA );
 			
 			for (int curRot=0; curRot<numRotForAAatPos; curRot++){
 			
@@ -246,24 +200,29 @@ public class MinDEEIntervals {
 	//Called by MaxIndInt(.)
 	private double IndInt (int atPos, int atAA, int atRot){
 		
-		int index1 = atPos*numTotalRot + rotIndOffset[atAA] + atRot;
+		//int index1 = atPos*numTotalRot + rotIndOffset[atAA] + atRot;
 		
-		if (!eliminatedRotAtPos[index1]){
+		if (!eliminatedRotAtPos.get(atPos,atAA,atRot)){
 		
-			double maxE = pairwiseMaxEnergyMatrix[atPos][atAA][atRot][atPos][0][0];
-			double minE = pairwiseMinEnergyMatrix[atPos][atAA][atRot][atPos][0][0];
+			try{
+                            double maxE = pairwiseMaxEnergyMatrix.getIntraAndShellE(atPos, atAA, atRot);
+                            double minE = pairwiseMinEnergyMatrix.getIntraAndShellE(atPos, atAA, atRot);
+
+
+                            return (maxE - minE);
 			
-			double maxShell = pairwiseMaxEnergyMatrix[atPos][atAA][atRot][atPos][0][1];
-			double minShell = pairwiseMinEnergyMatrix[atPos][atAA][atRot][atPos][0][1];
-			
-			return ((maxE+maxShell) - (minE+minShell));
+			}
+			catch(Exception E){
+				E.printStackTrace();
+				return 0.0;
+			}
 		}
 		else //the interval is always non-negative, so returning 0.0 if pruned is correct
 			return 0.0;
 	}
 	
 	//Called by SumMaxIndInt(.)
-	private double LigandMaxIndInt(){
+	/*private double LigandMaxIndInt(){
 		
 		double maxEInt = -999999.0;//this is OK, since E intervals are always positive
 		double curEInt;
@@ -278,10 +237,10 @@ public class MinDEEIntervals {
 		}
 		
 		return maxEInt;
-	}
+	}*/
 
 	//Called by LigandMaxIndInt(.)
-	private double LigandIndInt (int ligRot){
+	/*private double LigandIndInt (int ligRot){
 		
 		//s at j (the ligand residue)
 		int index1 = numSiteResidues*numTotalRot + ligRot;
@@ -298,7 +257,7 @@ public class MinDEEIntervals {
 		}
 		else //the interval is always non-negative, so returning 0.0 if pruned is correct
 			return 0.0;
-	}
+	}*/
 	//////////////////////////////////////////////////////////////////////////////////
 	
 	//////////////////////////////////////////////////////////////////////////////////
@@ -308,7 +267,7 @@ public class MinDEEIntervals {
 		double sum = 0;
 		
 		//get the contribution from the active site residue rotamers
-		for (int curPos1=0; curPos1<numSiteResidues; curPos1++){
+		for (int curPos1=0; curPos1<numMutable; curPos1++){
 			if (curPos1 != withoutPos){
 				for (int curPos2=0; curPos2<curPos1; curPos2++){
 					if (curPos2 != withoutPos){
@@ -326,7 +285,7 @@ public class MinDEEIntervals {
 			}
 		}
 		
-		if (numLigRot!=0){ //there is a ligand
+		/*if (numLigRot!=0){ //there is a ligand
 			//get the contribution from the ligand rotamers: there is only one ligand residue,
 			//so there is only one position k here for which to add;
 			//the range of j is the number of active site residues
@@ -338,7 +297,7 @@ public class MinDEEIntervals {
 					}
 				}
 			}
-		}
+		}*/
 		
 		return sum;
 	}
@@ -351,13 +310,16 @@ public class MinDEEIntervals {
 		
 		int numRotForAAatPos1;
 		
+		int str1=mutRes2Strand[atPos1];
+		int strResNum1=strandMut[str1][mutRes2MutIndex[atPos1]];
+		int str2=mutRes2Strand[atPos2];
+		int strResNum2=strandMut[str2][mutRes2MutIndex[atPos2]];
+		
 		for (int AA1=0; AA1<numAAtypes[atPos1]; AA1++){
 			
-			int curAA1 = sysLR.getIndexOfNthAllowable(residueMap[atPos1],AA1);
+			int curAA1 = strandRot[str1].getIndexOfNthAllowable(strResNum1,AA1);
 			
-			numRotForAAatPos1 = rl.getNumRotForAAtype(curAA1);
-			if (numRotForAAatPos1==0)	//ala or gly
-				numRotForAAatPos1 = 1;
+			numRotForAAatPos1 = getNumRot( str1, strResNum1, curAA1 );
 		
 			for (int curRot1=0; curRot1<numRotForAAatPos1; curRot1++){
 				
@@ -365,11 +327,9 @@ public class MinDEEIntervals {
 				
 				for (int AA2=0; AA2<numAAtypes[atPos2]; AA2++){
 					
-					int curAA2 = sysLR.getIndexOfNthAllowable(residueMap[atPos2],AA2);;
+					int curAA2 = strandRot[str2].getIndexOfNthAllowable(strResNum2,AA2);
 					
-					numRotForAAatPos2 = rl.getNumRotForAAtype(curAA2);
-					if (numRotForAAatPos2==0)	//ala or gly
-						numRotForAAatPos2 = 1;
+					numRotForAAatPos2 = getNumRot( str2, strResNum2, curAA2 );
 					
 					for (int curRot2=0; curRot2<numRotForAAatPos2; curRot2++){
 					
@@ -390,13 +350,13 @@ public class MinDEEIntervals {
 		
 		//There is a displacement: column 0 and row 0 have special entries, 
 		//so pairwise energies start from row 1, column 1
-		int index1 = atPos1*numTotalRot + rotIndOffset[atAA1] + atRot1;//u at k
-		int index2 = atPos2*numTotalRot + rotIndOffset[atAA2] + atRot2;//s at j
+		//int index1 = atPos1*numTotalRot + rotIndOffset[atAA1] + atRot1;//u at k
+		//int index2 = atPos2*numTotalRot + rotIndOffset[atAA2] + atRot2;//s at j
 		
-		if ((!eliminatedRotAtPos[index1])&&(!eliminatedRotAtPos[index2])){
+		if ((!eliminatedRotAtPos.get(atPos1,atAA1,atRot1))&&(!eliminatedRotAtPos.get(atPos2,atAA2,atRot2))){
 		
-			double maxE = pairwiseMaxEnergyMatrix[atPos1][atAA1][atRot1][atPos2][atAA2][atRot2];
-			double minE = pairwiseMinEnergyMatrix[atPos1][atAA1][atRot1][atPos2][atAA2][atRot2];
+			double maxE = pairwiseMaxEnergyMatrix.getPairwiseE( atPos1, atAA1, atRot1, atPos2, atAA2, atRot2 );
+                        double minE = pairwiseMinEnergyMatrix.getPairwiseE( atPos1, atAA1, atRot1, atPos2, atAA2, atRot2 );
 		
 			return (maxE - minE);
 		}
@@ -405,7 +365,7 @@ public class MinDEEIntervals {
 	}
 	
 	//Called by SumSumMaxPairInt(.)
-	private double LigandMaxPairInt (int atPos){
+	/*private double LigandMaxPairInt (int atPos){
 		
 		double maxEInt = -999999.0;//this is OK, since E intervals are always positive
 		double curEInt;
@@ -433,10 +393,10 @@ public class MinDEEIntervals {
 		}
 		
 		return maxEInt;
-	}
+	}*/
 	
 	//Called by LigandMaxPairInt(.)
-	private double LigandPairInt (int atPos, int atAA, int atRot, int ligRot){
+	/*private double LigandPairInt (int atPos, int atAA, int atRot, int ligRot){
 		
 		//There is a displacement: colum 0 and row 0 have special entries, 
 		//so pairwise energies start from row 1, column 1
@@ -452,5 +412,5 @@ public class MinDEEIntervals {
 		}
 		else //the interval is always non-negative, so returning 0.0 if pruned is correct
 			return 0.0;
-	}
+	}*/
 }

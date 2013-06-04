@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,22 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	ParamSet.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	 ---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -137,6 +138,7 @@ public class ParamSet implements Serializable {
 		catch(Exception ex)
 		{
 			System.out.println("ERROR: An error occurred reading configuration file "+fName);
+			ex.printStackTrace();
 			System.exit(1);
 		}
 	}
@@ -162,14 +164,55 @@ public class ParamSet implements Serializable {
 		}
 	}
 	
+	//Returns the value from values[] that corresponds to the parameter paramName from params[];
+	public String getValue(String paramName,String defaultVal){
+		int ind = getParamInd(paramName);
+		int processRank = 0;
+		try{
+			processRank = MPItoThread.Rank();
+		}
+		catch(Exception e){
+			e.printStackTrace();
+			System.exit(1);			
+		}
+		
+		if (ind>=0){
+			if(processRank == 0){
+				System.out.println("Parameter "+paramName+" set to ["+values[ind]+"]");
+			}
+			return values[ind].trim();
+		}
+		else {
+			if(processRank == 0){
+				System.out.println("Parameter "+paramName+" not set. Using default value "+defaultVal);
+			}
+			return defaultVal;
+		}
+	}
+	
 	//Sets the value of parameter paramName to newValue
 	public void setValue(String paramName, String newValue){
 		int ind = getParamInd(paramName);
 		if (ind>=0)
 			values[ind] = newValue;
 		else {
-			System.out.println("ERROR: Parameter "+paramName+" not found");
-			System.exit(1);
+			if (curNum>=params.length){ //double the size of the arrays
+				
+				String tmp[] = new String[2*params.length];
+				System.arraycopy(params, 0, tmp, 0, params.length);
+				params = tmp;
+				
+				tmp = new String[2*values.length];
+				System.arraycopy(values,0,tmp,0,values.length);
+				values = tmp;
+			}
+			
+			params[curNum] = paramName;
+			values[curNum] = newValue;
+			curNum++;
+			
+			//System.out.println("ERROR: Parameter "+paramName+" not found");
+			//System.exit(1);
 		}
 	}
 	

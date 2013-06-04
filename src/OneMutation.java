@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,22 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // OneMutation.java
 //
-//  Version:           1.0
+//  Version:           2.1 beta
 //
 //
 // authors:
 //    initials    name            organization                email
 //   ---------   --------------  ------------------------    ------------------------------
 //     RHL        Ryan Lilien     Dartmouth College           ryan.lilien@dartmouth.edu
-//
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 /* 
@@ -66,7 +67,7 @@ import java.math.BigInteger;
  * and can contain the computed score. Implements a method for comparing two sequences that is used for sorting
  * all sequences with respect to different criteria.
  */
-public class OneMutation implements RyanComparable
+public class OneMutation implements RyanComparable, Comparable
 {
 
 	int mutNum = -1;
@@ -74,6 +75,7 @@ public class OneMutation implements RyanComparable
 	float vol = 0.0f;
 	String resTypes[] = null;
 	int resMut[] = null;
+	Index3 index[] = null;
 	String flagMutType = null;
 	BigInteger numConfUB = null; //num conformations for the unbound sequence
 	BigInteger numConfB = null; //num conformations for the bound sequence

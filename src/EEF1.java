@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,22 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	EEF1.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	 ---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -99,7 +100,7 @@ public class EEF1 implements Serializable {
 	//		current function may be necessary
 	public void readEEF1parm() throws Exception {
 		
-		FileInputStream is = new FileInputStream( "eef1parm.dat" );
+		FileInputStream is = new FileInputStream( EnvironmentVars.getDataDir().concat("eef1parm.dat") );
 		BufferedReader bufread = new BufferedReader(new InputStreamReader(is));
 		String curLine = null;
 		int tmpInt = 0;
@@ -179,7 +180,8 @@ public class EEF1 implements Serializable {
 		if (elementType.equalsIgnoreCase("C")) {
 			
 			if ( at1.name.equalsIgnoreCase("CG") && 
-					( AAname.equalsIgnoreCase("TYR") || AAname.equalsIgnoreCase("PHE") || AAname.equalsIgnoreCase("HIS") ) )
+					( AAname.equalsIgnoreCase("TYR") || AAname.equalsIgnoreCase("PHE") || AAname.equalsIgnoreCase("HIS") 
+							|| AAname.equalsIgnoreCase("HIP") || AAname.equalsIgnoreCase("HID") || AAname.equalsIgnoreCase("HIE")) )
 				return findSolvGroup("CR"); //CG of (TYR or PHE or HIS)
 			
 			else if ( ( at1.name.equalsIgnoreCase("CG") || at1.name.equalsIgnoreCase("CD2") || at1.name.equalsIgnoreCase("CE2") )

@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,22 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	StericCheck.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	 ---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -73,33 +74,34 @@ import java.math.*;
 public class StericCheck {	
 	
 	//numAS residues
-	int numInAS = -1;
-	
+	//int numInAS = -1;
+	int numMutable = -1;
 	//the cur AA at each residue
 	int curAANum[] = null;
 	
 	//the cur AA for the ligand
-	int ligAANum = -1;
+	//int ligAANum = -1;
 	
 	//the mapping from residue number to AS num and from AS num to res num
-	int curResToASMap[] = null;
-	int residueMap[] = null;
-	
+	//int curResToASMap[] = null;
+	//int residueMap[] = null;
+	int strandMut[][] = null;
+	int numberOfStrands = 0;
 	//the current molecule
 	Molecule m = null;
 	
 	//the system and ligand strand numbers
-	int sysStrNum = -1;
-	int ligStrNum = -1;
+	//int sysStrNum = -1;
+	//int ligStrNum = -1;
 	
 	//the rotamer libraries
-	RotamerLibrary rl = null; //for the protein
-	RotamerLibrary grl = null; //for the ligand
+	//RotamerLibrary rl = null; //for the protein
+	//RotamerLibrary grl = null; //for the ligand
 	
 	//the sys and lig rotamer handlers
-	StrandRotamers sysLR = null;
-	StrandRotamers ligROT = null;
-	
+	//StrandRotamers sysLR = null;
+	//StrandRotamers ligROT = null;
+	StrandRotamers strandRot[] = null;
 	//the overlap threshold for the steric check
 	double overlapThresh = 1.5;
 	
@@ -122,20 +124,27 @@ public class StericCheck {
 	//the number of conformations pruned by the steric filter
 	BigInteger numConfsPrunedByS = new BigInteger("0");
 	
+	int mutRes2Strand[] = null;
+	int mutRes2StrandMutIndex[] = null;
+
+        //Indicates use of DEEPer
+        boolean doPerturbations = false;
+
 	//determines whther a ligand is present
-	boolean ligPresent = false;
+	//boolean ligPresent = false;
 	
 	//PrintStream logPS = null;
 	
-	StericCheck (int curAANumP[],int curResToASMapP[],int residueMapP[],boolean eliminatedRotAtPosRedP[],
+	/*StericCheck (int curAANumP[],int curResToASMapP[],int strandMutP[],boolean eliminatedRotAtPosRedP[],
 			int numRotForResP[],Molecule mP, double overlapThreshP,	boolean hS, BigInteger numConfsLeftP,
-			BigInteger numConfsAboveLevelP[], int sysStrNumP, StrandRotamers sysLRP, int ligStrNumP, 
+			BigInteger numConfsAboveLevelP[], int numMutableP, StrandRotamers sysLRP, int ligStrNumP, 
 			StrandRotamers ligROTP, int curLigAANum, RotamerLibrary rlP, RotamerLibrary grlP){
 		
 		curAANum = curAANumP;
-		curResToASMap = curResToASMapP;
-		residueMap = residueMapP;
-		numInAS = residueMap.length;
+		//curResToASMap = curResToASMapP;
+		//residueMap = residueMapP;
+		//numInAS = residueMap.length;
+		strandMut = strandMutP;
 		m = mP;
 		overlapThresh = overlapThreshP;
 		hSteric = hS;
@@ -154,16 +163,20 @@ public class StericCheck {
 		grl = grlP;
 		
 		//logPS = logPSP;
-	}
+	}*/
 	
-	StericCheck (int curAANumP[],int curResToASMapP[],int residueMapP[],boolean eliminatedRotAtPosRedP[],
+	StericCheck (int curAANumP[],/*int curResToASMapP[],*/int strandMutP[][],boolean eliminatedRotAtPosRedP[],
 			int numRotForResP[],Molecule mP, double overlapThreshP, boolean hS, BigInteger numConfsLeftP, 
-			BigInteger numConfsAboveLevelP[], int sysStrNumP, StrandRotamers sysLRP, RotamerLibrary rlP){
+			BigInteger numConfsAboveLevelP[], int numMutableP, int numberOfStrandsP, StrandRotamers strandRotP[],
+			int mutRes2StrandP[], int mutRes2StrandMutIndexP[], boolean doPerts){
 		
 		curAANum = curAANumP;
-		curResToASMap = curResToASMapP;
-		residueMap = residueMapP;
-		numInAS = residueMap.length;
+		//curResToASMap = curResToASMapP;
+		//residueMap = residueMapP;
+		//numInAS = residueMap.length;
+		strandMut = strandMutP;
+		numMutable = numMutableP;
+		
 		m = mP;
 		overlapThresh = overlapThreshP;
 		hSteric = hS;
@@ -172,10 +185,15 @@ public class StericCheck {
 		numConfsLeft = numConfsLeftP;
 		numConfsAboveLevel = numConfsAboveLevelP;
 		numConfsPrunedByS = new BigInteger("0");
-		sysStrNum = sysStrNumP;
-		sysLR = sysLRP;
-		ligPresent = false;
-		rl = rlP;
+		//sysStrNum = sysStrNumP;
+		//sysLR = sysLRP;
+		//ligPresent = false;
+		numberOfStrands = numberOfStrandsP;
+		strandRot = strandRotP;
+		mutRes2Strand = mutRes2StrandP;
+		mutRes2StrandMutIndex = mutRes2StrandMutIndexP;
+                doPerturbations = doPerts;
+
 		
 		//logPS = logPSP;
 	}
@@ -236,13 +254,32 @@ public class StericCheck {
 		
 		//If there is a ligand and curTopLevel is the ligand level (full conformation), apply the lig rotamer;
 		//	otherwise, curTopLevel is an AS residue
-		if ((ligPresent)&&(curTopLevel==numInAS)){ //apply the ligand rotamer
+		/*if ((ligPresent)&&(curTopLevel==numInAS)){ //apply the ligand rotamer
 			if (grl.getNumRotForAAtype(ligAANum)!=0){//not GLY or ALA
 				ligROT.applyRotamer(m, 0, conf[curTopLevel]);//the ligand level
 			}
 			applyLig = true;
+		}*/
+		for(int i=0; i<=curTopLevel;i++){
+				//int curL = oldLevelToNew[i];
+				int str = mutRes2Strand[i];
+				int strResNum = strandMut[str][mutRes2StrandMutIndex[i]];
+		//for (int str=0; str<numberOfStrands;str++){
+		//	for(int i=0;i<strandMut[str].length;i++){
+		//		if(curAS>curTopLevel)
+		//			break;
+				int molResNum = m.strand[str].residue[strResNum].moleculeResidueNumber;
+
+                                if(doPerturbations)
+                                        ((StrandRCs)strandRot[str]).applyRC(m, strResNum, conf[curAS]);
+                                else if (strandRot[str].rl.getNumRotForAAtype(curAANum[molResNum])!=0){//not GLY or ALA
+					strandRot[str].applyRotamer(m, strResNum, conf[curAS]);
+                                }
+		//		curAS++; //prepare the next AS residue
+		//	}
 		}
-		for (int curRes=0; curRes<m.strand[sysStrNum].numberOfResidues; curRes++){
+		
+		/*for (int curRes=0; curRes<m.strand[sysStrNum].numberOfResidues; curRes++){
 			if (curAS<curTopLevel){ //apply for AS res 0...(curTopLevel-1)
 				if (curResToASMap[curRes]!=-1){//make a change only to the AS residues: use the native type for the other residues
 										
@@ -261,7 +298,7 @@ public class StericCheck {
 			}
 			else //we have already applied all of the rotamers for the given partial conformation
 				break;
-		}
+		}*/
 		
 		/*logPS.println("curTopLevel "+curTopLevel+" curNode "+curNode+" curConf ");
 		for (int i=0;i<=curTopLevel;i++)logPS.print(conf[i]+" ");logPS.println();
@@ -274,11 +311,14 @@ public class StericCheck {
 		}*/
 		
 		boolean allowedSteric = true;
+		//int curTL = oldLevelToNew[curTopLevel];
+		int str = mutRes2Strand[curTopLevel];
+		int strResNum = strandMut[str][mutRes2StrandMutIndex[curTopLevel]];
 		//Do the steric checks
-		if ((ligPresent)&&(curTopLevel==numInAS)) //check the ligand (which is at the top level) against all other residues
+		/*if ((ligPresent)&&(curTopLevel==numInAS)) //check the ligand (which is at the top level) against all other residues
 			allowedSteric = RS_CheckAllSterics(ligStrNum,0);
-		else 
-			allowedSteric = RS_CheckAllSterics(sysStrNum,residueMap[curTopLevel]);
+		else*/ 
+			allowedSteric = RS_CheckAllSterics(str,strResNum);
 		
 		m.restoreAtomCoord(); //restore the atom coordinates
 		m.updateCoordinates(); //restore the actualCoordinates
@@ -305,13 +345,22 @@ public class StericCheck {
 		ProbeStericCheck psc = new ProbeStericCheck();
 		
 		//The mapping from AS res to the system strand residue numbering
-		boolean curASToResMap[] = new boolean[m.strand[sysStrNum].numberOfResidues];
-		for (int i=0; i<curASToResMap.length; i++)
-			curASToResMap[i] = false;
+		boolean curASToResMap[][] = new boolean[numberOfStrands][];
 		
-		for (int i=0; i<residueMap.length; i++)
-			curASToResMap[residueMap[i]] = true;
+		for (int str=0;str<numberOfStrands;str++){
+			curASToResMap[str] = new boolean[m.strand[str].numberOfResidues];
+		}
 	
+		for(int str=0;str<numberOfStrands;str++){
+			for (int i=0; i<curASToResMap[str].length; i++)
+				curASToResMap[str][i] = false;
+		}
+		for(int str=0;str<numberOfStrands;str++){
+			for (int i=0; i<strandMut[str].length; i++)
+				curASToResMap[str][strandMut[str][i]] = true;
+	
+		}		
+		
 		Residue res = m.strand[strandNum].residue[resNum];
 	
 		// It's important to divide below by 100.0 rather than
@@ -326,8 +375,9 @@ public class StericCheck {
 					int resToCheck = m.strand[q].numberOfResidues;
 					for(int w=0;w<resToCheck;w++) {
 						if(!((q==strandNum) && (w==resNum))) {//not the same residue
-							if ((!((strandNum==sysStrNum)&&(q==strandNum)&&(w>resNum)&&(curASToResMap[w])))&&
-									(!((q==ligStrNum)&&(strandNum==sysStrNum)))){//not an AS residue with a bigger res number AND not the ligand
+							if( !( ((q>strandNum)&&curASToResMap[q][w]) || ((q==strandNum)&&(w>resNum)&&(curASToResMap[q][w])) ) ){
+							//if ((!((strandNum==sysStrNum)&&(q==strandNum)&&(w>resNum)&&(curASToResMap[w])))&&
+									//(!((q==ligStrNum)&&(strandNum==sysStrNum)))){//not an AS residue with a bigger res number AND not the ligand
 								for(int t=0;t<m.strand[q].residue[w].numberOfAtoms;t++) {
 									Atom a2 = m.strand[q].residue[w].atom[t];
 									if ( hSteric || (!a2.elementType.equalsIgnoreCase("H")) ) {
@@ -336,7 +386,9 @@ public class StericCheck {
 									}
 								}
 							}
-							else if ((strandNum==sysStrNum)&&(q==strandNum)&&(w>resNum)&&(curASToResMap[w])){ //an unassigned AS residue, so check only the backbone atoms of that residue
+							else if ( ((q>strandNum)&&curASToResMap[q][w]) ||((q==strandNum)&&(w>resNum)&&(curASToResMap[q][w])) ) {
+                                                            if(!doPerturbations){//Don't do this check in DEEPer because the backbone atoms may move still
+							//else if ((strandNum==sysStrNum)&&(q==strandNum)&&(w>resNum)&&(curASToResMap[w])){ //an unassigned AS residue, so check only the backbone atoms of that residue
 								for(int t=0;t<m.strand[q].residue[w].numberOfAtoms;t++) {
 									Atom a2 = m.strand[q].residue[w].atom[t];
 									if (a2.getIsBBatom()){
@@ -346,6 +398,7 @@ public class StericCheck {
 										}
 									}
 								}
+                                                            }
 							}
 						}
 					}

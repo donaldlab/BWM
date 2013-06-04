@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,22 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	BackrubMinimizer.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	 ---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -83,22 +84,30 @@ public class BackrubMinimizer implements Serializable {
 	
 	private int MAX_NUM_ATOMS_RES = 30; //the max number of atoms for a given residue; this is increased as needed for big ligands
 	
+	int mutRes2Strand[] = null;
+	int mutRes2StrandMutIndex[] = null;
+	
 	Molecule m = null;
 	Amber96ext a96ff = null;
 	
-	int numFlexRes = -1; //the number of residues with flexible side-chains (only in the system strand, and not the ligand)
+	int numFlexRes[] = null; //the number of residues with flexible side-chains (only in the system strand, and not the ligand)
 	int flexResAtomList[][] = new int[0][0]; 
 		// each row is a residue and contains
 		//  the moleucleatomnumbers located more
 		//  distal than the 3rd atom of any dihedral
 	int flexResListSize[] = new int[0]; // the number of valid elements in each row of flexResAtomList
 	
-	int residueMap[] = null; //the mapping between AS and sysStrand-relative residue numbering
+	int totalFlexRes = 0;
+	int totalTransRotStrands = 0;
+	int totalNonTransRotStrands = 0;
 	
-	int ligResNum = -1; // the residue index of the ligand in the flexResAtomList, flexResListSize
-	int ligStrNum = -1; // the ligand strand number (if ligStrNum == -1 then there is no ligand)
+	//int residueMap[] = null; //the mapping between AS and sysStrand-relative residue numbering
+	int strandMut[][] = null;
 	
-	int sysStrNum = -1; //the system strand number
+	//int ligResNum = -1; // the residue index of the ligand in the flexResAtomList, flexResListSize
+	//int ligStrNum = -1; // the ligand strand number (if ligStrNum == -1 then there is no ligand)
+	
+	//int sysStrNum = -1; //the system strand number
 	
 	Backrubs br = null; //handles the application of the backrub motions
 	
@@ -112,7 +121,7 @@ public class BackrubMinimizer implements Serializable {
 	final float ligTransSize = 0.5f; //initial translation size (in angstrom)
 	final int numTransRotSteps = 10; //number translation/rotation steps for the ligand
 	float ligMaxTrans = 1.2f; //the maximum ligand translation allowed (computed as allowed CA displacement)
-	double initLigCA[] = null;
+	//double initLigCA[] = null;
 	
 	private double bigE = Math.pow(10, 38);
 	
@@ -129,28 +138,42 @@ public class BackrubMinimizer implements Serializable {
 	boolean hSteric = true; //determines if hydrogens are used in steric checks
 	float overlapThresh = -10000.0f; //the allowed overlap threshold
 	
+	int numberOfStrands;
+	int numMutRes; //KER: total number of mutable residues (i.e. what used to be residueMap.length)
+	
 	//constructor
 	BackrubMinimizer(){
 	}
 	
 	//Initialize for the system strand only
-	public void initialize(Molecule mol, Amber96ext theA96ff, int resMap[], int sysStrand, String brFile, boolean hS, float stThresh) {
+	public void initialize(Molecule mol, Amber96ext theA96ff, int strMut[][], String brFile, boolean hS, float stThresh, int numStrands, boolean readFile) {
 		
 		m = mol;
 		a96ff = theA96ff;
-		sysStrNum = sysStrand;
+		numberOfStrands = numStrands;		
 		
-		residueMap = resMap; //the numbering in residueMap[] is system-strand-relative		
+		strandMut = strMut; //the numbering in residueMap[] is system-strand-relative
+		initMutRes2Str(strMut);
+
+		//NumMutRes (Don't count non-protein strands)
+		numMutRes = 0;
+		for(int i=0;i<strandMut.length;i++){
+			if(m.strand[i].isProtein)
+				numMutRes += strandMut[i].length;
+		}
+		
 		backrubFile = brFile;
 		
 		hSteric = hS;
 		overlapThresh = stThresh;
 
 		// Count number of flexible residues
-		numFlexRes = 0;
-		for(int i=0;i<m.strand[sysStrNum].numberOfResidues;i++){
-			if(m.strand[sysStrNum].residue[i].flexible)
-				numFlexRes++;
+		numFlexRes = new int[numberOfStrands];;
+		for(int str=0; str<numberOfStrands;str++){
+			for(int i=0;i<m.strand[str].numberOfResidues;i++){
+				if(m.strand[str].residue[i].flexible)
+					numFlexRes[str]++;
+			}
 		}
 		
 		// 2 is added to numFlexRes so that there is room for the ligand at the
@@ -159,27 +182,59 @@ public class BackrubMinimizer implements Serializable {
 		// The first ligand term includes nonbonded terms for computing energies
 		// The second ligand term includes nonbonded terms for computing the gradient
 		//  and thus includes terms for all atoms
-		flexResAtomList = new int[numFlexRes+2][MAX_NUM_ATOMS_RES];
-		flexResListSize = new int[numFlexRes+2];
+		totalFlexRes = 0;
+		for(int i=0; i<numberOfStrands;i++)
+			totalFlexRes += numFlexRes[i];
+		
+		totalTransRotStrands = 0;
+		for(int i=0; i<numberOfStrands;i++)
+			if(m.strand[i].rotTrans)
+				totalTransRotStrands++;
+		
+		totalNonTransRotStrands = numberOfStrands-totalTransRotStrands;
+		
+		flexResAtomList = new int[totalFlexRes+totalTransRotStrands][];
+		flexResListSize = new int[totalFlexRes+totalTransRotStrands];
 		
 		int curNumFlex = 0;
 		Residue localRes = null;
-		for(int i=0;i<m.strand[sysStrNum].numberOfResidues;i++){
-			localRes = m.strand[sysStrNum].residue[i];
-			if(localRes.flexible){
-				flexResListSize[curNumFlex] = localRes.numberOfAtoms;
-				for(int k=0;k<flexResListSize[curNumFlex];k++){
-					flexResAtomList[curNumFlex][k] = localRes.atom[k].moleculeAtomNumber;
+		int curTransRotInd = -1;
+		int strResNumPP = -1;
+		for(int str=0; str<numberOfStrands;str++){
+			if(m.strand[str].rotTrans){
+				curTransRotInd++;
+				strResNumPP = totalFlexRes+curTransRotInd;
+				flexResListSize[strResNumPP] = mol.strand[str].numberOfAtoms;
+				flexResAtomList[strResNumPP] = new int[flexResListSize[strResNumPP]];
+			}
+			
+			int prevNumAtoms = 0;
+			for(int i=0;i<m.strand[str].numberOfResidues;i++){
+				localRes = m.strand[str].residue[i];
+				
+				for(int k=0;k<localRes.numberOfAtoms;k++){
+					if(m.strand[str].rotTrans)
+						flexResAtomList[strResNumPP][k+prevNumAtoms] = localRes.atom[k].moleculeAtomNumber;
 				}
-				curNumFlex++;
+				prevNumAtoms += localRes.numberOfAtoms;
+				
+				if(localRes.flexible){
+					flexResListSize[curNumFlex] = localRes.numberOfAtoms;
+					flexResAtomList[curNumFlex] = new int[flexResListSize[curNumFlex]];
+					for(int k=0;k<flexResListSize[curNumFlex];k++){
+						flexResAtomList[curNumFlex][k] = localRes.atom[k].moleculeAtomNumber;
+					}
+					curNumFlex++;
+				}
 			}
 		}
 		
-		readBackrubs(); //read in the allowed backrubs
+		if(readFile)
+			readBackrubs(); //read in the allowed backrubs
 	}
 	
 	//Initialize for a system and a ligand
-	public void initialize(Molecule mol, Amber96ext theA96ff, int residueMap[], int sysStrand,
+	/*public void initialize(Molecule mol, Amber96ext theA96ff, int residueMap[], int sysStrand,
 			int ligStrand, String brFile, boolean hS, float stThresh){
 		
 		MAX_NUM_ATOMS_RES = Math.max(MAX_NUM_ATOMS_RES, mol.strand[ligStrand].residue[0].numberOfAtoms);
@@ -203,7 +258,7 @@ public class BackrubMinimizer implements Serializable {
 				flexResAtomList[ligResNum][k] = localRes.atom[k].moleculeAtomNumber;
 			}
 		}
-	}
+	}*/
 	
 	//Calls the version below with (shellRun==false) and (templateOnly==false);
 	//This version is only called for the pairwise matrix energy precomputation runs involving the shell (SHL-AS, LIG-SHL, and TEMPL)
@@ -223,14 +278,16 @@ public class BackrubMinimizer implements Serializable {
 		
 		br = new Backrubs();
 		
-		minE = Math.pow(10, 38);
-		minEbrSample = new float[residueMap.length][];
-		float curEbrSample[][] = new float[residueMap.length][];
-		maxE = -Math.pow(10, 38);
-		maxEbrSample = new float[residueMap.length][];
 		
-		if (ligStrNum!=-1) //find the initial ligand CA position
-			initLigCA = getCAcoord(m.strand[ligStrNum].residue[0].moleculeResidueNumber);
+		
+		minE = Math.pow(10, 38);
+		minEbrSample = new float[numMutRes][];
+		float curEbrSample[][] = new float[numMutRes][];
+		maxE = -Math.pow(10, 38);
+		maxEbrSample = new float[numMutRes][];
+		
+		//if (ligStrNum!=-1) //find the initial ligand CA position
+		//	initLigCA = getCAcoord(m.strand[ligStrNum].residue[0].moleculeResidueNumber);
 		
 		setupPartialAmber();
 		
@@ -243,20 +300,27 @@ public class BackrubMinimizer implements Serializable {
 		
 		
 		//generate the excluded atom lists that will be used for partially-assigned backrub conformations during the search
-		int excludeList[][][] = new int[residueMap.length][][];
-		for (int i=0; i<residueMap.length; i++)
-			excludeList[i] = generateExcludeListSteric(m,sysStrNum,residueMap,i,shellRun,templateOnly);
+		int excludeList[][][] = new int[numMutRes][][];
+		for (int i=0; i<numMutRes; i++)
+			excludeList[i] = generateExcludeListSteric(m,strandMut,i,shellRun,templateOnly);
 		
 		minimizeFullHelper(0,curEbrSample,shellRun,templateOnly,useBRforCurRot,excludeList); //find the best backrubs combination
 		
 		//Apply the best backrubs combination and translate/rotate the ligand (if present) accordingly
-		for (int i=0; i<residueMap.length; i++){
-			Residue curRes = m.strand[sysStrNum].residue[residueMap[i]];
+		for (int i=0; i<numMutRes; i++){
+			// Check with allowed AAs
+			int str = mutRes2Strand[i];
+			int strResNum = strandMut[str][mutRes2StrandMutIndex[i]];
+			
+			Residue curRes = m.strand[str].residue[strResNum];
 			if ( (minEbrSample[i]!=null)&&(minEbrSample[i][0]!=0.0f) )
-				br.applyBackrub(m, sysStrNum, curRes.strandResidueNumber, minEbrSample[i][0], false, minEbrSample[i][1], minEbrSample[i][2]);
+				br.applyBackrub(m, str, curRes.strandResidueNumber, minEbrSample[i][0], false, minEbrSample[i][1], minEbrSample[i][2]);
 		}
-		if (ligStrNum!=-1)
-			doLigTransRot();
+		for(int str=0;str<numberOfStrands;str++){
+			if(m.strand[str].rotTrans){
+				doStrTransRot(str);
+			}
+		}
 	}
 	
 	//Called by minimizeFull()
@@ -265,13 +329,16 @@ public class BackrubMinimizer implements Serializable {
 	private void minimizeFullHelper(int curDepth, float curEbrSample[][], boolean shellRun, boolean templateOnly, 
 			boolean useBRforCurRot[][], int excludeList[][][]){
 		
-		if (curDepth==residueMap.length){ //a fully-assigned conformation for the system strand
+		if (curDepth==numMutRes){ //a fully-assigned conformation for the system strand
 			
-			float storedCoord[] = null;
-			if (ligStrNum!=-1){ //there is a ligand, so translate/rotate the ligand
-				storedCoord = storeCoord(m.strand[ligStrNum].residue[0].moleculeResidueNumber);
+			float storedCoord[][][] = new float[numberOfStrands][][];
+			for(int str=0;str<numberOfStrands;str++){
+				if(m.strand[str].rotTrans){ //there is a ligand, so translate/rotate the ligand
+					storedCoord[str] = new float[m.strand[str].numberOfResidues][];
+					for(int i=0; i<m.strand[str].numberOfResidues;i++)
+						storedCoord[str][i] = storeCoord(m.strand[str].residue[i].moleculeResidueNumber);
 				//doLigTransRot(); //this should be un-commented if we want to translate/rotate the ligand for each backrub combination
-			}
+			}}
 			
 			double curE[] = null;
 			if ( shellRun && !templateOnly ) //shell run, so only compute the energy between the single flexible residue and the shell
@@ -290,11 +357,19 @@ public class BackrubMinimizer implements Serializable {
 					maxEbrSample[i] = curEbrSample[i];
 			}
 			
-			if (ligStrNum!=-1)
-				restoreCoord(m.strand[ligStrNum].residue[0].moleculeResidueNumber,storedCoord); //restore the ligand coordinates to those before minimization
+			for(int str=0;str<numberOfStrands;str++){
+				if(m.strand[str].rotTrans){
+					for(int i=0; i<m.strand[str].numberOfResidues;i++)
+						restoreCoord(m.strand[str].residue[i].moleculeResidueNumber,storedCoord[str][i]); //restore the ligand coordinates to those before minimization
+				}
+			}
 		}
 		else {
-			Residue curRes = m.strand[sysStrNum].residue[residueMap[curDepth]];
+			// Check with allowed AAs
+			int str = mutRes2Strand[curDepth];
+			int strResNum = strandMut[str][mutRes2StrandMutIndex[curDepth]];
+			
+			Residue curRes = m.strand[str].residue[strResNum];
 			
 			//Backrubs are only applied for the residues currently marked as flexible;
 			//If shellRun or templateOnly are true, then this is a pairwise matrix energy precomputation involving the shell, and so
@@ -304,15 +379,16 @@ public class BackrubMinimizer implements Serializable {
 					if (useBRsample[curDepth][i] && useBRforCurRot[curDepth][i]) { //allowed backrub
 						
 						float storedCoord[][] = new float[3][]; //backup the actualCoordinates[] for the three affected residues before the current backrub
-						storedCoord[0] = storeCoord(m.strand[sysStrNum].residue[residueMap[curDepth]-1].moleculeResidueNumber); 
-						storedCoord[1] = storeCoord(curRes.moleculeResidueNumber);
-						storedCoord[2] = storeCoord(m.strand[sysStrNum].residue[residueMap[curDepth]+1].moleculeResidueNumber);
+						if (brSamples[curDepth][i]!=0.0f){
+							storedCoord[0] = storeCoord(m.strand[str].residue[strResNum-1].moleculeResidueNumber); 
+							storedCoord[1] = storeCoord(curRes.moleculeResidueNumber);
+							storedCoord[2] = storeCoord(m.strand[str].residue[strResNum+1].moleculeResidueNumber);
 						
-						if (brSamples[curDepth][i]!=0.0f)
-							br.applyBackrub(m, sysStrNum, curRes.strandResidueNumber, brSamples[curDepth][i], false, theta2[curDepth][i], theta3[curDepth][i]);
+							br.applyBackrub(m, str, curRes.strandResidueNumber, brSamples[curDepth][i], false, theta2[curDepth][i], theta3[curDepth][i]);
+						}
 						
-						if ( ( curRes.flexible && checkSterics(m,sysStrNum,residueMap[curDepth],excludeList[curDepth],true) )
-								|| ( (!curRes.flexible) && checkSterics(m,sysStrNum,residueMap[curDepth],excludeList[curDepth],false) ) ){ //allowed steric
+						if ( ( curRes.flexible && checkSterics(m,str,strResNum,excludeList[curDepth],true) )
+								|| ( (!curRes.flexible) && checkSterics(m,str,strResNum,excludeList[curDepth],false) ) ){ //allowed steric
 							
 							curEbrSample[curDepth] = new float[3];
 							curEbrSample[curDepth][0] = brSamples[curDepth][i];
@@ -322,10 +398,12 @@ public class BackrubMinimizer implements Serializable {
 							minimizeFullHelper(curDepth+1,curEbrSample,shellRun,templateOnly,useBRforCurRot,excludeList); //move to the next residue
 						}
 						
-						//restore the actualCoordinates for the three residues to the ones before the current backrub
-						restoreCoord(m.strand[sysStrNum].residue[residueMap[curDepth]-1].moleculeResidueNumber,storedCoord[0]); 
-						restoreCoord(curRes.moleculeResidueNumber,storedCoord[1]);
-						restoreCoord(m.strand[sysStrNum].residue[residueMap[curDepth]+1].moleculeResidueNumber,storedCoord[2]);
+						if (brSamples[curDepth][i]!=0.0f){
+							//restore the actualCoordinates for the three residues to the ones before the current backrub
+							restoreCoord(m.strand[str].residue[strResNum-1].moleculeResidueNumber,storedCoord[0]); 
+							restoreCoord(curRes.moleculeResidueNumber,storedCoord[1]);
+							restoreCoord(m.strand[str].residue[strResNum+1].moleculeResidueNumber,storedCoord[2]);
+						}
 					}
 				}				
 			}
@@ -338,28 +416,34 @@ public class BackrubMinimizer implements Serializable {
 	//Setup the Amber partial arrays
 	private void setupPartialAmber(){
 		// numFlexRes, flexResAtomList, and flexResListSize include the ligand if one exists
-		if(ligStrNum != -1)
+		/*if(ligStrNum != -1)
 			a96ff.setupPartialArrays(numFlexRes+2,MAX_NUM_ATOMS_RES,flexResAtomList,
 				flexResListSize);
-		else
-			a96ff.setupPartialArrays(numFlexRes,MAX_NUM_ATOMS_RES,flexResAtomList,
+		else*/
+			a96ff.setupPartialArrays(totalFlexRes+totalTransRotStrands,MAX_NUM_ATOMS_RES,flexResAtomList,
 				flexResListSize);
 	}
 	
 	//Applies the backrub conformation that corresponds to the max found energy
 	//NOTE: minimizeFull() must be run before calling this function
 	public void applyMaxBackrub(){
-		for (int i=0; i<residueMap.length; i++){
-			Residue curRes = m.strand[sysStrNum].residue[residueMap[i]];
+		for (int i=0; i<numMutRes; i++){
+			// Check with allowed AAs
+			int str = mutRes2Strand[i];
+			int strResNum = strandMut[str][mutRes2StrandMutIndex[i]];
+			
+			Residue curRes = m.strand[str].residue[strResNum];
 			if ( (maxEbrSample[i]!=null)&&(maxEbrSample[i][0]!=0.0f) )
-				br.applyBackrub(m, sysStrNum, curRes.strandResidueNumber, maxEbrSample[i][0], false, maxEbrSample[i][1], maxEbrSample[i][2]);
+				br.applyBackrub(m, str, curRes.strandResidueNumber, maxEbrSample[i][0], false, maxEbrSample[i][1], maxEbrSample[i][2]);
 		}
-		if (ligStrNum!=-1)
-			doLigTransRot();
+		
+		for(int i=0; i<numberOfStrands;i++)
+			if(m.strand[i].rotTrans)
+				doStrTransRot(i);
 	}
 	
 	//Performs the ligand translation/rotation
-	private void doLigTransRot(){
+	private void doStrTransRot(int strNumber){
 		
 		float rotStep = ligRotSize;
 		float transStep = ligTransSize;
@@ -367,21 +451,26 @@ public class BackrubMinimizer implements Serializable {
 		float deltaRotStep = rotStep/numTransRotSteps;
 		float deltaTransStep = transStep/numTransRotSteps;
 		
-		int resNums[] = new int[1];
-		resNums[0] = m.strand[ligStrNum].residue[0].moleculeResidueNumber;
+		double[] initCOM = m.getStrandCOM(strNumber);
 		
+		int resNums[] = new int[m.strand[strNumber].numberOfResidues];
+		for(int i=0; i<resNums.length;i++)
+			resNums[i] = m.strand[strNumber].residue[i].moleculeResidueNumber;
+		
+		double centOfMass[];
 		for (int j=0; j<numTransRotSteps; j++){
-		
+			centOfMass = m.getStrandCOM(strNumber);
 			for (int curCoord=0; curCoord<3; curCoord++){
-				float dTrans = compTrans(resNums,1,curCoord,transStep,ligResNum);
+				float dTrans = compTrans(resNums,resNums.length,curCoord,transStep);
 				if (Math.abs(dTrans)!=0.0)
-					updateCumulativeTrans(curCoord,dTrans,false);
+					updateCumulativeTrans(strNumber, curCoord,dTrans,false, initCOM);
 			}
+			centOfMass = m.getStrandCOM(strNumber);
 			for (int curCoord=0; curCoord<3; curCoord++){
-				float axisToRot[] = getRotVector(resNums[0],curCoord); //determine the axis of rotation
-				float dRot = compRot(resNums,1,rotStep,getCAcoord(resNums[0]),axisToRot,ligResNum);
+				float axisToRot[] = getRotVector(curCoord); //determine the axis of rotation
+				float dRot = compRot(resNums,rotStep,centOfMass,axisToRot);
 				if (Math.abs(dRot)!=0.0)
-					updateCumulativeRot(resNums[0],dRot,getCAcoord(resNums[0]),false,axisToRot,true);
+					updateCumulativeRot(resNums,dRot,centOfMass,false,axisToRot);
 			}
 			
 			rotStep -= deltaRotStep;
@@ -391,7 +480,7 @@ public class BackrubMinimizer implements Serializable {
 	
 	//Determines the direction for the translation of size transStep for
 	//		the numRes number of residues in resNums[] (molecule-relative numbering) in the direction of coord
-	private float compTrans(int resNums[], int numRes, int coord, float transStep, int AAnum){
+	private float compTrans(int resNums[], int numRes, int coord, float transStep){
 		
 		//determine the translation size
 		float d[] = new float[3];
@@ -408,12 +497,14 @@ public class BackrubMinimizer implements Serializable {
 		
 		
 		//Check at initial position
-		initialEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,AAnum);
+		//TODO: Making these "-1" instead of AAnum makes the calculation a lot slower
+		//      which should be fixed by hashing rotatable strand arrays
+		initialEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);
 		
 		//Check at +transStep rotation
 		for (int i=0; i<numRes; i++)
 			m.translateResidue(resNums[i], d[0], d[1], d[2], false);	
-		secondEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,AAnum);		
+		secondEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);		
 		for (int i=0; i<numRes; i++)
 			restoreCoord(resNums[i],storedCoord[i]);
 		
@@ -421,7 +512,7 @@ public class BackrubMinimizer implements Serializable {
 		d[coord] = -transStep;
 		for (int i=0; i<numRes; i++)
 			m.translateResidue(resNums[i], d[0], d[1], d[2], false);		
-		thirdEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,AAnum);		
+		thirdEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);		
 		for (int i=0; i<numRes; i++)
 			restoreCoord(resNums[i],storedCoord[i]);
 		
@@ -430,26 +521,26 @@ public class BackrubMinimizer implements Serializable {
 	
 	//Checks if a translation of transStep in the direction of coord will move the CA of the ligand further than the limit
 	//		and applies the optimal translation if (onlyCheck==false)
-	private float updateCumulativeTrans(int coord, float transStep, boolean onlyCheck){
+	private float updateCumulativeTrans(int strNum, int coord, float transStep, boolean onlyCheck, double[] initCOM){
 		
-		int resNum = m.strand[ligStrNum].residue[0].moleculeResidueNumber;
+		//int resNum = m.strand[ligStrNum].residue[0].moleculeResidueNumber;
 		
-		double curCA[] = getCAcoord(resNum);
+		float curCOM[] = m.strand[strNum].getCenterOfMass();
 		
 		//Determine the new CA if we took this step (the translation is only in the direction of the coord coordinate)
-		double tmpCA[] = new double[3];
-		for (int i=0; i<tmpCA.length; i++)
-			tmpCA[i] = curCA[i];
-		tmpCA[coord] += transStep;
+		double tmpCOM[] = new double[3];
+		for (int i=0; i<tmpCOM.length; i++)
+			tmpCOM[i] = curCOM[i];
+		tmpCOM[coord] += transStep;
 		
 		//Compute how large of a step this would be from the start point
-		double dist = getDist(tmpCA,initLigCA);
+		double dist = getDist(tmpCOM,initCOM);
 			
 		if (dist > ligMaxTrans){ // if the step would take us too far away then scale it back
 			double curDisp[] = new double[3];
-			curDisp[0] = curCA[0] - initLigCA[0];
-			curDisp[1] = curCA[1] - initLigCA[1];
-			curDisp[2] = curCA[2] - initLigCA[2];
+			curDisp[0] = curCOM[0] - initCOM[0];
+			curDisp[1] = curCOM[1] - initCOM[1];
+			curDisp[2] = curCOM[2] - initCOM[2];
 			
 			double a[] = new double[2];
 			int ind = 0;
@@ -476,39 +567,42 @@ public class BackrubMinimizer implements Serializable {
 			theTranslation[i] = 0.0f;
 		theTranslation[coord] = transStep;
 
-		if (!onlyCheck) //actually apply the new translation			
-			m.translateResidue(resNum, theTranslation[0], theTranslation[1], theTranslation[2], false);
+		if (!onlyCheck) //actually apply the new translation
+			for(int i=0; i<m.strand[strNum].numberOfResidues;i++)
+				m.translateResidue(m.strand[strNum].residue[i].moleculeResidueNumber, theTranslation[0], theTranslation[1], theTranslation[2], false);
 		
 		return transStep;
 	}
 	
 	//Determines the direction for the rotation of size rotStep centered at center[], for
 	//		the numRes number of residues in resNums[]  (molecule-relative numbering) around the axisToRot axis
-	private float compRot(int resNums[], int numRes, float rotStep, double center[], float axisToRot[], int AAnum){		
+	private float compRot(int resNums[], float rotStep, double center[], float axisToRot[]){		
 		
 		double initialEnergy[], secondEnergy[], thirdEnergy[];
-		float storedCoord[][] = new float[numRes][];
+		float storedCoord[][] = new float[resNums.length][];
 		
 		//Store the actualCoordinates for resNum before any changes
-		for (int i=0; i<numRes; i++)
+		for (int i=0; i<resNums.length; i++)
 			storedCoord[i] = storeCoord(resNums[i]);
 		
 		
 		//Check at initial position
-		initialEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,AAnum);
+		//TODO: Making this "-1" instead of "AAnum" will make it slower. Fix by adding
+		//      whole strands to the partial matrix computation
+		initialEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);
 		
 		//Check at +rotStep rotation
-		for (int i=0; i<numRes; i++)
+		for (int i=0; i<resNums.length; i++)
 			m.rotateResidue(resNums[i], axisToRot[0], axisToRot[1], axisToRot[2], center[0], center[1], center[2], rotStep, false);		
-		secondEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,AAnum);		
-		for (int i=0; i<numRes; i++)
+		secondEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);		
+		for (int i=0; i<resNums.length; i++)
 			restoreCoord(resNums[i],storedCoord[i]);
 		
 		//Check at -rotStep rotation
-		for (int i=0; i<numRes; i++)
+		for (int i=0; i<resNums.length; i++)
 			m.rotateResidue(resNums[i], axisToRot[0], axisToRot[1], axisToRot[2], center[0], center[1], center[2], -rotStep, false);		
-		thirdEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,AAnum);		
-		for (int i=0; i<numRes; i++)
+		thirdEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);		
+		for (int i=0; i<resNums.length; i++)
 			restoreCoord(resNums[i],storedCoord[i]);
 		
 		return getDir(initialEnergy[0],secondEnergy[0],thirdEnergy[0],rotStep);
@@ -520,13 +614,20 @@ public class BackrubMinimizer implements Serializable {
 	//		the rotation is decresed so that CA is moved to the limit;
 	//If centerIsCA is true, then the center of rotation is the CA atom of residue resNum, so the rotation will not change the CA position;
 	//Only if (checkOnly==false), then the rotation is actually performed
-	private float updateCumulativeRot(int resNum, float rotStep, double center[], boolean checkOnly, float axisToRot[], boolean centerIsCA){
+	private float updateCumulativeRot(int[] resNums, float rotStep, double center[], boolean checkOnly, float axisToRot[]){
 		
-		float storedCoord[] = storeCoord(resNum);
 		
-		m.rotateResidue(resNum, axisToRot[0], axisToRot[1], axisToRot[2], center[0], center[1], center[2], rotStep, false);
+		float storedCoord[][] = new float[resNums.length][];
 		
-		double CAcoord[] = getCAcoord(resNum);
+		//Store the actualCoordinates for resNum before any changes
+		for (int i=0; i<resNums.length; i++)
+			storedCoord[i] = storeCoord(resNums[i]);
+				
+		for (int i=0; i<resNums.length; i++)
+			m.rotateResidue(resNums[i], axisToRot[0], axisToRot[1], axisToRot[2], center[0], center[1], center[2], rotStep, false);
+		
+		//KER: Don't worry about rotation moving center too far since we rotate around the center
+		/*double CAcoord[] = getCAcoord(resNum);
 		double dist = getDist(CAcoord,initLigCA);
 		
 		if ( (!centerIsCA) && (dist>ligMaxTrans) ) { //further than allowed, so restore, find the optimal rotStep value, and rotate with that value, if necessary
@@ -542,17 +643,18 @@ public class BackrubMinimizer implements Serializable {
 				if ((rotStep!=0.0f)&&(!checkOnly)) //apply the rotation
 					m.rotateResidue(resNum, axisToRot[0], axisToRot[1], axisToRot[2], center[0], center[1], center[2], rotStep, false);
 			}
-		}
+		}*/
 		
 		if (checkOnly) //only check, so restore the previous coordinates
-			restoreCoord(resNum,storedCoord);
+			for (int i=0; i<resNums.length; i++)
+				restoreCoord(resNums[i],storedCoord[i]);
 		
 		return rotStep;
 	}
 	
 	//Performs a binary search to find a value for thetaDeg rotation that will rotate the CA for resNum to the maximum allowed limit;
 	//The initial coordinates for CA are given in coord[], the rotation is done around axis axisToRot[] and around center center[]
-	private float binSearchRotStep(double coord[], float axisToRot[], double center[], float origTheta, int resNum){
+	/*private float binSearchRotStep(double coord[], float axisToRot[], double center[], float origTheta, int resNum){
 		
 		double newDist;
 		
@@ -581,7 +683,7 @@ public class BackrubMinimizer implements Serializable {
 			curStep++;
 		}
 		return 0.0f;
-	}
+	}*/
 	
 	//Determines in which direction the best energy is (called by compRot() and compTrans() )
 	private float getDir(double e1, double e2, double e3, float step){
@@ -632,7 +734,7 @@ public class BackrubMinimizer implements Serializable {
 	
 	//Determines the vector around which the rotation is to be performed;
 	//Currently, the vector is the coordinate axis specified by axisNum
-	public float [] getRotVector(int resNum, int axisNum){
+	public float [] getRotVector(int axisNum){
 		
 		float axisToRot[] = new float[3];
 		for (int i=0; i<axisToRot.length; i++)
@@ -709,13 +811,16 @@ public class BackrubMinimizer implements Serializable {
 	private boolean [][] getUseBRforCurRot(){
 		
 		//Generate the list of atoms to exclude from steric overlap checks (this only considers residues in the system strand)
-		int excludeList[][] = generateExcludeListSteric(m,sysStrNum,residueMap,-1,false,false);
+		int excludeList[][] = generateExcludeListSteric(m,strandMut,-1,false,false);
 		
 		boolean useBRforCurRot[][] = new boolean[brSamples.length][];
 		
 		for (int curDepth=0; curDepth<useBRforCurRot.length; curDepth++){
+			// Check with allowed AAs
+			int str = mutRes2Strand[curDepth];
+			int strResNum = strandMut[str][mutRes2StrandMutIndex[curDepth]];
 			
-			Residue curRes = m.strand[sysStrNum].residue[residueMap[curDepth]];
+			Residue curRes = m.strand[str].residue[strResNum];
 			
 			if (curRes.flexible) { //perform the check only for flexible residues, since rotamers are assigned only for the flexible residues
 			
@@ -724,23 +829,34 @@ public class BackrubMinimizer implements Serializable {
 				for (int i=0; i<useBRforCurRot[curDepth].length; i++){ //apply all backrub samples
 					if (useBRsample[curDepth][i]) {
 						
+						try{
 						float storedCoord[][] = new float[3][]; //backup the actualCoordinates[] for the three affected residues before the current backrub
-						storedCoord[0] = storeCoord(m.strand[sysStrNum].residue[residueMap[curDepth]-1].moleculeResidueNumber); 
-						storedCoord[1] = storeCoord(curRes.moleculeResidueNumber);
-						storedCoord[2] = storeCoord(m.strand[sysStrNum].residue[residueMap[curDepth]+1].moleculeResidueNumber);
+						if (brSamples[curDepth][i]!=0.0f){
+							storedCoord[0] = storeCoord(m.strand[str].residue[strResNum-1].moleculeResidueNumber); 
+							storedCoord[1] = storeCoord(curRes.moleculeResidueNumber);
+							storedCoord[2] = storeCoord(m.strand[str].residue[strResNum+1].moleculeResidueNumber);
+							
+							br.applyBackrub(m, str, curRes.strandResidueNumber, brSamples[curDepth][i], false, theta2[curDepth][i], theta3[curDepth][i]);
+						}
 						
-						if (brSamples[curDepth][i]!=0.0f)
-							br.applyBackrub(m, sysStrNum, curRes.strandResidueNumber, brSamples[curDepth][i], false, theta2[curDepth][i], theta3[curDepth][i]);
 						
-						if (checkSterics(m, sysStrNum, residueMap[curDepth], excludeList, true)) //allowed steric
+						if (checkSterics(m, str, strResNum, excludeList, true)) //allowed steric
 							useBRforCurRot[curDepth][i] = true;
 						else
 							useBRforCurRot[curDepth][i] = false;
 						
 						//restore the actualCoordinates for the three residues to the ones before the current backrub
-						restoreCoord(m.strand[sysStrNum].residue[residueMap[curDepth]-1].moleculeResidueNumber,storedCoord[0]); 
-						restoreCoord(curRes.moleculeResidueNumber,storedCoord[1]);
-						restoreCoord(m.strand[sysStrNum].residue[residueMap[curDepth]+1].moleculeResidueNumber,storedCoord[2]);
+						if (brSamples[curDepth][i]!=0.0f){
+							restoreCoord(m.strand[str].residue[strResNum-1].moleculeResidueNumber,storedCoord[0]); 
+							restoreCoord(curRes.moleculeResidueNumber,storedCoord[1]);
+							restoreCoord(m.strand[str].residue[strResNum+1].moleculeResidueNumber,storedCoord[2]);
+						}
+						}
+						catch(Exception E){
+							System.out.println("Delete me please!!");
+							E.printStackTrace();
+						}
+						
 					}
 					else
 						useBRforCurRot[curDepth][i] = false;
@@ -757,8 +873,11 @@ public class BackrubMinimizer implements Serializable {
 	private boolean allBRforCurRotPruned(boolean useBRforCurRot[][]){
 		
 		for (int i=0; i<useBRforCurRot.length; i++){
+			// Check with allowed AAs
+			int str = mutRes2Strand[i];
+			int strResNum = strandMut[str][mutRes2StrandMutIndex[i]];
 			
-			if (m.strand[sysStrNum].residue[residueMap[i]].flexible){ //only check for the flexible residues
+			if (m.strand[str].residue[strResNum].flexible){ //only check for the flexible residues
 				boolean allPruned = true;
 				for (int j=0; j<useBRforCurRot[i].length; j++){
 					if (useBRforCurRot[i][j])
@@ -778,8 +897,8 @@ public class BackrubMinimizer implements Serializable {
 		a96ff.calculateTypesWithTemplates(); //assign force field atom types and parameters
 		
 		//Compute the big rotation angles
-		brSamples = new float[residueMap.length][2*numBackrubSamples+1];
-		useBRsample = new boolean[brSamples.length][brSamples[0].length];
+		brSamples = new float[numMutRes][2*numBackrubSamples+1];
+		useBRsample = new boolean[numMutRes][brSamples[0].length];
 		for (int i=0; i<brSamples.length; i++){
 			for (int j=0; j<brSamples[i].length; j++){
 				brSamples[i][j] = (j-numBackrubSamples)*backrubStepSize;
@@ -793,7 +912,7 @@ public class BackrubMinimizer implements Serializable {
 		theta3 = new float[brSamples.length][brSamples[0].length];
 		
 		//Generate the list of atoms to exclude from steric overlap checks (this only considers residues in the system strand)
-		int excludeList[][] = generateExcludeListSteric(m,sysStrNum,residueMap,-1,false,false);
+		int excludeList[][] = generateExcludeListSteric(m,strandMut,-1,false,false);
 		
 		for (int i=0; i<brSamples.length; i++){
 			for (int j=0; j<brSamples[0].length; j++){
@@ -802,20 +921,24 @@ public class BackrubMinimizer implements Serializable {
 					theta3[i][j] = 0.0f;
 				}
 				else if (useBRsample[i][j]){ //for each allowed big rotation, determine the rotation angles for the two small rotations
+					// Check with allowed AAs
+					int str = mutRes2Strand[i];
+					int strResNum = strandMut[str][mutRes2StrandMutIndex[i]];
 					
-					Residue curRes = m.strand[sysStrNum].residue[residueMap[i]];
+					
+					Residue curRes = m.strand[str].residue[strResNum];
 					
 					float initTaus[] = new float [3]; //get the initial tau values
-					initTaus[0] = getTau(m,sysStrNum,residueMap[i]-1);
-					initTaus[1] = getTau(m,sysStrNum,residueMap[i]);
-					initTaus[2] = getTau(m,sysStrNum,residueMap[i]+1);
+					initTaus[0] = getTau(m,str,strResNum-1);
+					initTaus[1] = getTau(m,str,strResNum);
+					initTaus[2] = getTau(m,str,strResNum+1);
 					
-					float theta[] = br.applyBackrub(m, sysStrNum, curRes.strandResidueNumber, brSamples[i][j], true, 0.0f, 0.0f);
+					float theta[] = br.applyBackrub(m, str, curRes.strandResidueNumber, brSamples[i][j], true, 0.0f, 0.0f);
 					
 					theta2[i][j] = theta[0];
 					theta3[i][j] = theta[1];
 					
-					if (!isBRfeasible(m,sysStrNum,residueMap[i],initTaus,excludeList))
+					if (!isBRfeasible(m,str,strResNum,initTaus,excludeList))
 						useBRsample[i][j] = false;
 					
 					m.updateCoordinates(); //restore the actualCoordinates[] to the values before the backrub
@@ -858,7 +981,7 @@ public class BackrubMinimizer implements Serializable {
 			if ( (hSteric) || (!a1.elementType.equalsIgnoreCase("H")) ) {
 				if (a1.getIsBBatom() || a1.name.equalsIgnoreCase("CB") || useResSC){ //include the CB of he current residue for the steric check
 					for(int q=0;q<m.numberOfStrands;q++) {
-						if (q!=ligStrNum) {//not the ligand strand
+						if (!m.strand[q].rotTrans) {//not the ligand strand (i.e. strand does not rotate/translate)
 							int resToCheck = m.strand[q].numberOfResidues;
 							for(int w=0;w<resToCheck;w++) {
 								if( !( (q==strNum) && (w==resNum) ) ) {
@@ -940,40 +1063,60 @@ public class BackrubMinimizer implements Serializable {
 	
 	//Generate an exclusion list of atoms not to be checked in steric checks, since their position is unknown due to possible backrubs;
 	//The residue numbers in resMap[] are strand-relative
-	private int [][] generateExcludeListSteric(Molecule m, int strNum, int resMap[], int aboveInd, boolean shellRun, boolean templateOnly){
+	private int [][] generateExcludeListSteric(Molecule m, int strandMut[][], int aboveInd, boolean shellRun, boolean templateOnly){
 		
-		int excludeList[][] = new int[resMap.length][];
-		for (int i=0; i<resMap.length; i++){
-			
-			Residue prevRes = m.strand[strNum].residue[resMap[i]-1];
-			Residue curRes = m.strand[strNum].residue[resMap[i]];
-			Residue nextRes = m.strand[strNum].residue[resMap[i]+1];
-			
-			if ( (i>aboveInd) || ( (i<aboveInd) && (!curRes.flexible) && (!(shellRun || templateOnly)) ) ) { //exclude all
-				
-				excludeList[i] = new int[2 + curRes.numberOfAtoms + 2];
-				
-				excludeList[i][0] = prevRes.getAtomNameToMolnum("C");
-				excludeList[i][1] = prevRes.getAtomNameToMolnum("O");
-				
-				for (int j=0; j<curRes.numberOfAtoms; j++)
-					excludeList[i][2+j] = curRes.atom[j].moleculeAtomNumber;
-				
-				excludeList[i][curRes.numberOfAtoms+2] = nextRes.getAtomNameToMolnum("N");
-				excludeList[i][curRes.numberOfAtoms+3] = nextRes.getAtomNameToMolnum("H");
+		int excludeList[][] = new int[numMutRes][];
+		int ctr = -1;
+		for (int str=0; str<strandMut.length;str++){
+			if(m.strand[str].isProtein){
+				for (int i=0; i<strandMut[str].length; i++){
+					ctr++;
+					
+					//KER: if this is the most C-terminal or N-terminal then don't allow backrub to occur
+					if(strandMut[str][i]-1 < 0 || strandMut[str][i]+1 >= m.strand[str].residue.length){
+						//KER: Don't allow backrubs so turn all backrubs false except the one with 0 change
+						for(int q=0; q<useBRsample[ctr].length;q++)
+							useBRsample[ctr][q] = false;
+						            
+						int midPoint = (useBRsample[ctr].length-1)/2;
+						useBRsample[ctr][midPoint] = true;
+						excludeList[ctr] = new int[0];
+						continue;
+					}
+					
+					Residue prevRes = m.strand[str].residue[strandMut[str][i]-1];
+					Residue curRes = m.strand[str].residue[strandMut[str][i]];
+					Residue nextRes = m.strand[str].residue[strandMut[str][i]+1];
+					
+					
+					
+					if ( (ctr>aboveInd) || ( (ctr<aboveInd) && (!curRes.flexible) && (!(shellRun || templateOnly)) ) ) { //exclude all
+						
+						excludeList[ctr] = new int[2 + curRes.numberOfAtoms + 2];
+						
+						excludeList[ctr][0] = prevRes.getAtomNameToMolnum("C");
+						excludeList[ctr][1] = prevRes.getAtomNameToMolnum("O");
+						
+						for (int j=0; j<curRes.numberOfAtoms; j++)
+							excludeList[ctr][2+j] = curRes.atom[j].moleculeAtomNumber;
+						
+						excludeList[ctr][curRes.numberOfAtoms+2] = nextRes.getAtomNameToMolnum("N");
+						excludeList[ctr][curRes.numberOfAtoms+3] = nextRes.getAtomNameToMolnum("H");
+					}
+					else if ( (ctr<aboveInd) && (!curRes.flexible) ) { //residue in resMap[], but not flexible, so exclude only the side-chain atoms of this residue
+						
+						excludeList[ctr] = new int[curRes.numberOfAtoms];
+						for (int j=0; j<curRes.numberOfAtoms; j++){
+							if ( ! (curRes.atom[j].getIsBBatom() || curRes.atom[j].name.equalsIgnoreCase("CB")) )
+								excludeList[ctr][j] = curRes.atom[j].moleculeAtomNumber;
+							else
+								excludeList[ctr][j] = -1;
+						}				
+					}
+					else //do not exclude anything, since no atoms will change their position
+						excludeList[ctr] = new int[0];
+				}
 			}
-			else if ( (i<aboveInd) && (!curRes.flexible) ) { //residue in resMap[], but not flexible, so exclude only the side-chain atoms of this residue
-				
-				excludeList[i] = new int[curRes.numberOfAtoms];
-				for (int j=0; j<curRes.numberOfAtoms; j++){
-					if ( ! (curRes.atom[j].getIsBBatom() || curRes.atom[j].name.equalsIgnoreCase("CB")) )
-						excludeList[i][j] = curRes.atom[j].moleculeAtomNumber;
-					else
-						excludeList[i][j] = -1;
-				}				
-			}
-			else //do not exclude anything, since no atoms will change their position
-				excludeList[i] = new int[0];
 		}
 		
 		return excludeList;
@@ -1015,6 +1158,9 @@ public class BackrubMinimizer implements Serializable {
 			bufread = new BufferedReader(fr);
 		}
 		catch (FileNotFoundException e) {
+			System.out.println("Can't find backrubfile: "+backrubFile);
+			System.out.println("Please fix backrubFile parameter or run precomputeBackrubs to get backrub angles");
+			System.exit(0);
 			return;
 		}
 
@@ -1109,18 +1255,22 @@ public class BackrubMinimizer implements Serializable {
 		double minIntra = bigE;
 		double maxIntra = -bigE;
 		
-		Residue curRes = m.strand[sysStrNum].residue[residueMap[resMapPos]];
+		int str = mutRes2Strand[resMapPos];
+		int strResNum = strandMut[str][mutRes2StrandMutIndex[resMapPos]];
+		
+		Residue curRes = m.strand[str].residue[strResNum];
 		
 		for (int i=0; i<brSamples[resMapPos].length; i++){ //apply all backrub samples
 			if (useBRsample[resMapPos][i]) { //allowed backrub
 		
 				float storedCoord[][] = new float[3][]; //backup the actualCoordinates[] for the three affected residues before the current backrub
-				storedCoord[0] = storeCoord(m.strand[sysStrNum].residue[residueMap[resMapPos]-1].moleculeResidueNumber); 
-				storedCoord[1] = storeCoord(curRes.moleculeResidueNumber);
-				storedCoord[2] = storeCoord(m.strand[sysStrNum].residue[residueMap[resMapPos]+1].moleculeResidueNumber);
+				if (brSamples[resMapPos][i]!=0.0f){
+					storedCoord[0] = storeCoord(m.strand[str].residue[strResNum-1].moleculeResidueNumber); 
+					storedCoord[1] = storeCoord(curRes.moleculeResidueNumber);
+					storedCoord[2] = storeCoord(m.strand[str].residue[strResNum+1].moleculeResidueNumber);
 				
-				if (brSamples[resMapPos][i]!=0.0f)
-					br.applyBackrub(m, sysStrNum, curRes.strandResidueNumber, brSamples[resMapPos][i], false, theta2[resMapPos][i], theta3[resMapPos][i]);
+					br.applyBackrub(m, str, curRes.strandResidueNumber, brSamples[resMapPos][i], false, theta2[resMapPos][i], theta3[resMapPos][i]);
+				}
 				
 				double curE[] = a96ff.calculateTotalEnergy(m.actualCoordinates, -1);
 				
@@ -1128,9 +1278,11 @@ public class BackrubMinimizer implements Serializable {
 				maxIntra = Math.max(curE[0], maxIntra);
 				
 				//restore the actualCoordinates for the three residues to the ones before the current backrub
-				restoreCoord(m.strand[sysStrNum].residue[residueMap[resMapPos]-1].moleculeResidueNumber,storedCoord[0]); 
-				restoreCoord(curRes.moleculeResidueNumber,storedCoord[1]);
-				restoreCoord(m.strand[sysStrNum].residue[residueMap[resMapPos]+1].moleculeResidueNumber,storedCoord[2]);
+				if (brSamples[resMapPos][i]!=0.0f){
+					restoreCoord(m.strand[str].residue[strResNum-1].moleculeResidueNumber,storedCoord[0]); 
+					restoreCoord(curRes.moleculeResidueNumber,storedCoord[1]);
+					restoreCoord(m.strand[str].residue[strResNum+1].moleculeResidueNumber,storedCoord[2]);
+				}
 			}
 		}
 		
@@ -1140,4 +1292,23 @@ public class BackrubMinimizer implements Serializable {
 		
 		return e;
 	}
+	
+	
+	public void initMutRes2Str(int strandMut[][]){
+		int totalLength=0;
+		for(int i=0;i<strandMut.length;i++)
+			for(int j=0;j<strandMut[i].length;j++)
+				totalLength++;
+		
+		mutRes2Strand = new int[totalLength];
+		mutRes2StrandMutIndex = new int[totalLength];
+		int ctr=0;
+		for(int i=0;i<strandMut.length;i++)
+			for(int j=0;j<strandMut[i].length;j++){
+				mutRes2Strand[ctr] = i;
+				mutRes2StrandMutIndex[ctr] = j;
+				ctr++;
+			}
+	}
+	
 }

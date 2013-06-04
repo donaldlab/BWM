@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,14 +36,14 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // RotamerLibrary.java
 //
-//  Version:           1.0
+//  Version:           2.1 beta
 //
 //
 // authors:
@@ -51,7 +51,8 @@
 //   ---------   -----------------    ------------------------    ----------------------------
 //     RHL        Ryan Lilien          Dartmouth College           ryan.lilien@dartmouth.edu
 //	   ISG		  Ivelin Georgiev	   Duke University			   ivelin.georgiev@duke.edu
-//
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /** 
@@ -84,9 +85,27 @@ public class RotamerLibrary implements Serializable {
 	private int totalNumRotamers; //AAs with 0 rotamers are counted as 1 rotamer	
 	private int rotamerIndexOffset[] = null; //the rotamer index offset for each amino acid (AAs with 0 rotamers are counted as 1 rotamer)
 	
+	private String rotFile;
+	private String volFilename;
+	
+	private boolean canMutate = false;
+	
+	private boolean addedRotamers = false;
+	
+	public static HashMap<String,String> three2one = null;
+	
+	public boolean isAddedRotamers() {
+		return addedRotamers;
+	}
+
+	public void setAddedRotamers(boolean addedRotamers) {
+		this.addedRotamers = addedRotamers;
+	}
 	
 	// Generic constructor
-	RotamerLibrary(String rotFilename) {		
+	RotamerLibrary(String rotFilename, boolean isProtein) {		
+		
+		canMutate = isProtein;
 		
 		try {
 			readRotLibrary(rotFilename);
@@ -95,10 +114,16 @@ public class RotamerLibrary implements Serializable {
 			System.out.println("ERROR reading rotamer library file: "+e);
 			System.exit(1);
 		}
+		
+		if(three2one == null)
+			initThree2One();
 	}
 	
 	//Read in all of the rotamers for all amino acids from the rotFilename file
 	private void readRotLibrary(String rotFilename) throws Exception {
+		
+		rotFile = rotFilename;
+		volFilename = rotFile + ".vol";
 		
 		// HANDLE THE NORMAL AAs	
 		FileInputStream is = new FileInputStream( rotFilename );
@@ -123,6 +148,10 @@ public class RotamerLibrary implements Serializable {
 		rotamerValues = new int[numAAallowed][][];
 		
 	  	while( curLine != null ) {
+			if(curLine.charAt(0) == '!'){
+				curLine = bufread.readLine();
+				continue;
+			}
 			
 	  		aaNames[curAA] = getToken(curLine,1);
 			numDihedrals[curAA] = (new Integer(getToken(curLine,2))).intValue();
@@ -168,7 +197,7 @@ public class RotamerLibrary implements Serializable {
 	}
 	
 	//reads in the rotamer volume data from volFilename
-	public void loadVolFile (String volFilename){
+	public void loadVolFile (){
 		
 		try {
 			readRotVol(volFilename);
@@ -237,12 +266,13 @@ public class RotamerLibrary implements Serializable {
 		StrandRotamers LR = null;
 
 		Residue res = ppr.getResidue("ala");
-		//res.fullName = "ALA  ";
+		//res.fullName = "ALA  "; 
 		m.addResidue(0,res);
+		
 		VolModule sm = new VolModule(m);
 		sm.setResidueTreatment(0,1);
 		
-		LR = new StrandRotamers(this,m.strand[0]);		
+		LR = new StrandRotamers(rotFile,m.strand[0]);		
 
 		PrintStream printStream = setupOutputFile(volFileName);
 
@@ -250,7 +280,8 @@ public class RotamerLibrary implements Serializable {
 		int numAAs = getNumAAallowed();
 		
 		for(int i=0;i<numAAs;i++){
-			LR.changeResidueType(m,0,aanames[i],true);
+			if(canMutate)
+				LR.changeResidueType(m,0,aanames[i],true);
 			printStream.print(aanames[i] + " ");
 			System.out.println(aanames[i] + " ");
 			if(getNumRotamers(aanames[i])==0){		// ALA or GLY
@@ -273,11 +304,12 @@ public class RotamerLibrary implements Serializable {
 	//  amino acid aaName; returns -1 if name not found
 	public int getAARotamerIndex(String aaName) {
 
-		if (aaName.equalsIgnoreCase("HID") || aaName.equalsIgnoreCase("HIE") || aaName.equalsIgnoreCase("HIP")) {
+		// KER: Allow HID, HIE, and HIP to all be different now
+		/*if (aaName.equalsIgnoreCase("HID") || aaName.equalsIgnoreCase("HIE") || aaName.equalsIgnoreCase("HIP")) {
 			aaName = "HIS";
 			if(debug)
 				System.out.println("ASSUMING HID/E/P is " + aaName + " for rotamer purposes.");
-		}
+		}*/
 		if (aaName.equalsIgnoreCase("CYX")) {
 			aaName = "CYS";
 			if(debug)
@@ -406,4 +438,88 @@ public class RotamerLibrary implements Serializable {
 		}
 		return logPS;
 	}	
+	
+	//KER: Adding this function so that I can dope the rotamers
+	//	with the original rotamer from the input structure
+	public void addRotamer(String AAname, int[] dihedVals){
+		//find AAnumber
+		int aaNum = getAARotamerIndex(AAname);
+		
+		//Extend the rotamerValuesArray
+		int[][] temp = new int[rotamerValues[aaNum].length+1][];
+		System.arraycopy(rotamerValues[aaNum], 0, temp, 0, rotamerValues[aaNum].length);
+		rotamerValues[aaNum] = temp;
+		rotamerValues[aaNum][rotamerValues[aaNum].length-1] = new int[rotamerValues[aaNum][0].length];
+		for(int w=0; w<dihedVals.length; w++)
+			rotamerValues[aaNum][rotamerValues[aaNum].length-1][w] = dihedVals[w];
+		
+		//System.out.println(" Added for AAindex: "+aaNum+" rotamer: "+(rotamerValues[aaNum].length-1));
+		totalNumRotamers++;
+		numRotamers[aaNum]++;
+		for(int i=aaNum+1; i<rotamerIndexOffset.length;i++)
+			rotamerIndexOffset[i]++;
+		
+	}
+	
+	public static void addOrigRots(int[][] strandMut,RotamerLibrary rl, Molecule m){
+		//TODO: this assumes first strandRot is a protein
+		if(! rl.isAddedRotamers()){
+			for(int str=0; str<strandMut.length;str++){
+				for(int res=0; res<strandMut[str].length;res++){
+					Residue curRes = m.strand[str].residue[strandMut[str][res]];
+					//Get Num Dihedrals
+					int numDiheds = rl.getNumDihedrals(rl.getAARotamerIndex(curRes.name));
+					if(numDiheds<=0)
+						continue;
+					int[] diheds = new int[numDiheds]; 
+					int atoms[] = new int[4];
+					//get all dihedrals
+					for(int i=0; i<numDiheds; i++){
+						atoms = rl.getDihedralInfo(m, curRes.strandNumber, curRes.strandResidueNumber, i);
+						diheds[i] = (int) Math.round(curRes.atom[atoms[3]].torsion(curRes.atom[atoms[0]], curRes.atom[atoms[1]], curRes.atom[atoms[2]]));
+					}
+					//System.out.print("Str: "+str+" Res: "+res+" ");
+					rl.addRotamer(curRes.name, diheds);
+					//System.out.println("");
+				}
+			
+			}
+			rl.setAddedRotamers(true);
+		}
+		else{
+			System.out.println("DEBUG: ALREADY ADDED ROTAMERS");
+		}
+	}
+	
+	public static void initThree2One(){
+		three2one = new HashMap<String,String>();
+		three2one.put("ALA","A");
+		three2one.put("CYS","C");
+		three2one.put("ASP","D");
+		three2one.put("GLU","E");
+		three2one.put("PHE","F");
+		three2one.put("GLY","G");
+		three2one.put("HIS","H");
+		three2one.put("ILE","I");
+		three2one.put("LYS","K");
+		three2one.put("LEU","L");
+		three2one.put("MET","M");
+		three2one.put("ASN","N");
+		three2one.put("PRO","P");
+		three2one.put("GLN","Q");
+		three2one.put("ARG","R");
+		three2one.put("SER","S");
+		three2one.put("THR","T");
+		three2one.put("VAL","V");
+		three2one.put("TRP","W");
+		three2one.put("TYR","Y");
+	}
+	
+	public static String getOneLet(String aa3Name){
+		String res = three2one.get(aa3Name);
+		if (res == null)
+			res = "X";
+		return res;
+	}
+	
 }

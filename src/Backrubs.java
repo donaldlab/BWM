@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,22 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	Backrubs.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	 ---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -105,6 +106,8 @@ public class Backrubs implements Serializable {
 		Atom Oprev = getAtForRes("O",prevRes);
 		Atom Nnext = getAtForRes("N",nextRes);
 		Atom Hnext = getAtForRes("H",nextRes);
+		if(nextRes.name.equalsIgnoreCase("PRO"))
+			Hnext = getAtForRes("CD",nextRes);
 		Atom Ccur = getAtForRes("C",curRes);
 		Atom Ocur = getAtForRes("O",curRes);
 		Atom Ncur = getAtForRes("N",curRes);
@@ -217,10 +220,13 @@ public class Backrubs implements Serializable {
 		Atom closestPoint = getClosestPoint(pp3,pp1,pp4);
 		return (float)closestPoint.angle(pp1, pp3);
 	}
-	
+
+
+        //The next three functions have been changed from private to public so Backrub can use them
+
 	
 	//Returns the projection (a pseudo-atom) of atom p3 onto the line between atoms l1 and l2
-	private Atom projectPointLine(Atom l1, Atom l2, Atom p3){
+	public Atom projectPointLine(Atom l1, Atom l2, Atom p3){
 		
 		float c[] = new float[3];
 		double d12sq = Math.pow(l2.distance(l1),2);
@@ -235,7 +241,7 @@ public class Backrubs implements Serializable {
 	}
 	
 	//Returns the projection (a pseudo-atom) of atom p4 onto the plane with normal defined by atoms (l1,l2) and a point on that plane c3
-	private Atom projectPointPlane(Atom l1, Atom l2, Atom c3, Atom p4){
+	public Atom projectPointPlane(Atom l1, Atom l2, Atom c3, Atom p4){
 		
 		float l[] = new float[3];
 		for (int i=0; i<3; i++)
@@ -264,7 +270,7 @@ public class Backrubs implements Serializable {
 	}
 	
 	//Compute the closest point on the circle defined by the Atom c (center) and radius (c,p1) to Atom q1 (this assumes c, p1, and q1 are coplanar)
-	private Atom getClosestPoint (Atom c, Atom p1, Atom q1){
+	public Atom getClosestPoint (Atom c, Atom p1, Atom q1){
 		
 		float r = (float)c.distance(p1);
 		

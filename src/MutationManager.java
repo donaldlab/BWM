@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,14 +36,14 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // MutationManager.java
 //
-//  Version:           1.0
+//  Version:           2.1 beta
 //
 //
 // authors:
@@ -51,7 +51,9 @@
 //   ---------   --------------      ------------------------     ------------------------------
 //     RHL        Ryan Lilien          Dartmouth College           ryan.lilien@dartmouth.edu
 //	   ISG		  Ivelin Georgiev	   Duke University			   ivelin.georgiev@duke.edu
-//
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
+//     MAH        Mark A. Hallen	Duke University         mah43@duke.edu
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -63,7 +65,9 @@ import java.io.*;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.math.*;
+
 import mpi.*;
 
 /**
@@ -80,12 +84,19 @@ public class MutationManager
     final int optSplit = 3;
     final int optPairs = 4;
 
+    final double constRT = 1.9891/1000.0 * 298.15;   // in kCal / kelvin-mole (the T value here should be consistent with T in EEF1)
+
 	// Information needed by all mutations
     CommucObj cObjArray[] = null;
-	int residueMap[] = null;
-	String resDefault[] = null;
-	int rotamerIndexOffset[] = null;
-	String ligType = null;
+	//int residueMap[] = null;
+	//String resDefault[] = null;
+	int[][] strandMut = null;
+	String[][] strandDefault = null;
+	boolean[] strandPresent = null;
+	String[][] strandLimits = null;
+	int strandsPresent = 0;
+	boolean typeDep = false;
+	//String ligType = null;
 	boolean ligPresent = false;
 	int numMutations = 0;
 	String arpFilenameMin = null;
@@ -93,7 +104,7 @@ public class MutationManager
 	boolean resMutatable[][] = null;
 	int algOption = 0;
 	int numSplits = 0;
-	String AAallowed[] = null;
+	String AAallowed[][] = null;
 	String minDEEfile = null;
 	float initEw = 0.0f;
 	float pruningE = (float)Math.pow(10,38);
@@ -101,9 +112,8 @@ public class MutationManager
 	float epsilon = 0.03f;  // The epsilon used in intra-mutation pruning
 	float stericThresh = -10000.0f;
 	float softStericThresh = -10000.0f;
-	int numInAS = 0;
-	int numTotalRotamers = 152;
-	int numResAllowed = 0;
+	//int numInAS = 0;
+	int mutableSpots = 0;
 	boolean computeEVEnergy = true;
 	boolean doMinimization = true;
 	boolean minimizeBB = false;
@@ -126,29 +136,38 @@ public class MutationManager
 	boolean scaleInt = false;
 	float maxIntScale = 1.0f;
 	boolean useEref = false;
-	float eRef[] = null;
+	float[][] eRef = null;
 	boolean entropyComp = false; //this *must* be false for the pairwise matrix energy computation
 	float asasE[][][][] = null;
 	boolean compASdist = false;
 	boolean asDist[][] = null;
 	float dist = 0.0f;
-
+	int numberOfStrands = 0;
 	PrintStream logPS = null;
 	OneMutation mutArray[] = null;
+	int mutRes2Strand[] = null;
+	int mutRes2StrandMutIndex[] = null;	
 	
+	private boolean saveTopConfs;
+	private boolean printTopConfs;
+	private int numTopConfs;
+
 	//Variables specific to PEM computation	
-	float pairEMatrixMin[][][][][][] = null;
-	float pairEMatrixMax[][][][][][] = null;
+	PairwiseEnergyMatrix pairEMatrixMin = null;
+	PairwiseEnergyMatrix pairEMatrixMax = null;
+	//float[][] eRefMatrix = null;
 	float curMaxE = -(float)Math.pow(10,30);
-	int numLigRotamers = 0;
+	//int numLigRotamers = 0;
 	
 	float pairEMatrixMinEntropy[][] = null;
+	//KER: This is only used for the SCMF entropy run.
+	RotamerLibrary rotLib = null;
 	
 	//Variables specific to distributed DACS and distributed DEE computations
-	boolean prunedRot[] = null;
+	PrunedRotamers<Boolean> prunedRot = null;
 	String rotFile = null;
 	boolean useSF = false;
-	boolean splitFlags[][] = null;
+	boolean splitFlags[][][][][][] = null;
 	String sfFile = null;
 	boolean distrDACS = false;
 	boolean distrDEE = false;
@@ -163,12 +182,30 @@ public class MutationManager
 	String outputPruneInfo = null;
 	String outputConfInfo = null;
 	
-	boolean PEMcomp = false; //true if PEM computation is performed; false if mut search is performed
+	String pdbName;
 	
+	String eRefMatrix;
+	boolean PEMcomp = false; //true if PEM computation is performed; false if mut search is performed
+	private boolean templateAlwaysOn;
+	private boolean addOrigRots = false;
+	private boolean useMaxKSconfs;
+	private BigInteger maxKSconfs;
+	private int curStrForMatrix;
+
+        boolean useTriples;
+        boolean useFlagsAStar;
+        boolean magicBulletTriples;
+        int magicBulletNumTriples;
+        //DEEPer
+        boolean doPerturbations;
+        boolean minimizePerts;
+        String pertFile;
+        boolean addWTRot;
+        boolean idealizeSC;
 	
 	// Generic constructor
 	MutationManager(String logName, OneMutation mArray[], boolean PEMcomputation) {
-
+		pdbName = logName;
 		if (logName!=null){ //open log file for writing
 			try {
 				FileOutputStream fileOutputStream = new FileOutputStream(logName);
@@ -193,11 +230,13 @@ public class MutationManager
 	public synchronized CommucObj getNextComObj(int curMutIndex) {
 		
 		CommucObj cObj = new CommucObj();
-		cObj.residueMap = residueMap;
-		cObj.resDefault = resDefault;
-		cObj.rotamerIndexOffset = rotamerIndexOffset;
-		cObj.ligPresent = ligPresent;
-		cObj.ligType = ligType;
+		cObj.numberOfStrands = numberOfStrands;
+		cObj.strandMut = strandMut;
+		cObj.strandDefault = strandDefault;
+		cObj.typeDep = typeDep;
+		cObj.addOrigRots = addOrigRots;
+		//cObj.ligPresent = ligPresent;
+		//cObj.ligType = ligType;
 		cObj.distrDEE = distrDEE;
 		cObj.distrDACS = distrDACS;
 		cObj.arpFilenameMin = arpFilenameMin;
@@ -205,9 +244,11 @@ public class MutationManager
 		cObj.params = sParams;
 		cObj.stericThresh = stericThresh;
 		cObj.softStericThresh = softStericThresh;
-		cObj.numInAS = numInAS;
-		cObj.numTotalRotamers = numTotalRotamers;
-		cObj.numResAllowed = numResAllowed;
+		//cObj.numInAS = numInAS;
+		cObj.saveTopConfs = saveTopConfs;
+		cObj.printTopConfs = printTopConfs;
+		cObj.numTopConfs = numTopConfs;
+		cObj.rl = rotLib;
 		cObj.computeEVEnergy = computeEVEnergy;
 		cObj.doMinimization = doMinimization;
 		cObj.minimizeBB = minimizeBB;
@@ -221,38 +262,69 @@ public class MutationManager
 		cObj.solvScale = solvScale;
 		cObj.vdwMult = vdwMult;
 		cObj.PEMcomp = PEMcomp;
-		
+		cObj.mutableSpots = mutableSpots;
+		cObj.mutRes2Strand = mutRes2Strand;
+		cObj.mutRes2StrandMutIndex = mutRes2StrandMutIndex;
+		cObj.strandPresent = strandPresent;
+		cObj.curMut = curMutIndex;
+		cObj.strandLimits = strandLimits;
+		cObj.strandsPresent = strandsPresent;
+		cObj.templateAlwaysOn = templateAlwaysOn;
+
+                cObj.useFlagsAStar = useFlagsAStar;
+                cObj.useTriples = useTriples;
+                cObj.doPerturbations = doPerturbations;
+                cObj.magicBulletTriples = magicBulletTriples;
+                cObj.magicBulletNumTriples = magicBulletNumTriples;
+                if(doPerturbations){
+                    cObj.minimizePerts = minimizePerts;
+                    cObj.pertFile = pertFile;
+                    cObj.addWTRot = addWTRot;
+                    cObj.idealizeSC = idealizeSC;
+                }
+                
 		if (PEMcomp) {//PEM computation
 			
 			if (!entropyComp){
-				cObj.numLigRotamers = numLigRotamers;
+				//cObj.numLigRotamers = numLigRotamers;
+				cObj.curStrForMatrix = curStrForMatrix;
 				cObj.flagMutType = mutArray[curMutIndex].flagMutType;
-				cObj.resMut = new int[numInAS];
-				cObj.currentMutation = new String[numInAS];
-				for(int i=0;i<numInAS;i++) {
+				cObj.curMut = mutArray[curMutIndex].mutNum;
+				cObj.resMut = new int[mutableSpots];
+				cObj.currentMutation = new String[mutableSpots];
+				for(int i=0;i<mutableSpots;i++) {
 					cObj.resMut[i] = mutArray[curMutIndex].resMut[i];
-					cObj.currentMutation[i] = resDefault[i];
+					//cObj.currentMutation[i] = resDefault[i];
 				}
+				int ctr = 0;
+				for(int i=0;i<strandDefault.length;i++)
+					for(int j=0;j<strandDefault[i].length;j++){
+						cObj.currentMutation[ctr] = strandDefault[i][j];
+						ctr++;
+					}
+			
 			}
 			else { //entropy energy computation run
 				cObj.entropyComp = entropyComp;
 				if (compASdist){ //AS-AS distance computation
 					cObj.compASdist = compASdist;
-					cObj.asDist = new boolean[numInAS];
+					cObj.asDist = new boolean[mutableSpots];
 					cObj.dist = dist;
 				}
 				else { //AS-AS or SHL-AS energy matrix computation
+					//TODO: fix this code so it makes sense for multiple strands
+					assert false==true;
 					cObj.flagMutType = mutArray[curMutIndex].flagMutType;
 					if (cObj.flagMutType.equalsIgnoreCase("AS-AS")){ //AS-AS run
-						cObj.numInAS = 2;
-						cObj.residueMap = new int[2];
-						cObj.residueMap[0] = mutArray[curMutIndex].resMut[0];
-						cObj.residueMap[1] = mutArray[curMutIndex].resMut[1];
+						cObj.mutableSpots = 2;
+						cObj.strandMut = new int[1][2];
+						cObj.strandMut[0][0] = mutArray[curMutIndex].resMut[0];
+						cObj.strandMut[0][1] = mutArray[curMutIndex].resMut[1];
 					}
 					else if (cObj.flagMutType.equalsIgnoreCase("INTRA")){ //INTRA run
-						cObj.numInAS = 1;
-						cObj.residueMap = new int[1];
-						cObj.residueMap[0] = curMutIndex;
+						cObj.mutableSpots = 1;
+						cObj.strandMut = new int[1][1];
+						cObj.strandMut[0][0] = curMutIndex;
 					}
 					else {
 						System.out.println("ERROR: only AS-AS and INTRA runs allowed for the pairwise entropy matrix precomputation.");
@@ -265,9 +337,12 @@ public class MutationManager
 			
 			if ((!distrDEE)&&(!distrDACS)){ //mutation search run, not (distributed DACS or distributed DEE)
 			
-				cObj.q_L = q_L;
+				//cObj.q_L = q_L;
+				cObj.pdbName = pdbName;
 				cObj.numMutations = numMutations;
 				cObj.repeatSearch = repeatSearch;
+				cObj.algOption = algOption;
+				cObj.numSplits = numSplits;
 				cObj.initEw = initEw;
 				cObj.scaleInt = scaleInt;
 				cObj.maxIntScale = maxIntScale;
@@ -275,8 +350,11 @@ public class MutationManager
 				cObj.stericE = stericE;
 				cObj.gamma = gamma;
 				cObj.epsilon = epsilon;
-				cObj.currentMutation = new String[numInAS];
-				for(int i=0;i<numInAS;i++) {
+				cObj.useMaxKSconfs = useMaxKSconfs;
+				cObj.maxKSconfs = maxKSconfs;
+				
+				cObj.currentMutation = new String[mutableSpots];
+				for(int i=0;i<mutableSpots;i++) {
 					cObj.currentMutation[i] = mutArray[curMutIndex].resTypes[i];
 				}
 				cObj.bestScore = bestScore;
@@ -289,9 +367,10 @@ public class MutationManager
 				cObj.prunedRot = prunedRot;
 				cObj.useSF = useSF;
 				cObj.sfFileIn = sfFile;
-				cObj.numLigRotamers = numLigRotamers;
+				//cObj.numLigRotamers = numLigRotamers;
 				cObj.useEref = useEref;
 				cObj.eRef = eRef;
+				cObj.curStrForMatrix = curStrForMatrix;
 				
 				if (distrDACS){ //distributed DACS
 					cObj.numMutations = numMutations;
@@ -306,14 +385,17 @@ public class MutationManager
 					cObj.minRatioDiff = minRatioDiff;
 					cObj.msp = msp;
 					cObj.numInitUnprunedConf = numInitUnprunedConf;
-					cObj.currentMutation = new String[numInAS];
+					cObj.currentMutation = new String[mutableSpots];
 					cObj.outputPruneInfo = outputPruneInfo;
 					cObj.outputConfInfo = outputConfInfo;
-					cObj.partIndex = new int[initDepth];
+					cObj.partIndex = new Index3[initDepth];
 					for (int i=0; i<initDepth; i++)
-						cObj.partIndex[i] = mutArray[curMutIndex].resMut[i];
-					for (int i=0; i<numInAS; i++){
-						cObj.currentMutation[i] = resDefault[i];
+						cObj.partIndex[i] = mutArray[curMutIndex].index[i];
+					int ctr = 0;
+					for(int i=0;i<strandDefault.length;i++)
+						for(int j=0;j<strandDefault[i].length;j++){
+							cObj.currentMutation[ctr] = strandDefault[i][j];
+							ctr++;
 					}
 					cObj.bestScore = bestScore;
 				}
@@ -322,12 +404,23 @@ public class MutationManager
 					for (int i=0; i<cObj.resMut.length; i++){
 						cObj.resMut[i] = mutArray[curMutIndex].resMut[i];
 					}
-					cObj.AAallowed = new String[numInAS];
-					cObj.currentMutation = new String[numInAS];
-					for (int i=0; i<numInAS; i++){
-						cObj.currentMutation[i] = resDefault[i];
-						cObj.AAallowed[i] = AAallowed[i];
+					cObj.AAallowed = new String[numberOfStrands][];
+					for(int str=0;str<numberOfStrands;str++){
+						cObj.AAallowed[str] = new String[strandMut[str].length];
 					}
+					cObj.currentMutation = new String[mutableSpots];
+					for (int str=0;str<numberOfStrands;str++){
+						for(int i=0;i<strandMut[str].length;i++){
+							cObj.AAallowed[str][i] = AAallowed[str][i];
+						}
+					}
+					
+					int ctr = 0;
+					for(int i=0;i<strandDefault.length;i++)
+						for(int j=0;j<strandDefault[i].length;j++){
+							cObj.currentMutation[ctr] = strandDefault[i][j];
+							ctr++;
+						}
 					cObj.numSpPos = numSpPos;
 					cObj.typeDEE = typeDEE;
 				}
@@ -349,10 +442,30 @@ public class MutationManager
 			//Update the E matrices computed so far with the new computations supplied
 			//	by the current cObj
 			if (!entropyComp){ //PEM computation
-				for (int i=0; i<countNewEntries; i++){
-					pairEMatrixMin[cObj.compEE[i].i1][cObj.compEE[i].i2][cObj.compEE[i].i3][cObj.compEE[i].i4][cObj.compEE[i].i5][cObj.compEE[i].i6] = cObj.compEE[i].minE;
-					if (doMinimization)
-						pairEMatrixMax[cObj.compEE[i].i1][cObj.compEE[i].i2][cObj.compEE[i].i3][cObj.compEE[i].i4][cObj.compEE[i].i5][cObj.compEE[i].i6] = cObj.compEE[i].maxE;
+				if(cObj.flagMutType.equals("INTRA")){
+					//KER: initialize eref to big E
+					for(int i=0; i<eRef.length;i++)
+						for(int j=0; j<eRef[i].length;j++)
+							eRef[i][j]=Float.MAX_VALUE;
+					//KER: I now output a separate Eref matrix
+					for (int i=0; i<countNewEntries; i++){
+						eRef[cObj.compEE[i].i1][cObj.compEE[i].i2] = Math.min(eRef[cObj.compEE[i].i1][cObj.compEE[i].i2],cObj.compEE[i].minE);	
+					}
+					//KER: Remove all of the bigE
+					for(int i=0; i<eRef.length;i++)
+						for(int j=0; j<eRef[i].length;j++)
+							if(eRef[i][j]==Float.MAX_VALUE)
+								eRef[i][j] = 0.0f;
+					outputObject(eRef,eRefMatrix+".dat");
+				}
+				else{
+					for (int i=0; i<countNewEntries; i++){
+                                            //We do not use the PairwiseEnergyMatrix.setPairwiseE method because we are setting all kinds of energies (pairwise, template, etc.)
+                                            //by index
+						pairEMatrixMin.eMatrix[cObj.compEE[i].i1][cObj.compEE[i].i2][cObj.compEE[i].i3][cObj.compEE[i].i4][cObj.compEE[i].i5][cObj.compEE[i].i6] = cObj.compEE[i].minE;
+						if (doMinimization)
+							pairEMatrixMax.eMatrix[cObj.compEE[i].i1][cObj.compEE[i].i2][cObj.compEE[i].i3][cObj.compEE[i].i4][cObj.compEE[i].i5][cObj.compEE[i].i6] = cObj.compEE[i].maxE;
+					}
 				}
 			}
 			else { //entropy E matrix computation
@@ -362,76 +475,100 @@ public class MutationManager
 				else {
 					if (cObj.flagMutType.equalsIgnoreCase("INTRA")){
 						for (int i=0; i<countNewEntries; i++){
-							int index1 = 1 + rotamerIndexOffset[cObj.compEE[i].i2] + cObj.compEE[i].i3;
-							pairEMatrixMinEntropy[cObj.mutationNumber*numTotalRotamers+index1][0] = cObj.compEE[i].minE;
+							int index1 = 1 + rotLib.getRotamerIndexOffset()[cObj.compEE[i].i2] + cObj.compEE[i].i3;
+							pairEMatrixMinEntropy[cObj.mutationNumber*rotLib.getTotalNumRotamers()+index1][0] = cObj.compEE[i].minE;
 						}
 					}
 					else { //AS-AS run
 						for (int i=0; i<countNewEntries; i++){
 							int ind1 = -1;
 							int ind2 = -1;
-							int index1 = cObj.compEE[i].i1*numTotalRotamers + rotamerIndexOffset[cObj.compEE[i].i2] + cObj.compEE[i].i3;
-							int index2 = cObj.compEE[i].i4*numTotalRotamers + rotamerIndexOffset[cObj.compEE[i].i5] + cObj.compEE[i].i6;
-							if (index1<numTotalRotamers){
+							int index1 = cObj.compEE[i].i1*rotLib.getTotalNumRotamers() + rotLib.getRotamerIndexOffset()[cObj.compEE[i].i2] + cObj.compEE[i].i3;
+							int index2 = cObj.compEE[i].i4*rotLib.getTotalNumRotamers() + rotLib.getRotamerIndexOffset()[cObj.compEE[i].i5] + cObj.compEE[i].i6;
+							if (index1<rotLib.getTotalNumRotamers()){
 								ind1 = index1;
-								ind2 = index2-numTotalRotamers;
+								ind2 = index2-rotLib.getTotalNumRotamers();
 							}
 							else {
 								ind1 = index2;
-								ind2 = index1-numTotalRotamers;
+								ind2 = index1-rotLib.getTotalNumRotamers();
 							}
-							asasE[cObj.residueMap[0]][cObj.residueMap[1]][ind1][ind2] = cObj.compEE[i].minE;
+							asasE[cObj.strandMut[0][0]][cObj.strandMut[0][1]][ind1][ind2] = cObj.compEE[i].minE;
 						}
 					}
 				}
 				
-				//Output mutation information to results file (for resume)
-				System.out.println("MutNUM: "+cObj.mutationNumber+" produced "+countNewEntries+" new entries.");
-				logPS.print("Completed mutation "+cObj.mutationNumber);
+			}	
+			//Output mutation information to results file (for resume)
+			/*System.out.println("MutNUM: "+cObj.curMut+" produced "+countNewEntries+" new entries.");
+			logPS.print("Completed mutation "+cObj.curMut);
 				logPS.print(" SlaveNum "+cObj.slaveNum);
 				logPS.print(" Time "+(cObj.elapsedTime/60.0));
 				if (!entropyComp){
-					for(int i=0;i<cObj.numInAS;i++)
+					for(int i=0;i<cObj.mutableSpots;i++)
 						logPS.print(" "+cObj.resMut[i]);
 					logPS.print(" "+cObj.flagMutType);
 				}
 				logPS.println();
-				logPS.flush();
-			}			
-		}
+				logPS.flush();*/
+		}			
 		else { //mutation search
 			if ((!distrDEE)&&(!distrDACS)){ //Hybrid MinDEE-K*, not (distributed DACS or distributed DEE)
 				System.out.println("MutNUM: "+cObj.mutationNumber);
 				logPS.print("Completed mutation "+cObj.mutationNumber);
 				BigDecimal score = new BigDecimal("0.0");
-				if (cObj.q_E.compareTo(new BigDecimal("0.0")) != 0)
-					score = cObj.q_EL.divide(cObj.q_E.multiply(cObj.q_L),4);
+				BigDecimal denom = new BigDecimal("1.0");
+				
+				ExpFunction e = new ExpFunction();
+				
+				for(int i=0; i<cObj.numComplexes-1;i++){
+					denom = denom.multiply(cObj.q[i]);
+				}
+				if (denom.compareTo(new BigDecimal("0.0")) != 0)
+					score = cObj.q[cObj.numComplexes-1].divide(denom,4);
 				logPS.print(" Score "+score);
+				
 				logPS.print(" Volume "+mutArray[cObj.mutationNumber].vol);
 				logPS.print(" SlaveNum "+cObj.slaveNum);
-				logPS.print(" Time "+(cObj.q_E_Time/60.0)+" "+(cObj.q_EL_Time/60.0));
+				logPS.print(" Time ");
+				for(int i=0;i<cObj.numComplexes;i++)
+					logPS.print((cObj.q_Time[i]/60.0)+" ");
 				logPS.print(" InitBest "+cObj.bestScore);
 				BigDecimal bs = cObj.bestScore;
 				if (score.compareTo(cObj.bestScore) >0)
 					bs = score;
 				logPS.print(" FinalBest "+bs);
-				for(int i=0;i<cObj.numInAS;i++)
+				for(int i=0;i<cObj.mutableSpots;i++)
 					logPS.print(" "+cObj.currentMutation[i]);
-				logPS.print(" EConfInfo "+cObj.E_searchNumConfsEvaluated+" "+cObj.E_searchNumPrunedMinDEE+" "
-						+cObj.E_searchNumConfsPrunedByS+" "+cObj.E_searchNumConfsLeft);
-				logPS.print(" ELConfInfo "+cObj.EL_searchNumConfsEvaluated+" "+cObj.EL_searchNumPrunedMinDEE+" "
-						+cObj.EL_searchNumConfsPrunedByS+" "+cObj.EL_searchNumConfsLeft);
-				logPS.print(" MinEMinimized "+cObj.bestUnBoundEMin+" "+cObj.bestBoundEMin);
-				logPS.print(" MinEUnMinimized "+cObj.bestUnBoundE+" "+cObj.bestBoundE);
-				logPS.print(" Partial_q_E "+cObj.q_E+" Partial_q_EL "+cObj.q_EL);
-				logPS.print(" E_total "+cObj.E_searchNumConfsTotal+" EL_total "+cObj.EL_searchNumConfsTotal);	
-				logPS.print(" ESecondEw "+cObj.E_repeatEw);
-				logPS.print(" ELSecondEw "+cObj.EL_repeatEw);
-				logPS.print(" E_allPruned "+cObj.E_allPruned+" EL_allPruned "+cObj.EL_allPruned);
-				logPS.print(" q_L "+q_L);
+				
+				for(int i=0;i<cObj.numComplexes;i++){
+					logPS.print(" "+i+"ConfInfo "+cObj.searchNumConfsEvaluated[i]+" "+cObj.searchNumPrunedMinDEE[i]+" "
+							+cObj.searchNumConfsPrunedByS[i]+" "+cObj.searchNumConfsLeft[i]);
+				}
+				logPS.print(" MinEMinimized ");
+				for(int i=0;i<cObj.numComplexes;i++)
+					logPS.print(cObj.bestEMin[i]+" ");
+				logPS.print(" MinEUnMinimized ");
+				for(int i=0;i<cObj.numComplexes;i++)
+					logPS.print(cObj.bestE[i]+" ");
+				logPS.print(" EffectiveEpsilon: ");
+				/*for(int i=0;i<cObj.numComplexes;i++)
+					logPS.print(cObj.effEpsilon[i]+" ");*/
+				logPS.print(" Partial_q_E ");
+				for(int i=0;i<cObj.numComplexes;i++)
+					logPS.print(cObj.q[i]+" ");
+				logPS.print(" E_total ");
+				for(int i=0;i<cObj.numComplexes;i++)
+					logPS.print(cObj.searchNumConfsTotal[i]+" ");	
+				logPS.print(" SecondEw ");
+				for(int i=0;i<cObj.numComplexes;i++)
+					logPS.print(cObj.repeatEW[i]+" ");
+				logPS.print(" E_allPruned ");
+				for(int i=0;i<cObj.numComplexes;i++)
+					logPS.print(cObj.allPruned[i]+" ");
 				logPS.println();
 				if (score.compareTo(bestScore) >0){
-					//logPS.println("BestScoreChange "+bestScore+" to "+score);
+					logPS.println("BestScoreChange "+bestScore+" to "+score);
 					bestScore = score;
 				}
 				logPS.flush();	
@@ -453,22 +590,51 @@ public class MutationManager
 			else {//distributed DEE
 
 				if (typeDEE==optPairs){ //pairs DEE
-					boolean tmpSF[][] = null;
-					tmpSF = (boolean [][])readFromFile(tmpSF,cObj.sfFileOut);
+					boolean tmpSF[][][][][][] = null;
+					tmpSF = (boolean [][][][][][])readFromFile(tmpSF,cObj.sfFileOut);
 					
-					for (int i1=0; i1<tmpSF.length; i1++){
+					for (int p1=0; p1<tmpSF.length; p1++){
+						if (tmpSF[p1]!=null){
+							for (int a1=0; a1<tmpSF[p1].length; a1++){
+								if (tmpSF[p1][a1]!=null){
+									for (int r1=0; r1<tmpSF[p1][a1].length; r1++){
+										if (tmpSF[p1][a1][r1]!=null){
+											for (int p2=0; p2<tmpSF[p1][a1][r1].length; p2++){
+												if (tmpSF[p1][a1][r1][p2]!=null){
+													for (int a2=0; a2<tmpSF[p1][a1][r1][p2].length; a2++){
+														if (tmpSF[p1][a1][r1][p2][a2]!=null){
+															for (int r2=0; r2<tmpSF[p1][a1][r1][p2][a2].length; r2++){
+																if(tmpSF[p1][a1][r1][p2][a2][r2])
+																	splitFlags[p1][a1][r1][p2][a2][r2] = true;
+															}
+															//System.arraycopy(fromMatrix[p1][a1][r1][p2][a2], 0, toMatrix[p1][a1][r1][p2][a2], 0, fromMatrix[p1][a1][r1][p2][a2].length);
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}				
+					}
+					
+					/*for (int i1=0; i1<tmpSF.length; i1++){
 						for (int i2=0; i2<tmpSF[0].length; i2++){
 							if (tmpSF[i1][i2]) //get the DE pairs from this computation
 								splitFlags[i1][i2] = true; 
 						}
-					}
+					}*/
 					deleteFile(cObj.sfFileOut);
 					outputObject(splitFlags,sfFile); //must be output after each result read
 				}
 				else { //singles DEE
-					for (int i=0; i<prunedRot.length; i++){
-						if (cObj.prunedRot[i]) //get the pruned rotamers from this computation
-							prunedRot[i] = true;
+					Iterator<RotInfo<Boolean>> iter = prunedRot.iterator();
+					while(iter.hasNext()){
+					//for (int i=0; i<prunedRot.length; i++){
+						RotInfo<Boolean> ri = iter.next();
+						if (cObj.prunedRot.get(ri)) //get the pruned rotamers from this computation
+							prunedRot.set(ri, true);
 					}
 					outputObject(prunedRot,rotFile); //must be output after each result read
 				}
@@ -523,18 +689,9 @@ public class MutationManager
 
 		Runtime rt = Runtime.getRuntime();
 		try {
-			String tmpScr = new String("tmp_del"+System.currentTimeMillis());
-			FileOutputStream fout = new FileOutputStream(tmpScr);
-			DataOutputStream textOut = new DataOutputStream(fout);
-			textOut.writeBytes("#!/bin/sh\n");
-			String s = "rm -f "+file;
-			textOut.writeBytes(s);
-			textOut.close();
-			String cmd = new String(tmpScr);
-			System.out.println(cmd);
-			rt.exec("startscript "+cmd);
-				// startscript, changes the file permissions to 744, executes
-				//  the file, and then deletes the file
+			File tmpSFMat = new File(file);
+			if(tmpSFMat.exists())
+				tmpSFMat.delete();
 		}
 		catch(Exception ex) {
 			System.out.println("Exception: runtime");
@@ -549,18 +706,28 @@ public class MutationManager
 		}
 	}
 	
-	public void setResidueMap(int rm[]) {
-		residueMap = rm;
+	public void setNumOfStrands(int s) {
+		numberOfStrands = s;
 	}
-	public void setResDefault(String rd[]) {
-		resDefault = rd;
+	public void setStrandMut(int sm[][]) {
+		strandMut = sm;
 	}
-	public void setRotamerIndexOffset(int rio[]) {
-		rotamerIndexOffset = rio;
+	public void setStrandDefault(String sd[][]) {
+		strandDefault = sd;
 	}
-	public void setLigType(String lt) {
+	public void setStrandPresent(boolean sp[]) {
+		strandPresent = sp;
+	}
+	public void setStrandLimits(String sl[][]) {
+		strandLimits = sl;
+	}
+	public void setStrandsPresent(int sp) {
+		strandsPresent = sp;
+	}
+	
+	/*public void setLigType(String lt) {
 		ligType = lt;
-	}
+	}*/
 	public void setLigPresent(boolean lp) {
 		ligPresent = lp;
 	}
@@ -578,7 +745,7 @@ public class MutationManager
 			}
 		}
 	}
-	public void setAAallowed(String aal[]){
+	public void setAAallowed(String aal[][]){
 		AAallowed = aal;
 	}
 	public void setarpFilenameMin(String afnm) {
@@ -623,15 +790,10 @@ public class MutationManager
 	public void setSoftStericThresh(float st){
 		softStericThresh = st;
 	}
-	public void setNumInAS(int nas) {
+	/*public void setNumInAS(int nas) {
 		numInAS = nas;
-	}
-	public void numTotalRotamers(int ntr) {
-		numTotalRotamers = ntr;
-	}
-	public void numResAllowed(int nra) {
-		numResAllowed = nra;
-	}
+	}*/
+	
 	public void setComputeEVEnergy(boolean ceve) {
 		computeEVEnergy = ceve;
 	}
@@ -653,16 +815,23 @@ public class MutationManager
 	public void setCalculateVolumes(boolean cv) {
 		calculateVolumes = cv;
 	}
-	public void setnumLigRotamers(int nlr) {
+	/*public void setnumLigRotamers(int nlr) {
 		numLigRotamers = nlr;
+	}*/
+	public float[][] getErefMatrix(){
+		return eRef;
 	}
-	public void setPairEMatrixMin(float pemMin[][][][][][]){
+	
+	public void setErefMatrix(float eRef[][]){
+		this.eRef = eRef;
+	}
+	public void setPairEMatrixMin(PairwiseEnergyMatrix pemMin){
 		pairEMatrixMin = pemMin;
 	}
-	public void setPairEMatrixMax(float pemMax[][][][][][]){
+	public void setPairEMatrixMax(PairwiseEnergyMatrix pemMax){
 		pairEMatrixMax = pemMax;
 	}
-	public void setPrunedRot(boolean pr[]){
+	public void setPrunedRot(PrunedRotamers<Boolean> pr){
 		prunedRot = pr;
 	}
 	public void setRotFile(String rf){
@@ -671,7 +840,7 @@ public class MutationManager
 	public void setUseSF(boolean usf){
 		useSF = usf;
 	}
-	public void setSpFlags(boolean spFlags[][]){
+	public void setSpFlags(boolean spFlags[][][][][][]){
 		splitFlags = spFlags;
 	}
 	public void setSfFile(String sff){
@@ -755,7 +924,7 @@ public class MutationManager
 	public void setUseEref(boolean uer){
 		useEref = uer;
 	}
-	public void setEref(float er[]){
+	public void setEref(float er[][]){
 		eRef = er;
 	}
 	public void setLigPartFn(BigDecimal ql){
@@ -764,10 +933,10 @@ public class MutationManager
 	public void setEntropyComp(boolean ec){
 		entropyComp = ec;
 	}
-	public float [][][][][][] getMinEmatrix(){
+	public PairwiseEnergyMatrix getMinEmatrix(){
 		return pairEMatrixMin;
 	}
-	public float [][][][][][] getMaxEmatrix(){
+	public PairwiseEnergyMatrix getMaxEmatrix(){
 		return pairEMatrixMax;
 	}
 	public void setPairEntropyMatrix(float aae[][][][]){
@@ -794,4 +963,86 @@ public class MutationManager
 	public float [][] getMinEmatrixEntropy(){
 		return pairEMatrixMinEntropy;
 	}
+	public void setMutableSpots(int ms) {
+		mutableSpots = ms;
+	}
+	public void setMut2Strand(int m2s[]) {
+		mutRes2Strand = m2s;
+	}
+	public void setMut2StrandMutIndex(int m2sMi[]) {
+		mutRes2StrandMutIndex = m2sMi;
+	}
+	public void setTypeDep(boolean tD) {
+		// TODO Auto-generated method stub
+		typeDep = tD;
+	}
+	public void setRotamerLibrary(RotamerLibrary rl){
+		rotLib = rl;
+	}
+	public void setErefMatrixName(String erm) {
+		eRefMatrix  = erm;
+	}
+
+	public void setTemplateAlwaysOn(boolean templAlwaysOn) {
+		templateAlwaysOn = templAlwaysOn;
+	}
+
+	public void setAddOrigRots(boolean aor) {
+		addOrigRots   = aor;
+	}
+	
+	public void setSaveTopConfs(boolean stc) {
+		// TODO Auto-generated method stub
+		saveTopConfs = stc;
+	}
+	
+	public void setPrintTopConfs(boolean ptc) {
+		// TODO Auto-generated method stub
+		printTopConfs = ptc;
+	}
+
+	public void setNumTopConfs(int ntc) {
+		// TODO Auto-generated method stub
+		numTopConfs = ntc;
+	}
+
+	public void setUseMaxKSconfs(boolean useKSconfs) {
+		useMaxKSconfs = useKSconfs;
+	}
+
+	public void setMaxKSconfs(BigInteger mkc) {
+		maxKSconfs = mkc;
+	}
+
+	public void setcurStrForMatrix(int cSFM) {
+		curStrForMatrix = cSFM;
+	}
+        
+        public void setUseFlagsAStar(boolean useFlagsAStar) {
+            this.useFlagsAStar = useFlagsAStar;
+        }
+        public void setUseTriples(boolean useTriples) {
+            this.useTriples = useTriples;
+        }
+        public void setDoPerturbations(boolean dp){
+            doPerturbations=dp;
+        }
+        public void setMinimizePerts(boolean mp){
+            minimizePerts=mp;
+        }
+        public void setPertFile(String pf){
+            pertFile = pf;
+        }
+        public void setAddWTRot(boolean awr){
+            addWTRot = awr;
+        }
+        public void setIdealizeSC(boolean idealizeSC) {
+            this.idealizeSC = idealizeSC;
+        }
+        public void setMagicBulletNumTriples(int magicBulletNumTriples) {
+            this.magicBulletNumTriples = magicBulletNumTriples;
+        }
+        public void setMagicBulletTriples(boolean magicBulletTriples) {
+            this.magicBulletTriples = magicBulletTriples;
+        }
 }

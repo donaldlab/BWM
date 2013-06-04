@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,22 +36,23 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // Amber96ext.java
 //
-//  Version:           1.0
+//  Version:           2.1 beta
 //
 //
 // authors:
 //    initials    name                  organization                email
 //   ---------   --------------      ------------------------     ------------------------------
 //     RHL        Ryan Lilien          Dartmouth College           ryan.lilien@dartmouth.edu
-//	   ISG		  Ivelin Georgiev	   Duke University			   ivelin.georgiev@duke.edu
-//
+//     ISG		  Ivelin Georgiev	   Duke University			   ivelin.georgiev@duke.edu
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -186,10 +187,13 @@ public class Amber96ext implements ForceField, Serializable {
 	//The solvation parameters object
 	EEF1 eef1parms = null;
 	
+	String amberDatInFile = "";
+	
 
 	Amber96ext(Molecule m, boolean ddDielect, double dielectConst, boolean doSolv, double solvScFactor, double vdwMult){
 		
 		this.m = m;
+		setForcefieldInputs();
 		// Read in AA and Generic templates
 		try {
 			aat = new AminoAcidTemplates();
@@ -251,7 +255,7 @@ public class Amber96ext implements ForceField, Serializable {
 	//  functions
 	private void readParm96() throws Exception {
 	
-		FileInputStream is = new FileInputStream( "parm96a.dat" );
+		FileInputStream is = new FileInputStream( EnvironmentVars.getDataDir().concat(amberDatInFile) );
 		BufferedReader bufread = new BufferedReader(new InputStreamReader(is));
 		String curLine = null, tmpStr = null;
 		int tmpInt = 0;
@@ -302,11 +306,11 @@ public class Amber96ext implements ForceField, Serializable {
 				bondEBL = doubleArraySize(bondEBL);
 			}
 			
-			tmpStr = curLine.substring(0,5);
-			bondAtomType1[tmpInt] = atomTypeToInt(tmpStr.substring(0,2).trim());
-			bondAtomType2[tmpInt] = atomTypeToInt(tmpStr.substring(3,5).trim());
-			bondHFC[tmpInt] = (new Float(getToken(curLine.substring(5),1))).floatValue();
-			bondEBL[tmpInt] = (new Float(getToken(curLine.substring(5),2))).floatValue();
+			//tmpStr = curLine.substring(0,5);
+			bondAtomType1[tmpInt] = atomTypeToInt(getDashedToken(curLine, 1));
+			bondAtomType2[tmpInt] = atomTypeToInt(getDashedToken(curLine, 2));
+			bondHFC[tmpInt] = (new Float(getDashedToken(curLine,3))).floatValue();
+			bondEBL[tmpInt] = (new Float(getDashedToken(curLine,4))).floatValue();
 			tmpInt++;
 			curLine = bufread.readLine();
 		}
@@ -334,12 +338,12 @@ public class Amber96ext implements ForceField, Serializable {
 				angleEBA = doubleArraySize(angleEBA);
 			}
 			
-			tmpStr = curLine.substring(0,8);
-			angleAtomType1[tmpInt] = atomTypeToInt(tmpStr.substring(0,2).trim());
-			angleAtomType2[tmpInt] = atomTypeToInt(tmpStr.substring(3,5).trim());
-			angleAtomType3[tmpInt] = atomTypeToInt(tmpStr.substring(6,8).trim());
-			angleHFC[tmpInt] = (new Float(getToken(curLine.substring(8),1))).floatValue();
-			angleEBA[tmpInt] = (new Float(getToken(curLine.substring(8),2))).floatValue();
+			//tmpStr = curLine.substring(0,8);
+			angleAtomType1[tmpInt] = atomTypeToInt(getDashedToken(curLine,1));
+			angleAtomType2[tmpInt] = atomTypeToInt(getDashedToken(curLine,2));
+			angleAtomType3[tmpInt] = atomTypeToInt(getDashedToken(curLine,3));
+			angleHFC[tmpInt] = (new Float(getDashedToken(curLine,4))).floatValue();
+			angleEBA[tmpInt] = (new Float(getDashedToken(curLine,5))).floatValue();
 			tmpInt++;
 			curLine = bufread.readLine();
 		}
@@ -374,19 +378,19 @@ public class Amber96ext implements ForceField, Serializable {
 				dihedPN = doubleArraySize(dihedPN);
 			}
 			
-			tmpStr = curLine.substring(0,11);
-			dihedAtomType1[tmpInt] = atomTypeToInt(tmpStr.substring(0,2).trim());
-			dihedAtomType2[tmpInt] = atomTypeToInt(tmpStr.substring(3,5).trim());
-			dihedAtomType3[tmpInt] = atomTypeToInt(tmpStr.substring(6,8).trim());
-			dihedAtomType4[tmpInt] = atomTypeToInt(tmpStr.substring(9,11).trim());
+			//tmpStr = curLine.substring(0,11);
+			dihedAtomType1[tmpInt] = atomTypeToInt(getDashedToken(curLine,1));
+			dihedAtomType2[tmpInt] = atomTypeToInt(getDashedToken(curLine,2));
+			dihedAtomType3[tmpInt] = atomTypeToInt(getDashedToken(curLine,3));
+			dihedAtomType4[tmpInt] = atomTypeToInt(getDashedToken(curLine,4));
 			
 			if ( dihedAtomType1[tmpInt]==atomTypeX || dihedAtomType2[tmpInt]==atomTypeX || dihedAtomType3[tmpInt]==atomTypeX || dihedAtomType4[tmpInt]==atomTypeX ) //at least one of the atoms is a wildcard
 				numGeneralDihedParams++;
 			
-			tmpFlt = (new Float(getToken(curLine.substring(11),1))).floatValue();
-			dihedTerm1[tmpInt] = (new Float(getToken(curLine.substring(11),2))).floatValue() / tmpFlt;
-			dihedPhase[tmpInt] = (new Float(getToken(curLine.substring(11),3))).floatValue();
-			dihedPN[tmpInt] = (new Float(getToken(curLine.substring(11),4))).intValue();
+			tmpFlt = (new Float(getDashedToken(curLine,5))).floatValue();
+			dihedTerm1[tmpInt] = (new Float(getDashedToken(curLine,6))).floatValue() / tmpFlt;
+			dihedPhase[tmpInt] = (new Float(getDashedToken(curLine,7))).floatValue();
+			dihedPN[tmpInt] = (new Float(getDashedToken(curLine,8))).intValue();
 			// If dihedPN is negative then there are one or more additional terms
 			//  nothing fancy needs to be done because they will all be read in anyway
 			//  but we do need to correct the sign
@@ -426,14 +430,14 @@ public class Amber96ext implements ForceField, Serializable {
 				impDihedPN = doubleArraySize(impDihedPN);
 			}
 			
-			tmpStr = curLine.substring(0,11);
-			impDihedAtomType1[tmpInt] = atomTypeToInt(tmpStr.substring(0,2).trim());
-			impDihedAtomType2[tmpInt] = atomTypeToInt(tmpStr.substring(3,5).trim());
-			impDihedAtomType3[tmpInt] = atomTypeToInt(tmpStr.substring(6,8).trim());
-			impDihedAtomType4[tmpInt] = atomTypeToInt(tmpStr.substring(9,11).trim());
-			impDihedTerm1[tmpInt] = (new Float(getToken(curLine.substring(11),1))).floatValue();
-			impDihedPhase[tmpInt] = (new Float(getToken(curLine.substring(11),2))).floatValue();
-			impDihedPN[tmpInt] = (new Float(getToken(curLine.substring(11),3))).intValue();
+			//tmpStr = curLine.substring(0,11);
+			impDihedAtomType1[tmpInt] = atomTypeToInt(getDashedToken(curLine,1));
+			impDihedAtomType2[tmpInt] = atomTypeToInt(getDashedToken(curLine,2));
+			impDihedAtomType3[tmpInt] = atomTypeToInt(getDashedToken(curLine,3));
+			impDihedAtomType4[tmpInt] = atomTypeToInt(getDashedToken(curLine,4));
+			impDihedTerm1[tmpInt] = (new Float(getDashedToken(curLine,5))).floatValue();
+			impDihedPhase[tmpInt] = (new Float(getDashedToken(curLine,6))).floatValue();
+			impDihedPN[tmpInt] = (new Float(getDashedToken(curLine,7))).intValue();
 			tmpInt++;
 			curLine = bufread.readLine();
 		}
@@ -542,6 +546,27 @@ public class Amber96ext implements ForceField, Serializable {
 	
 	}
 
+
+	private String getDashedToken(String s, int x) {
+	
+		int curNum = 1;	
+		StringTokenizer st = new StringTokenizer(s," ,;\t\n\r\f-");
+		
+		while (curNum < x) {
+			curNum++;
+			if (st.hasMoreTokens())
+			  st.nextToken();
+			else {
+				return(new String(""));
+			}
+		}
+
+		if (st.hasMoreTokens())		
+			return(st.nextToken());
+		return(new String(""));
+
+	} // end getToken
+	
 
 	// This function returns the numeric atom type based on the string atom type
 	// If atom type is 'x' then return atomTypeX which means it's a wildcard
@@ -870,6 +895,8 @@ public class Amber96ext implements ForceField, Serializable {
 		int[] atA = null;
 		if ((d < dNT) && (d < dCT)) {
 			tR = templateRes;
+			tR.cterm = false;
+			tR.nterm = false;
 			atA = atArray;
 			if (debug)
 				System.out.println("Residue " + nr + " matched to non-terminal: " + res.name);
@@ -877,11 +904,15 @@ public class Amber96ext implements ForceField, Serializable {
 		else if (dNT < dCT) {
 			tR = templateResNT;
 			atA = atArrayNT;
+			tR.cterm = false;
+			tR.nterm = true;
 			if (debug)
 				System.out.println("Residue " + nr + " matched to N-terminal: " + res.name);
 		}
 		else {
 			tR = templateResCT;
+			tR.cterm = true;
+			tR.nterm = false;
 			atA = atArrayCT;
 			if (debug)
 				System.out.println("Residue " + nr + " matched to C-terminal: " + res.name);
@@ -894,6 +925,8 @@ public class Amber96ext implements ForceField, Serializable {
 				assignNumericalType(res.atom[atA[q]], res.atom[atA[q]].forceFieldType);
 			}
 		}
+		res.cterm = tR.cterm;
+		res.nterm = tR.nterm;
 		res.ffAssigned = true;		
 		return true;
 	}
@@ -1046,6 +1079,9 @@ public class Amber96ext implements ForceField, Serializable {
 	// To use the amino acid templates, each strand should
 	//  have its isProtein boolean set to true
 	public void calculateTypesWithTemplates() {
+		//KER: Ensure molecule is connected
+		if(!m.connectivityValid)
+			m.establishConnectivity(false);
 	
 		// Modified to use AA templates if possible
 		for(int q=0; q<m.numberOfStrands; q++) {
@@ -1053,16 +1089,33 @@ public class Amber96ext implements ForceField, Serializable {
 				for(int w=0; w<m.strand[q].numberOfResidues; w++) {
 					//if ( m.strand[q].residue[w].getEnergyEvalSC() || m.strand[q].residue[w].getEnergyEvalBB() ){
 						Residue res = m.strand[q].residue[w];
-						if(!calculateOneAAWithTemplates(res)){
-							System.out.println("WARNING: UNABLE TO FIND AA TEMPLATE FOR: " + m.strand[q].residue[w].fullName);
+						if(res.cofactor){ //KER: I allow cofactor residues in a protein strand cause they will never move/rotate
+							if(!calculateOneGRWithTemplates(res)){
+								System.out.println("WARNING: UNABLE TO FIND GENERIC TEMPLATE FOR: " + m.strand[q].residue[w].fullName);
+							}
+							else { // we were able to assign types with template
+								// System.out.println("Assigned strand: " + q + " res: " + w + " to an AAT");
+								// Make sure all atoms were assigned, if not assign them by standard methods
+								for(int z=0; z<res.numberOfAtoms; z++) {
+									if (res.atom[z].forceFieldType.equals("")) {
+										System.out.println(" patching res: " + w + " atom: " + z + " " + res.atom[z].elementType + " " + res.atom[z].name);
+										System.out.println("WARNING: Unable to patch residue\n");
+									}
+								}
+							}
 						}
-						else { // we were able to assign types with template
-							// System.out.println("Assigned strand: " + q + " res: " + w + " to an AAT");
-							// Make sure all atoms were assigned, if not assign them by standard methods
-							for(int z=0; z<res.numberOfAtoms; z++) {
-								if (res.atom[z].forceFieldType.equals("")) {
-									System.out.println(" patching res: " + w + " atom: " + z + " " + res.atom[z].elementType + " " + res.atom[z].name);
-									System.out.println("WARNING: Unable to patch residue\n");
+						else{
+							if(!calculateOneAAWithTemplates(res)){
+								System.out.println("WARNING: UNABLE TO FIND AA TEMPLATE FOR: " + m.strand[q].residue[w].fullName);
+							}
+							else { // we were able to assign types with template
+								// System.out.println("Assigned strand: " + q + " res: " + w + " to an AAT");
+								// Make sure all atoms were assigned, if not assign them by standard methods
+								for(int z=0; z<res.numberOfAtoms; z++) {
+									if (res.atom[z].forceFieldType.equals("")) {
+										System.out.println(" patching res: " + w + " atom: " + z + " " + res.atom[z].elementType + " " + res.atom[z].name);
+										System.out.println("WARNING: Unable to patch residue\n");
+									}
 								}
 							}
 						}
@@ -1247,19 +1300,49 @@ public class Amber96ext implements ForceField, Serializable {
 				if (!(getNonBondedParameters(atomType1, equilibriumDistance, epsilon)))
 					System.out.println("WARNING: Could not find nb parameters for " + atom1 + " type: " + m.atom[atom1].forceFieldType);
 				else {
-					epsilonProduct = epsilon[0];
-					ri = equilibriumDistance[0];
+					if((EnvironmentVars.forcefld == EnvironmentVars.FORCEFIELD.CHARMM19 
+							|| EnvironmentVars.forcefld == EnvironmentVars.FORCEFIELD.CHARMM19NEUTRAL )
+							&& m.atom[m.connected14[ix4]].elementType.equalsIgnoreCase("C")){
+						//KER: if charmm19 then reduce C radii for 1-4 interactions
+						epsilonProduct = 0.1;
+						ri = 1.9;
+					}
+					else{
+						epsilonProduct = epsilon[0];
+						ri = equilibriumDistance[0];
+					}
 					if (!(getNonBondedParameters(atomType4, equilibriumDistance, epsilon)))
 						System.out.println("WARNING: Could not find nb parameters for " + atom4 + " type: " + m.atom[atom4].forceFieldType);
 					else {
-						epsilonProduct *= epsilon[0];
-						rj = equilibriumDistance[0];
+						if((EnvironmentVars.forcefld == EnvironmentVars.FORCEFIELD.CHARMM19 
+								|| EnvironmentVars.forcefld == EnvironmentVars.FORCEFIELD.CHARMM19NEUTRAL )
+								&& m.atom[m.connected14[ix4]].elementType.equalsIgnoreCase("C")){
+							//KER: if charmm19 then reduce C radii for 1-4 interactions
+							epsilonProduct *= 0.1;
+							rj = 1.9;
+						}
+						else{
+							epsilonProduct *= epsilon[0];
+							rj = equilibriumDistance[0];
+						}
 						epsilonProduct = Math.sqrt(epsilonProduct);
 						// This part is 1-4 interactions which are scaled by 1/2
 						double Bij = ( ri + rj ) * ( ri + rj );
 						Bij = Bij * Bij * Bij;
-						double Aij = Bij * Bij * epsilonProduct / 2.0;
-						Bij *= epsilonProduct;
+						double Aij = Bij * Bij;
+						switch(EnvironmentVars.forcefld){
+							case AMBER:
+								Aij *= epsilonProduct * 0.5;
+								Bij *= epsilonProduct;
+								break;
+							case CHARMM19: 
+							case CHARMM19NEUTRAL:
+								Aij *= epsilonProduct;
+								Bij *= epsilonProduct * 2.0;
+								// Aij = (ri+rj)^12 * sqrt(ei*ej)
+								// Bij = (ri+rj)^6 * sqrt(ei*ej) * 2.0
+								break;
+						}
 						// Aij = (ri+rj)^12 * sqrt(ei*ej) * 0.5
 						// Bij = (ri+rj)^6 * sqrt(ei*ej)
 						halfNonBondedTerms[ix4b] = atom1;
@@ -1358,7 +1441,7 @@ public class Amber96ext implements ForceField, Serializable {
 			evalAtom[i] = false;
 		}
 		for(int i=0;i<m.numberOfResidues;i++){			
-			if (m.strand[m.residue[i].strandNumber].isProtein) //only compute solvation energies for the protein and an AA ligand
+			if (m.strand[m.residue[i].strandNumber].isProtein && !m.residue[i].cofactor) //only compute solvation energies for the protein and an AA ligand
 				evalAtom = getEvalForRes(m.residue[i],evalAtom);
 		}
 		
@@ -1502,13 +1585,22 @@ public class Amber96ext implements ForceField, Serializable {
 		
 		numPartHalfNonBonded = new int[numRows];
 		numPartNonBonded = new int[numRows];
-		partHalfNonBonded = new double[numRows][maxNumColumns*m.numberOfAtoms*4];
-		partNonBonded = new double[numRows][maxNumColumns*m.numberOfAtoms*4];
+		
+		partHalfNonBonded = new double[numRows][];
+		partNonBonded = new double[numRows][];
 			// In the worst case each atom in a column of atomList is involved with
 			//  every other atom in the molecule
-		partHalfNBeval = new int[numRows][maxNumColumns*m.numberOfAtoms];
-		partNBeval = new int[numRows][maxNumColumns*m.numberOfAtoms];
+		partHalfNBeval = new int[numRows][];
+		partNBeval = new int[numRows][];
 		
+		for(int i=0; i<numRows;i++){
+			partHalfNonBonded[i] = new double[numColumns[i]*m.numberOfAtoms*4];
+			partNonBonded[i] = new double[numColumns[i]*m.numberOfAtoms*4];
+				// In the worst case each atom in a column of atomList is involved with
+				//  every other atom in the molecule
+			partHalfNBeval[i] = new int[numColumns[i]*m.numberOfAtoms];
+			partNBeval[i] = new int[numColumns[i]*m.numberOfAtoms];
+		}
 	
 		for(int q=0;q<numRows;q++){
 			int[] tempAtomList = new int[m.numberOfAtoms];
@@ -1683,7 +1775,22 @@ public class Amber96ext implements ForceField, Serializable {
 		// half non-bonded terms
 		ix4 = -4;
 		// 1-4 electrostatic terms are scaled by 1/1.2
-		coulombFactor = (constCoulomb/1.2) / (dielectric);
+		switch(EnvironmentVars.forcefld){
+			case AMBER:
+				coulombFactor = (constCoulomb/1.2) / (dielectric);
+				break;
+			case CHARMM19:
+			case CHARMM19NEUTRAL:
+				coulombFactor = (constCoulomb * 0.4) / (dielectric);
+				break;
+			default:
+				coulombFactor = 0;
+				System.out.println("FORCEFIELD NOT RECOGNIZED!!!");
+				System.exit(0);
+				break;
+		}
+		
+		double tmpCoulFact;
 		for(int i=0; i<numHalfNBterms; i++) {
 			ix4 += 4;
 			atomi = (int)halfNBterms[ix4];
@@ -1703,11 +1810,12 @@ public class Amber96ext implements ForceField, Serializable {
 			rij6 = rij2 * rij2 * rij2;
 			rij12 = rij6 * rij6;
 			
-			coulombFactor = (constCoulomb/1.2) / (dielectric);
+			//coulombFactor = (constCoulomb/1.2) / (dielectric);
+			tmpCoulFact = coulombFactor;
 			if (distDepDielect) //distance-dependent dielectric
-				coulombFactor /= rij;
+				tmpCoulFact /= rij;
 	
-			coulombTerm = (chargei * chargej * coulombFactor) / rij;
+			coulombTerm = (chargei * chargej * tmpCoulFact) / rij;
 			vdwTerm = Aij / rij12 - Bij / rij6;
 
 			// This is not the fastest way to do this, but based on the
@@ -1769,11 +1877,12 @@ public class Amber96ext implements ForceField, Serializable {
 			rij6 = rij2 * rij2 * rij2;
 			rij12 = rij6 * rij6;
 			
-			coulombFactor = constCoulomb / (dielectric);
+			//coulombFactor = constCoulomb / (dielectric);
+			tmpCoulFact = coulombFactor;
 			if (distDepDielect) //distance-dependent dielectric
-				coulombFactor /= rij;
+				tmpCoulFact /= rij;
 
-			coulombTerm = (chargei * chargej * coulombFactor) / rij;
+			coulombTerm = (chargei * chargej * tmpCoulFact) / rij;
 			vdwTerm = Aij / rij12 - Bij / rij6;
 
 			// This is not the fastest way to do this, but based on the
@@ -2024,15 +2133,37 @@ public class Amber96ext implements ForceField, Serializable {
 			nbTerms = partNonBonded[curIndex];
 		}
 
+		// Note: Bmult = vdwMultiplier^6 and Amult = vdwMultiplier^12
+		float Bmult; float Amult;
+		Bmult = vdwMultiplier * vdwMultiplier;
+		Bmult = Bmult*Bmult*Bmult;
+		Amult = Bmult*Bmult;
+		
 		// compute gradient for 1/2 non-bonded terms
 		ix4 = -4;
-		coulombFactor = (constCoulomb/2.0) / (dielectric);
+		//coulombFactor = (constCoulomb/2.0) / (dielectric);
+		//KER: Made change to 1.2
+		switch(EnvironmentVars.forcefld){
+			case AMBER: 
+				coulombFactor = (constCoulomb/1.2) / dielectric;
+				break;
+			case CHARMM19:
+			case CHARMM19NEUTRAL:
+				coulombFactor = (constCoulomb*0.4) / dielectric;
+				break;
+			default:
+				coulombFactor = 0;
+				System.out.println("FORCEFIELD NOT RECOGNIZED!!!");
+				System.exit(0);
+				break;
+		}
+		double tmpCoulFact;
 		for (int i=0; i<numHalfNBterms; i++){
 			ix4 += 4;
 			atomi = (int)halfNBterms[ix4];
 			atomj = (int)halfNBterms[ix4 + 1];
-			Aij = halfNBterms[ix4 + 2];
-			Bij = halfNBterms[ix4 + 3];
+			Aij = halfNBterms[ix4 + 2]*Amult;
+			Bij = halfNBterms[ix4 + 3]*Bmult;
 			chargei = m.atom[atomi].charge;
 			chargej = m.atom[atomj].charge;
 			atomix3 = atomi * 3;
@@ -2053,11 +2184,11 @@ public class Amber96ext implements ForceField, Serializable {
 			rij8 = rij7 * rij;
 			rij14 = rij7 * rij7;
 			
-			coulombFactor = (constCoulomb/2.0) / (dielectric);
+			tmpCoulFact = coulombFactor;
 			if (distDepDielect) //distance-dependent dielectric
-				coulombFactor /= rij;
+				tmpCoulFact = (tmpCoulFact * 2) / rij;
 			
-			coulombTerm = (chargei * chargej * coulombFactor) / rij3;
+			coulombTerm = (chargei * chargej * tmpCoulFact) / rij3;
 			term1 = 12 * Aij / rij14;
 			term2 = 6 * Bij / rij8;
 			term3 = term1 - term2 + coulombTerm;
@@ -2082,8 +2213,8 @@ public class Amber96ext implements ForceField, Serializable {
 			ix4 += 4;
 			atomi = (int)nbTerms[ix4];
 			atomj = (int)nbTerms[ix4 + 1];
-			Aij = nbTerms[ix4 + 2];
-			Bij = nbTerms[ix4 + 3];
+			Aij = nbTerms[ix4 + 2]*Amult;
+			Bij = nbTerms[ix4 + 3]*Bmult;
 			chargei = m.atom[atomi].charge;
 			chargej = m.atom[atomj].charge;
 			atomix3 = atomi * 3;
@@ -2104,9 +2235,9 @@ public class Amber96ext implements ForceField, Serializable {
 			rij8 = rij7 * rij;
 			rij14 = rij7 * rij7;
 			
-			coulombFactor = constCoulomb / (dielectric);
+			tmpCoulFact = coulombFactor;
 			if (distDepDielect) //distance-dependent dielectric
-				coulombFactor /= rij;
+				tmpCoulFact = (tmpCoulFact * 2) / rij;
 			
 			coulombTerm = (chargei * chargej * coulombFactor) / rij3;
 			term1 = 12 * Aij / rij14;
@@ -2299,4 +2430,28 @@ public class Amber96ext implements ForceField, Serializable {
 		return(new String(""));
 
 	} // end getToken
+	
+	private void setForcefieldInputs(){
+		// These values are specific to parm96a.dat
+		//   parm96a.dat that I made that has Cl info
+		switch(EnvironmentVars.forcefld){
+			case AMBER:
+				amberDatInFile = "parm96a.dat";
+				break;
+			case CHARMM22: 
+				//KER: These numbers are specific to the charmm2Amber.dat file
+				amberDatInFile = "parmcharmm22.dat";
+				break;
+			case CHARMM19:
+			case CHARMM19NEUTRAL:
+				//KER: These numbers are specific for charmm19
+				amberDatInFile = "parmcharmm19.dat";
+				break;
+			default:
+				System.out.println("DON'T RECOGNIZE FORCEFIELD: "+EnvironmentVars.forcefld.name());
+				System.exit(0);
+				break;
+		}
+
+	}
 }

@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,14 +36,14 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // StrandRotamers.java
 //
-//  Version:           1.0
+//  Version:           2.1 beta
 //
 //
 // authors:
@@ -51,7 +51,8 @@
 //   ---------   -----------------    ------------------------    ----------------------------
 //     RHL        Ryan Lilien          Dartmouth College           ryan.lilien@dartmouth.edu
 //	   ISG		  Ivelin Georgiev	   Duke University			   ivelin.georgiev@duke.edu
-//
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /** 
@@ -72,20 +73,35 @@ public class StrandRotamers implements Serializable {
 	//  printed to standard out.
 	public static final boolean debug = false;
 	
-	private RotamerLibrary rl = null; //the rotamer library object
+	public RotamerLibrary rl = null; //the rotamer library object
 	
-	private int strandNumber = -1; 		//the strand number 
+	protected int strandNumber = -1; 		//the strand number
 	private int totalNumDihedrals = 0;			//number of dihedrals in this strand
-	private int numberOfResidues=0;			// Number of residues in this strand
+	protected int numberOfResidues=0;			// Number of residues in this strand
 	private int allowableAAs[][];		// Which AA types are allowable at each position
 	private int numAllowable[];			// Number of allowables
 	private String curAAType[] = null;    //the three-letter code currently assumed by each residue in the strand
-	private int curRotNum[] = null;     //the rotamer number currently assumed by each residue in the strand
+	protected int curRotNum[] = null;     //the rotamer number currently assumed by each residue in the strand
 	
 	// Generic constructor
-	StrandRotamers(RotamerLibrary rlP, Strand s) {
-		rl = rlP;
+	StrandRotamers(String rotFilename, Strand s) {
+		
+		rl = new RotamerLibrary(rotFilename,s.isProtein);
 		setupStrand(s);
+		
+		
+	}
+	
+	// Generic constructor
+	StrandRotamers(RotamerLibrary rotLib, Strand s) {
+		
+		rl = rotLib;
+		setupStrand(s);
+	}
+	
+	public StrandRotamers reInit(Strand s){
+		StrandRotamers sr = new StrandRotamers(rl,s);
+		return sr;
 	}
 
 	// This function sets up the allowableAAs[][] array
@@ -129,7 +145,24 @@ public class StrandRotamers implements Serializable {
 				System.out.println("setAllow: res " + resNum + " type " + name);
 		}
 	}
-	
+
+        // This function checks if the AA type named name is allowed for residue number resNum
+	public boolean checkAllowable(int resNum, String name) {
+
+		int aaNum = rl.getAARotamerIndex(name);
+		if (aaNum>=0) {
+			if (allowableAAs[resNum][aaNum] == 1)
+                            return true;
+                        else
+                            return false;
+		}
+                else{
+                    System.err.println("Warning: AA type " + name + " not recognized");
+                    return false;
+                }
+
+	}
+
 	// This function clears the list of allowable AA types
 	//  for residue number resNum
 	public void clearAllowable(int resNum) {
@@ -486,24 +519,40 @@ public class StrandRotamers implements Serializable {
 	public void changeResidueType(Molecule m, int resNum, String newResType, boolean addHydrogens, boolean connectResidue, boolean useOldBBatoms) {
 
 		Residue localResidue = m.strand[strandNumber].residue[resNum];
-		
+
+                RotMatrix rm = new RotMatrix();
+
 		boolean newResGly = false;
 		boolean oldResGly = false;
 		boolean glyMutation = false;
-		
+
+                boolean newResPro = false;
+                boolean oldResPro = false;
+                boolean proMutation = false;
+
+		/* KER: Histidine can now take on the forms HIP, HIE, and HID so it should
+		 * be allowed to change between the different types
 		if (isResHis(localResidue.name)&&isResHis(newResType)) // checks if the new and old types are both forms of histidine, if so a mutation is not done
 			return;														// This prevents say HID from reverting into HIS
-				
+		*/
+
 		// If the old or new residues are glycine then we must do special things as we treat the H as CB
+                //Proline is also special
 		if(newResType.equalsIgnoreCase("gly"))
-				newResGly = true;
+                    newResGly = true;
+                else if(newResType.equalsIgnoreCase("pro"))
+                    newResPro = true;
+
 		if(localResidue.name.equalsIgnoreCase("gly"))
-				oldResGly = true;
+                    oldResGly = true;
+                else if(localResidue.name.equalsIgnoreCase("pro"))
+                    oldResPro = true;
 
 		if (oldResGly && newResGly)// Nothing to do here, a null mutation
 			return;
-		
-		glyMutation = newResGly || oldResGly;														
+
+		glyMutation = newResGly || oldResGly;
+                proMutation = newResPro || oldResPro;
 
 		// We assume a standard backbone ordering of: N,CA,C,O
 
@@ -515,39 +564,54 @@ public class StrandRotamers implements Serializable {
 		// Get the new residue from the templates
  		Amber96PolyPeptideResidue ppr = new Amber96PolyPeptideResidue();
 		Residue r = ppr.getResidue(newResType);
-				
+
 		// Residue r = ppr.getResidue("Lala");
 		Molecule m2 = new Molecule();
 		m2.addResidue(0,r);
 		m2.establishConnectivity(false);
-		
-		
+
+
 		// First get a handle on the backbone N, CA, C, O, H, and CB atoms
 		Atom at[] = null;
 		at = getBBatoms(r); //for the new residue
 		Atom NNew = at[0]; Atom CANew = at[1]; Atom CNew = at[2]; Atom ONew = at[3]; Atom HNew = at[4]; Atom CBNew = at[5];
-		
+
 		at = getBBatoms(localResidue); //for the old residue
 		Atom NOld = at[0]; Atom CAOld = at[1]; Atom COld = at[2]; Atom OOld = at[3]; Atom HOld = at[4]; Atom CBOld = at[5];
-		
-		if (oldResGly){ // we didn't find CBOld as Gly doesn't have it; find HA3 and point CBOld to it			
+
+		if (oldResGly){ // we didn't find CBOld as Gly doesn't have it; find HA3 and point CBOld to it
 			for(int q=0;q<localResidue.numberOfAtoms;q++) {
 				if ( (localResidue.atom[q].name.equalsIgnoreCase("HA3")) || (localResidue.atom[q].name.equalsIgnoreCase("3HA")) )
 					CBOld = localResidue.atom[q];
 			}
+			if(CBOld == null){
+				System.out.println("HA3 on "+localResidue.fullName+" couldn't be found. Please check labelling.");
+				System.out.println("Going to assume we want HA2");
+				for(int q=0;q<localResidue.numberOfAtoms;q++) {
+					if ( (localResidue.atom[q].name.equalsIgnoreCase("HA2")) || (localResidue.atom[q].name.equalsIgnoreCase("2HA")) )
+						CBOld = localResidue.atom[q];
+                                }
+			}
 		}
-		
 
-		// START ALIGNMENT
+                float newNHLength = rm.norm( rm.subtract( HNew.coord, NNew.coord ) );//New amide NH or N-CD bond length
+
+			// START ALIGNMENT
 		// Translate N's to overlap
-		float Ntrans[] = new float[3];
-		Ntrans[0] = NNew.coord[0] - NOld.coord[0];
-		Ntrans[1] = NNew.coord[1] - NOld.coord[1];
-		Ntrans[2] = NNew.coord[2] - NOld.coord[2];
-		for(int q=0;q<r.numberOfAtoms;q++) {
-			r.atom[q].coord[0] -= Ntrans[0];
-			r.atom[q].coord[1] -= Ntrans[1];
-			r.atom[q].coord[2] -= Ntrans[2];
+		try{
+                    float Ntrans[] = new float[3];
+                    Ntrans[0] = NNew.coord[0] - NOld.coord[0];
+                    Ntrans[1] = NNew.coord[1] - NOld.coord[1];
+                    Ntrans[2] = NNew.coord[2] - NOld.coord[2];
+                    for(int q=0;q<r.numberOfAtoms;q++) {
+                            r.atom[q].coord[0] -= Ntrans[0];
+                            r.atom[q].coord[1] -= Ntrans[1];
+                            r.atom[q].coord[2] -= Ntrans[2];
+                    }
+                }
+		catch(Exception E){
+			System.out.println("1");
+			E.printStackTrace();
 		}
 
 		int numAtoms = -1;
@@ -564,20 +628,21 @@ public class StrandRotamers implements Serializable {
 				atomList[q] = q;
 			r.rotateResidue(NNew,rotAxis[0],rotAxis[1],rotAxis[2],-thetaDeg[0],atomList,numAtoms);
 		}
-		
-		// Rotate CBs to overlap - now the residue backbones should be aligned		
+
+		// Rotate CBs to overlap - now the residue backbones should be aligned
 		if ( (!glyMutation) && (CBOld.distance(CBNew) > 0.0001) ) { //not a to- or from- Gly mutation
 			getRotationInfoB(CBOld, CAOld, NOld, CBNew, thetaDeg, rotAxis);
 			for(int q=0;q<r.numberOfAtoms;q++)
 				atomList[q] = q;
 			r.rotateResidue(CANew,rotAxis[0],rotAxis[1],rotAxis[2],-thetaDeg[0],atomList,numAtoms);
 		}
+
 		if (oldResGly) //mutation from Gly
 			alignCBOldGly(CBOld,CBNew,CAOld,CANew,NOld,r);
 		if (newResGly) //mutation to Gly
 			alignCBNewGly(CBOld,CBNew,CAOld,CANew,NOld,r,localResidue);
-		
-				
+
+
 		// Remove hydrogens if we don't want them
 		if (!addHydrogens) {
 			for(int q=0;q<r.numberOfAtoms;q++) {
@@ -588,34 +653,51 @@ public class StrandRotamers implements Serializable {
 		else {
 			// ELSE KEEP ALL HYDROGENS
 		}
-		
+
 		//Make the positions of the new backbone atoms coincide *exactly* with the old ones;
-		// 	NNew already has the same coordinates as NOld; 
+		// 	NNew already has the same coordinates as NOld;
 		// 	the CAs, CBs, and CBs are already aligned, but may differ due to differences between the template PPR and the residue backbone in the PDB
 		if (useOldBBatoms){
 			setAtomCoord(CANew,CAOld);
 			if ( (CBNew!=null) && (CBOld!=null) ) //not a from/to Gly mutation (Gly does not have a CB)
-				setAtomCoord(CBNew,CBOld);			
+				setAtomCoord(CBNew,CBOld);
 		}
 		setAtomCoord(CNew,COld);
 		setAtomCoord(ONew,OOld);
-		if ( addHydrogens && (HOld!=null) )
+
+                if( newResPro || ( oldResPro && addHydrogens ) ){
+
+                    float NVec[] = rm.subtract(HOld.coord, NOld.coord);//N- to H or CD bond vector
+                    NVec = rm.scale(NVec, newNHLength/rm.norm(NVec) );
+                    HNew.coord = rm.add(NVec, NNew.coord);
+                }
+                else if(addHydrogens && (HOld != null))
 			setAtomCoord(HNew,HOld);
-		
-		
+
+
 		//////////////////////////////////////////////////////////////////////////////////
-		if (m.strand[strandNumber].name.compareToIgnoreCase("L")==0){ //we are changing the ligand
-			//we must add the OXT or H1, H2, H3 atoms (and delete the HN atom) to the new residue, 
-			//	since the PPR templates only handle polypeptide residues			
-			
+		if (localResidue.nterm){ //we are changing the nterm residue
+			//we must add the H1, H2, H3 atoms (and delete the HN atom) to the new residue,
+			//	since the PPR templates only handle polypeptide residues
+
 			Residue r1 = getNtermRes(r,localResidue);
-			
+
+			m2 = new Molecule();
+			m2.addResidue(0, r1);
+			m2.establishConnectivity(false);
+		}
+		if (localResidue.cterm){ //we are changing the cterm residue
+			//we must add the OXT or H1, H2, H3 atoms (and delete the HN atom) to the new residue,
+			//	since the PPR templates only handle polypeptide residues
+
+			Residue r1 = getCtermRes(r,localResidue);
+
 			m2 = new Molecule();
 			m2.addResidue(0, r1);
 			m2.establishConnectivity(false);
 		}
 		////////////////////////////////////////////////////////////////////////////////
-		
+
 
 		// Copy the new residue information into the old residue
 		int changeInAtoms = r.numberOfAtoms - localResidue.numberOfAtoms;
@@ -652,10 +734,10 @@ public class StrandRotamers implements Serializable {
 			if (lastResidueC == -1)
 				connectLastResidue = false;
 		}
-		
+
 
 		localResidue.name = r.name;
-																		 
+
 		if (r.name.length() > 3)
 			localResidue.fullName = new String (r.name.substring(0,3) + " " + localResidue.fullName.substring(4));
 		else if (localResidue.fullName.length()  > 4)
@@ -664,14 +746,14 @@ public class StrandRotamers implements Serializable {
 			localResidue.fullName = r.name.substring(0,3);
 		localResidue.numberOfAtoms = r.numberOfAtoms;
 		localResidue.atom = r.atom;
-		
+
 		for(int j=0;j<localResidue.numberOfAtoms;j++){
 			localResidue.atom[j].moleculeResidueNumber = savedMoleculeResidueNumber;
 			localResidue.atom[j].strandResidueNumber = savedStrandResidueNumber;
 			localResidue.atom[j].strandNumber = savedStrandNumber;
 			localResidue.atom[j].segID = new String(savedSegID);
 		}
-		
+
 		// Update atoms in residues of this strand after this residue
 		//  as well as the bookkeeping in the molecule itself
 		int curAtom = 0;
@@ -725,34 +807,50 @@ public class StrandRotamers implements Serializable {
 							}
 						}
 					}
-					
+
 				}
 			}
 		}
 		if (connectedResidue)
 			m.addBondBetween(linkfrom,linkto);
-		
+
 		// Establish all connectivity including non-bonded interactions
-		m.establishConnectivity(false);
+		//KER: Remember that if you try to get rid of this establishConnectivity, you have to check for connectivity in Amber96ext.calculateTypesWithTemplates
+		m.connectivityValid = false;
+		//m.establishConnectivity(false);
 		m.updateNumAtoms();
-		
+
 		curAAType[resNum] = newResType;
 		curRotNum[resNum] = -1;
 		localResidue.ffAssigned = false;
-				
+
 		// Copy atom coordinates back into actualCoordinates
 		for(int q=0;q<m.numberOfAtoms;q++)
 			m.updateCoordinates(q);
+
+
+                if(proMutation){//Idealize the sidechain since proline has an unusual geometry
+                    //This is especially important if we are mutating to proline (some bonds are probably way off length then:
+                    //the idealization reconstructs the ideal ring given the backbone, CB, and CD coordinates)
+
+                    m.idealizeResSidechain(localResidue);
+                    int firstAtom = localResidue.atom[0].moleculeAtomNumber;
+                    for(int a=0; a<localResidue.numberOfAtoms; a++)
+                        m.resolveCoordinates(firstAtom+a);//Copy the idealized coordinates back into the Atom.coord arrays
+
+                    if(!newResPro)//No longer proline, so ring closure is no longer an issue
+                        localResidue.validConf = true;
+                }
+
 	}
-	
 	//Checks if residue res is a form of histidine
-	private boolean isResHis(String res){
+	/*private boolean isResHis(String res){
 		
 		if (res.equalsIgnoreCase("HID") || res.equalsIgnoreCase("HIE") || res.equalsIgnoreCase("HIP") || res.equalsIgnoreCase("HIS"))
 			return true;
 		else
 			return false;
-	}
+	}*/
 	
 	//Returns a handle on the backbone N, CA, C, O, H, and CB atoms for residue res
 	private Atom [] getBBatoms(Residue res){
@@ -766,9 +864,9 @@ public class StrandRotamers implements Serializable {
 				at[1] = res.atom[q];
 			else if (res.atom[q].name.equalsIgnoreCase("C"))
 				at[2] = res.atom[q];
-			else if (res.atom[q].name.equalsIgnoreCase("O"))
+			else if (res.atom[q].name.equalsIgnoreCase("O")||res.atom[q].name.equalsIgnoreCase("O1"))
 				at[3] = res.atom[q];
-			else if (res.atom[q].name.equalsIgnoreCase("H"))
+			else if ( res.atom[q].name.equalsIgnoreCase("H") || ( res.atom[q].name.equalsIgnoreCase("CD") && res.name.equalsIgnoreCase("PRO") ) )
 				at[4] = res.atom[q];
 			else if (res.atom[q].name.equalsIgnoreCase("CB"))
 				at[5] = res.atom[q];
@@ -822,9 +920,46 @@ public class StrandRotamers implements Serializable {
 		return r1;
 	}
 	
+	private Residue getCtermRes(final Residue r, final Residue localResidue){
+		
+		Residue r1 = r;
+		
+		
+		//Find the old H1, H2, H3 atoms and add them to the new residue
+		for(int q=0;q<localResidue.numberOfAtoms;q++) {
+			if (localResidue.atom[q].name.equalsIgnoreCase("OXT")||
+					localResidue.atom[q].name.equalsIgnoreCase("O2")){
+				
+				Atom lAtom = localResidue.atom[q];					
+				Atom at1 = new Atom(lAtom.name,lAtom.coord[0],lAtom.coord[1],lAtom.coord[2],lAtom.charge,lAtom.forceFieldType);					
+				r1.addAtom(at1);
+			}
+		}
+		
+		int cAtom = -1;
+		//find which atom is the C to connect the OXT to
+		for(int q=0; q<r1.numberOfAtoms;q++){
+			if(r1.atom[q].name.equalsIgnoreCase("C")){
+				cAtom = q;
+				break;
+			}
+		}
+		
+		//update the bond information for the new atom
+		for(int q=0; q<r1.numberOfAtoms;q++){
+			if (r1.atom[q].name.equalsIgnoreCase("OXT")||r1.atom[q].name.equalsIgnoreCase("O2")){
+				r1.atom[q].addBond(cAtom); //add the bond to the new C atom
+				r1.atom[cAtom].addBond(q);
+			}
+		}		
+		
+		return r1;
+	}
+	
 	//Performs the CB alignment (changes the coordinates of the new residue r) for the new residue when the old residue is Gly
 	private void alignCBOldGly(Atom CBOld, Atom CBNew, Atom CAOld, Atom CANew, Atom NOld, Residue r){
 		
+	  try{
 		int numAtoms = -1;
 		int atomList[] = null;
 		double thetaDeg[] = new double[1];
@@ -845,6 +980,10 @@ public class StrandRotamers implements Serializable {
 				atomList[q] = q;
 			r.rotateResidue(CANew,rotAxis[0],rotAxis[1],rotAxis[2],-thetaDeg[0],atomList,numAtoms);
 		}
+	  }
+	  catch(Exception e){
+		  System.out.println("Why are you failing?");
+	  }
 	}
 	
 	//Performs the CB alignment (changes the coordinates of the new residue r) when the new residue is Gly
@@ -885,4 +1024,35 @@ public class StrandRotamers implements Serializable {
 		r.atom[localH].coord[1] = (float)(CANew.coord[1]+(CBOld.coord[1]-CANew.coord[1])*magNew/magOld);
 		r.atom[localH].coord[2] = (float)(CANew.coord[2]+(CBOld.coord[2]-CANew.coord[2])*magNew/magOld);
 	}
+	
+	public void addOrigRots(int[][] strandMut,RotamerLibrary rl, Molecule m){
+		
+		if(! rl.isAddedRotamers()){
+			for(int str=0; str<strandMut.length;str++){
+				for(int res=0; res<strandMut[str].length;res++){
+					Residue curRes = m.strand[str].residue[strandMut[str][res]];
+					//Get Num Dihedrals
+					int numDiheds = rl.getNumDihedrals(rl.getAARotamerIndex(curRes.name));
+					if(numDiheds<=0)
+						continue;
+					int[] diheds = new int[numDiheds]; 
+					int atoms[] = new int[4];
+					//get all dihedrals
+					for(int i=0; i<numDiheds; i++){
+						atoms = rl.getDihedralInfo(m, curRes.strandNumber, curRes.strandResidueNumber, i);
+						diheds[i] = (int) Math.round(curRes.atom[atoms[3]].torsion(curRes.atom[atoms[0]], curRes.atom[atoms[1]], curRes.atom[atoms[2]]));
+					}
+					//System.out.print("Str: "+str+" Res: "+res+" ");
+					rl.addRotamer(curRes.name, diheds);
+					//System.out.println("");
+				}
+			
+			}
+			rl.setAddedRotamers(true);
+		}
+		else{
+			System.out.println("DEBUG: ALREADY ADDED ROTAMERS");
+		}
+	}
+	
 }

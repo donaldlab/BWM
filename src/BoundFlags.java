@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,23 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	BoundFlags.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
+//     MAH        Mark A. Hallen	Duke University         mah43@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -63,45 +65,7 @@
  * 		conformations that contain a given rotamer pair (i_r,j_s), for each rotamer pair
  * 
  */
-public class BoundFlags {
-	
-	//pairwise energy matrix for the min energies
-	private float pairwiseMinEnergyMatrix [][][][][][] = null;
-	
-	//eliminated rotamers at position i, for all positions
-	private boolean eliminatedRotAtPos [] = null;
-	
-	//number of residues under consideration
-	private int numSiteResidues;
-	
-	//for each residue, number of possible amino acids
-	private int numTotalRot;
-	
-	//number of possible rotamers for the ligand
-	int numLigRot;
-	
-	//offset of the given rotamer in the total rotamer set (?152?)
-	int rotIndOffset[];
-	
-	//the number of AA tyes allowed for each AS residue
-	int numAAtypes[] = null;
-	
-	//number of rotamers for the current AA type at the given residue
-	//int numRotForAAtypeAtRes[];
-	
-	//this value depends on the particular value specified in the pairwise energy matrices;
-	//		in KSParser, this value is 10^38;
-	//entries with this particular value will not be examined, as they are not allowed;
-	//note that when computing E intervals, if a steric is not allowed, (maxE-minE)=0,
-	//		so no comparison with stericE is necessary there
-	private float bigE = (float)Math.pow(10,38);
-	
-	//steric energy that determines incompatibility of a rotamer with the template
-	float stericE = bigE;
-	
-	//private double curEw = 0.0f;	//the max allowable difference from the GMEC (checkSum<=curEw should not be pruned)
-	
-	//PrintStream logPS = null;
+public class BoundFlags extends DEE {
 	
 	//the minimum lower energy bound for all pruned conformations
 	double Ec = bigE;
@@ -115,79 +79,57 @@ public class BoundFlags {
 	int numRotForMut = 0;
 	
 	//stores the Ec for each pair of rotamers
-	double pairEc[][] = null;
+	//double pairEc[][] = null;
+	double pairEc[][][][][][] = null;
 	
 	//determines if a rotamer index is a part of the current mutation sequence
-	boolean rotInMutInd[];
+	PrunedRotamers<Boolean> rotInMutInd;
 	
 	//the rotamer library
-	RotamerLibrary rl = null;
+	//RotamerLibrary rl = null;
 	
 	//The system rotamer handler
-	StrandRotamers sysLR = null;
+	//StrandRotamers sysLR = null;
 	
 	//The mapping from AS position to actual residue numbers
-	int residueMap[] = null;
+	//int residueMap[] = null;
 	
 	double pruningE = bigE; //the lower-bound energy cutoff for pruning
-	
+		
 	double Ew = 0.0; //the E window allowed from the best energy
-	
+
 	//the precomputed single and pair interval terms
 	double indInt[][] = null;
 	double pairInt[][] = null;
 	
-	//split flags for all rotamer pairs
-	boolean splitFlags[][] = null;
-	
-	//determines if split flags are used
-	boolean useFlags = true;
-	
-	//the percent of pruned non-steric rotamers
-	//final double lambda = 0.3;//0.08;
-	
-	int ligAANum = -1; //the ligand amino acid index
-
 	//constructor
-	BoundFlags(float arpMatrix[][][][][][], int numResInActiveSite, int numTotalRotamers,int numLigRotamers,	
-			int rotamerIndexOffset[], int resMap[], StrandRotamers systemLRot, double pruneE, 
-			boolean prunedRotAtRes[], boolean spFlags[][], boolean useSF, float initEw, RotamerLibrary rlP, StrandRotamers ligROT) {
-		
-		splitFlags = spFlags;
-		pairwiseMinEnergyMatrix = arpMatrix;
-		rotIndOffset = rotamerIndexOffset;
-		eliminatedRotAtPos = prunedRotAtRes;
-		residueMap = resMap;
-		sysLR = systemLRot;
-		rl = rlP;
-		useFlags = useSF;
-		
-		numSiteResidues = numResInActiveSite;		// tested with 9 AS
-		numTotalRot = numTotalRotamers;				// ?152?
-		numLigRot = numLigRotamers;					// 0 if no ligand
-		if (numLigRot>0)
-			ligAANum = ligROT.getIndexOfNthAllowable(0,0);
-		
+	BoundFlags(PairwiseEnergyMatrix arpMatrix, int numResMutable, int strMut[][], StrandRotamers strandLRot[], double pruneE,
+			PrunedRotamers<Boolean> prunedRotAtRes, boolean spFlags[][][][][][], boolean useSF, float initEw, 
+			int mutRes2StrandP[], int mutRes2MutIndexP[], boolean doPerts) {
+
+
+
+            init(arpMatrix, null, numResMutable,
+			strMut, initEw, strandLRot, prunedRotAtRes, false, null, null,
+                        spFlags, useSF, false, mutRes2StrandP, mutRes2MutIndexP, false, false, 0,
+                        false, false, null, null, doPerts);
+
+
+
 		pruningE = pruneE;
 		Ew = initEw;
 		
-		rotInMutInd = new boolean[eliminatedRotAtPos.length];
-		pairEc = new double[eliminatedRotAtPos.length][eliminatedRotAtPos.length];
+		rotInMutInd = new PrunedRotamers<Boolean>(eliminatedRotAtPos,false);
+				
+		/*********Set up pairEc as a 6D Array like the pair E matrix**********/
+		//pairEc = new double[eliminatedRotAtPos.length][eliminatedRotAtPos.length];
+		pairEc = arpMatrix.initializePairwiseDoubleMatrix(bigE);
 		
-		for (int i=0; i<eliminatedRotAtPos.length; i++){
-			rotInMutInd[i] = false; //true only if the given rotamer index is used in the current mutation sequence
-			
-			for (int j=0; j<eliminatedRotAtPos.length; j++)
-				pairEc[i][j] = bigE;
-		}
-		
-		numAAtypes = new int[numSiteResidues];
-		for (int i=0; i<numAAtypes.length; i++) //the number of AAs allowed for each AS residue
-			numAAtypes[i] = sysLR.getNumAllowable(residueMap[i]);
 		
 		Ec = bigE;
 		curEc = 0.0;
 	}
+	
 	
 	public double getEc(){
 		return Ec;
@@ -196,9 +138,9 @@ public class BoundFlags {
 	//Precompute the int terms for indInt[][] and pairInt[][]
 	private void precomputeInt() {
 		
-		int numRes = numSiteResidues;		
-		if (numLigRot!=0) //ligand is present
-			numRes++;
+		int numRes = numMutable;		
+		/*if (numLigRot!=0) //ligand is present
+			numRes++;*/
 		
 		indInt = new double[numRes][numRes];
 		pairInt = new double[numRes][numRes];
@@ -208,12 +150,12 @@ public class BoundFlags {
 	
 				curEc = 0.0;
 				SumMaxIndInt(posNum1,posNum2);
-				indInt[posNum1][posNum2] = 	curEc;			//formula term 3
+				indInt[posNum1][posNum2] = 	curEc;			//formula term 3 KER: sum_{j (j!=h,i)} min_s {E(j_s)}  
 				indInt[posNum2][posNum1] = indInt[posNum1][posNum2];
 				
 				curEc = 0.0;
 				SumSumMaxPairInt(posNum1,posNum2);
-				pairInt[posNum1][posNum2] = curEc;			//formula term 4
+				pairInt[posNum1][posNum2] = curEc;			//formula term 4 sum_{j} sum_{k (j,k != h,i)} min_{s,u} {E(j_s,k_u)}
 				pairInt[posNum2][posNum1] = pairInt[posNum1][posNum2];
 				
 				curEc = 0.0;
@@ -224,7 +166,7 @@ public class BoundFlags {
 	//Compute the conformations that can be eliminated
 	//Return a boolean matrix in which an element is true if
 	//the corresponding r at i can be eliminated, and false otherwise
-	public boolean[][] ComputeEliminatedRotConf (){
+	public boolean[][][][][][] ComputeEliminatedRotConf (){
 		
 		precomputeInt();
 		
@@ -239,58 +181,61 @@ public class BoundFlags {
 			System.out.println("Current run: "+numRuns);
 			
 			//Compute for the AS residues first
-			for (int curPos1=0; curPos1<numSiteResidues; curPos1++){
+			for (int curPos1=0; curPos1<numMutable; curPos1++){
 				
-				System.out.print("Starting AS residue "+curPos1);
+				int str1=mutRes2Strand[curPos1];
+				int strResNum1=strandMut[str1][mutRes2MutIndex[curPos1]];
+				//System.out.print("Starting AS residue "+curPos1);
 								
 				for (int AA1=0; AA1<numAAtypes[curPos1]; AA1++){
 					
-					System.out.print(".");
+					//System.out.print(".");
 					
-					int curAA1 = sysLR.getIndexOfNthAllowable(residueMap[curPos1],AA1);
+					int curAA1 = strandRot[str1].getIndexOfNthAllowable(strResNum1,AA1);
 				
 					//find how many rotamers are allowed for the current AA type at the given residue;
 					//note that ala and gly have 0 possible rotamers
-					int numRotForCurAAatPos1 = rl.getNumRotForAAtype(curAA1);
-					if (numRotForCurAAatPos1==0)	//ala or gly
-						numRotForCurAAatPos1 = 1;
+					int numRotForCurAAatPos1 = getNumRot( str1, strResNum1, curAA1 );
 					
 					for(int curRot1=0; curRot1<numRotForCurAAatPos1; curRot1++){
 						
 						numRotForMut++;
 						
-						int index1 = curPos1*numTotalRot + rotIndOffset[curAA1] + curRot1;
-						rotInMutInd[index1] = true; //rot index is in cur mut sequence
+						//int index1 = curPos1*numTotalRot + rotIndOffset[curAA1] + curRot1;
+						rotInMutInd.set(curPos1,curAA1,curRot1,true); //rot index is in cur mut sequence
 						
-						if ((!eliminatedRotAtPos[index1])){ //not already pruned
+						if ((!eliminatedRotAtPos.get(curPos1,curAA1,curRot1))){ //not already pruned
 							
-							for (int curPos2=curPos1+1; curPos2<numSiteResidues; curPos2++){
+							for (int curPos2=curPos1+1; curPos2<numMutable; curPos2++){
 												
+								int str2=mutRes2Strand[curPos2];
+								int strResNum2=strandMut[str2][mutRes2MutIndex[curPos2]];
 								for (int AA2=0; AA2<numAAtypes[curPos2]; AA2++){
 									
-									int curAA2 = sysLR.getIndexOfNthAllowable(residueMap[curPos2],AA2);
+									int curAA2 = strandRot[str2].getIndexOfNthAllowable(strResNum2,AA2);
 								
 									//find how many rotamers are allowed for the current AA type at the given residue;
 									//note that ala and gly have 0 possible rotamers
-									int numRotForCurAAatPos2 = rl.getNumRotForAAtype(curAA2);
-									if (numRotForCurAAatPos2==0)	//ala or gly
-										numRotForCurAAatPos2 = 1;
+									int numRotForCurAAatPos2 = getNumRot( str2, strResNum2, curAA2 );
 									
 									for(int curRot2=0; curRot2<numRotForCurAAatPos2; curRot2++){
 										
-										int index2 = curPos2*numTotalRot + rotIndOffset[curAA2] + curRot2;
-										rotInMutInd[index2] = true; //rot index is in cur mut sequence
+										Index3 index2 = new Index3(curPos2,curAA2,curRot2);// curPos2*numTotalRot + rotIndOffset[curAA2] + curRot2;
+										rotInMutInd.set(index2,true); //rot index is in cur mut sequence
 										
-										if ((!eliminatedRotAtPos[index2])){ //not already pruned
+										if ((!eliminatedRotAtPos.get(index2))){ //not already pruned
 											
-											if (!splitFlags[index1][index2]) {//pair not already flagged
+											if (!splitFlags[curPos1][curAA1][curRot1][curPos2][curAA2][curRot2]) {//pair not already flagged
 						
 												//logPS.println((curPos*numTotalRot + rotIndOffset[curAA] + curRot));logPS.flush();
-												curEc = pairwiseMinEnergyMatrix[pairwiseMinEnergyMatrix.length-1][0][0][0][0][0]; //initialize to Et' for each rotamer
+												curEc = pairwiseMinEnergyMatrix.getShellShellE();//pairwiseMinEnergyMatrix[pairwiseMinEnergyMatrix.length-1][0][0][0][0][0]; //initialize to Et' for each rotamer
 												
 												CanEliminate(curPos1, curAA1, curRot1, curPos2, curAA2, curRot2);
-												pairEc[index1][index2] = Math.min(pairEc[index1][index2], curEc); //update the lowest energy bound if necessary
-												pairEc[index2][index1] = pairEc[index1][index2];
+												//KER: Changing from 2D to 6D array to save memory space
+												//pairEc[index1][index2] = Math.min(pairEc[index1][index2], curEc); //update the lowest energy bound if necessary
+												pairEc[curPos1][curAA1][curRot1][curPos2][curAA2][curRot2] = Math.min(curEc,pairEc[curPos1][curAA1][curRot1][curPos2][curAA2][curRot2]);
+												//pairEc[index2][index1] = pairEc[index1][index2];
+												pairEc[curPos2][curAA2][curRot2][curPos1][curAA1][curRot1] = pairEc[curPos1][curAA1][curRot1][curPos2][curAA2][curRot2];
 											}
 										}
 									}
@@ -299,11 +244,11 @@ public class BoundFlags {
 						}
 					}
 				}
-				System.out.println("done");
+				//System.out.println("done");
 			}
 			
 			//If there is a ligand, compute MinDEE for the lig rotamers as well
-			if (numLigRot!=0){
+			/*if (numLigRot!=0){
 				System.out.print("Starting ligand run");
 				System.out.print("..");
 				for (int curRot=0; curRot<numLigRot; curRot++){
@@ -349,7 +294,7 @@ public class BoundFlags {
 					}
 				}
 				System.out.println("done");
-			}
+			}*/
 			
 			//Determine the pruned rotamers: all rotamers whose lower energy bound is above the given
 			//	cutoff value are pruned
@@ -358,37 +303,63 @@ public class BoundFlags {
 			double minEc = bigE;
 			int numPairs = 0;
 			int numPrunedPairs = 0;
-			for (int i=0; i<pairEc.length; i++){
-				for (int j=i+1; j<pairEc.length; j++){
+								
+			//KER: now we have to loop through 6 levels instead of two
+			//for (int i=0; i<pairEc.length; i++){
+			//	for (int j=i+1; j<pairEc.length; j++){
+			//loop 
+			//KER: indices should be position1, aminoAcid1, rotamer1,
+			//KER:                  position2, aminoAcid2, rotamer2
+			try{
+			for(int p1=0; p1<pairEc.length;p1++){
+			 if(pairEc[p1]!=null)
+			 for(int a1=0; a1<pairEc[p1].length; a1++){
+			  if(pairEc[p1][a1] != null)	 
+			  for(int r1=0; r1<pairEc[p1][a1].length;r1++){
+			   if(pairEc[p1][a1][r1]!=null)
+			   for(int p2=0; p2<pairEc[p1][a1][r1].length;p2++){
+		        if(pairEc[p1][a1][r1][p2]!=null)
+				for(int a2=0; a2<pairEc[p1][a1][r1][p2].length;a2++){
+				 if(pairEc[p1][a1][r1][p2][a2]!=null)
+				 for(int r2=0; r2<pairEc[p1][a1][r1][p2][a2].length;r2++){
+					//KER: index 1
+					Index3 i =  new Index3(p1,a1,r1);//p1*numTotalRot + rotIndOffset[a1] + r1;
+					//KER: index 2
+					Index3 j =  new Index3(p2,a2,r2);//p2*numTotalRot + rotIndOffset[a2] + r2;
+					if ((rotInMutInd.get(i))&&(rotInMutInd.get(j))&&((p1)!=(p2))){ //rot indices in current mutation and at different residue positions
 					
-					if ((rotInMutInd[i])&&(rotInMutInd[j])&&((i/numTotalRot)!=(j/numTotalRot))){ //rot indices in current mutation and at different residue positions
-					
-						if ((!eliminatedRotAtPos[i])&&(!eliminatedRotAtPos[j])){ //not already pruned
+						if ((!eliminatedRotAtPos.get(i))&&(!eliminatedRotAtPos.get(j))){ //not already pruned
 									
 							if (i!=j){
 							
 								numPairs++;
 									
-								if (!splitFlags[i][j]){ //pair not already flagged
+								if (!splitFlags[p1][a1][r1][p2][a2][r2]){ //pair not already flagged
 			
-									if (pairEc[i][j]>pruningE+Ew){ //higher than the cutoff energy, so prune
-										splitFlags[i][j] = true;
-										splitFlags[j][i] = true;
+									if (pairEc[p1][a1][r1][p2][a2][r2]>pruningE+Ew){ //higher than the cutoff energy, so prune
+										splitFlags[p1][a1][r1][p2][a2][r2] = true;
+										splitFlags[p2][a2][r2][p1][a1][r1] = true;
 										numPrunedPairs++;
 										prunedCurRun++;
 																				
-										minE = Math.min(minE,pairEc[i][j]);
-										maxE = Math.max(maxE,pairEc[i][j]);	
+										minE = Math.min(minE,pairEc[p1][a1][r1][p2][a2][r2]);
+										maxE = Math.max(maxE,pairEc[p1][a1][r1][p2][a2][r2]);	
 										
-										minEc = Math.min(minEc,pairEc[i][j]);
+										minEc = Math.min(minEc,pairEc[p1][a1][r1][p2][a2][r2]);
 									}
 								}
 								else //pair already pruned
-									minEc = Math.min(minEc,pairEc[i][j]);
+									minEc = Math.min(minEc,pairEc[p1][a1][r1][p2][a2][r2]);
 							}
 						}
 					}
 				}
+		        }
+		        }
+			   }   }
+			}}
+			catch(Exception e){
+				System.out.println("");
 			}
 			System.out.println("Number of pairs pruned this run: "+prunedCurRun);
 			System.out.println();
@@ -421,13 +392,11 @@ public class BoundFlags {
 		double minIndVoxelE_ir, minIndVoxelE_js;
 		double minShellResE_ir, minShellResE_js;
 		
-		minIndVoxelE_ir = pairwiseMinEnergyMatrix[posNum1][AANumAtPos1][rotNumAtPos1][posNum1][0][0];	//formula term 1
-		minShellResE_ir = pairwiseMinEnergyMatrix[posNum1][AANumAtPos1][rotNumAtPos1][posNum1][0][1];
+		minIndVoxelE_ir = pairwiseMinEnergyMatrix.getIntraAndShellE( posNum1, AANumAtPos1, rotNumAtPos1 );//formula term 1.  Intra + shell energy
 		
-		minIndVoxelE_js = pairwiseMinEnergyMatrix[posNum2][AANumAtPos2][rotNumAtPos2][posNum2][0][0];	//formula term 1
-		minShellResE_js = pairwiseMinEnergyMatrix[posNum2][AANumAtPos2][rotNumAtPos2][posNum2][0][1];
+		minIndVoxelE_js = pairwiseMinEnergyMatrix.getIntraAndShellE( posNum2, AANumAtPos2, rotNumAtPos2 );	//formula term 1
 		
-		curEc += (minIndVoxelE_ir + minShellResE_ir) + (minIndVoxelE_js + minShellResE_js);//System.out.println(++count+" "+curEc);
+		curEc += minIndVoxelE_ir + minIndVoxelE_js;//System.out.println(++count+" "+curEc);
 		
 		if (curEc>=stericE) //rotamer incompatible with template, so prune
 			return;
@@ -443,8 +412,8 @@ public class BoundFlags {
 	private void SumMinDiffPVE (int atPos1, int withAA1, int withRot1, int atPos2, int withAA2, int withRot2){		
 		
 		//get the contribution from the active site residue rotamers
-		curEc += pairwiseMinEnergyMatrix[atPos1][withAA1][withRot1][atPos2][withAA2][withRot2];
-		for (int curPos=0; curPos<numSiteResidues; curPos++){
+		curEc += pairwiseMinEnergyMatrix.getPairwiseE( atPos1, withAA1, withRot1, atPos2, withAA2, withRot2 );
+		for (int curPos=0; curPos<numMutable; curPos++){
 			
 			if ((curPos != atPos1)&&(curPos != atPos2)) {		
 				IndMinDiffPVE(atPos1, withAA1, withRot1, curPos);
@@ -452,12 +421,12 @@ public class BoundFlags {
 			}
 		}
 		
-		if (numLigRot!=0){ //there is a ligand
+		/*if (numLigRot!=0){ //there is a ligand
 			//add the contribution from the ligand rotamers: there is only one ligand residue,
 			//so there is only one position j here for which to add
 			LigandIndMinMinPVE(atPos1, withAA1, withRot1);
 			LigandIndMinMinPVE(atPos2, withAA2, withRot2);
-		}
+		}*/
 	}
 	
 	//Called by SumMinMinPVE(.)
@@ -465,34 +434,35 @@ public class BoundFlags {
 
 		double curEmin;
 		
-		int index1, index2;
+		Index3 index1, index2;
 		int numRotForAAatPos;
 		
-		//r at i
-		index1 = firstPos*numTotalRot + rotIndOffset[firstAA] + firstRot1;
+		int str2=mutRes2Strand[secondPos];
+		int strResNum2=strandMut[str2][mutRes2MutIndex[secondPos]];
 		
-		if ((!eliminatedRotAtPos[index1])){ //not pruned
+		//r at i
+		index1 = new Index3(firstPos,firstAA,firstRot1);//firstPos*numTotalRot + rotIndOffset[firstAA] + firstRot1;
+		
+		if ((!eliminatedRotAtPos.get(index1))){ //not pruned
 		
 			//find the minimum E among all the rotamers (all the rotamers for the given AA assignment)
 			//for the given residue
 			for (int AA=0; AA<numAAtypes[secondPos]; AA++){
 				
-				int curAA = sysLR.getIndexOfNthAllowable(residueMap[secondPos],AA);;
+				int curAA = strandRot[str2].getIndexOfNthAllowable(strResNum2,AA);
 				
-				numRotForAAatPos = rl.getNumRotForAAtype(curAA);
-				if (numRotForAAatPos==0)	//ala or gly
-					numRotForAAatPos = 1;
+				numRotForAAatPos = getNumRot( str2, strResNum2, curAA );
 				
 				for (int curRot=0; curRot<numRotForAAatPos; curRot++){			
 					
 					//s at j
-					index2 = secondPos*numTotalRot + rotIndOffset[curAA] + curRot;	
+					index2 = new Index3(secondPos,curAA,curRot);//secondPos*numTotalRot + rotIndOffset[curAA] + curRot;	
 					
-					if ((!eliminatedRotAtPos[index2])){ //not pruned
+					if ((!eliminatedRotAtPos.get(index2))){ //not pruned
 						
-						if ((!useFlags)||(!splitFlags[index1][index2])){ //not using split flags or not flagged
+						if ((!useFlags)||(!splitFlags[firstPos][firstAA][firstRot1][secondPos][curAA][curRot])){ //not using split flags or not flagged
 						
-							curEmin = pairwiseMinEnergyMatrix[firstPos][firstAA][firstRot1][secondPos][curAA][curRot];
+							curEmin = pairwiseMinEnergyMatrix.getPairwiseE( firstPos, firstAA, firstRot1, secondPos, curAA, curRot );
 							minEmin = Math.min(minEmin,curEmin);
 						}
 					}
@@ -504,7 +474,7 @@ public class BoundFlags {
 	}
 	
 	//Called by SumMinMinPVE(.)
-	private void LigandIndMinMinPVE(int firstPos, int firstAA, int firstRot1){
+	/*private void LigandIndMinMinPVE(int firstPos, int firstAA, int firstRot1){
 		
 		double curEmin;
 		
@@ -532,7 +502,7 @@ public class BoundFlags {
 			curEc += minEmin;//System.out.println(++count+" "+curEc);
 		}
 		minEmin = bigE;
-	}
+	}*/
 	//////////////////////////////////////////////////////////////////////////////////
 	
 	//////////////////////////////////////////////////////////////////////////////////		
@@ -540,17 +510,17 @@ public class BoundFlags {
 	private void SumMaxIndInt (int withoutPos1, int withoutPos2){
 		
 		//get the contribution from the active site residue rotamers
-		for (int curPos=0; curPos<numSiteResidues; curPos++){			
+		for (int curPos=0; curPos<numMutable; curPos++){			
 			if ((curPos != withoutPos1)&&(curPos != withoutPos2))			
 				MaxIndInt(curPos);
 		}
 		
-		if (numLigRot!=0){ //ther is a ligand
+		/*if (numLigRot!=0){ //ther is a ligand
 			//get the contribution from the ligand rotamers: there is only one ligand residue,
 			//so there is only one position j here for which to add
 			if ((withoutPos1!=numSiteResidues)&&(withoutPos2!=numSiteResidues)) //if we are not currently checking ligand rotamers for pruning
 				LigandMaxIndInt();
-		}
+		}*/
 	}
 	
 	//Called by SumMaxIndInt(.)
@@ -558,13 +528,15 @@ public class BoundFlags {
 		
 		int numRotForAAatPos;
 		
+		int str=mutRes2Strand[atPos];
+		int strResNum=strandMut[str][mutRes2MutIndex[atPos]];
+		
+		//KER: min_{s} E(j_s)
 		for (int AA=0; AA<numAAtypes[atPos]; AA++){
 			
-			int curAA = sysLR.getIndexOfNthAllowable(residueMap[atPos],AA);
+			int curAA = strandRot[str].getIndexOfNthAllowable(strResNum,AA);
 			
-			numRotForAAatPos = rl.getNumRotForAAtype(curAA);
-			if (numRotForAAatPos==0)	//ala or gly
-				numRotForAAatPos = 1;
+			numRotForAAatPos = getNumRot( str, strResNum, curAA );
 			
 			for (int curRot=0; curRot<numRotForAAatPos; curRot++){		
 				IndInt(atPos, curAA, curRot);
@@ -579,19 +551,18 @@ public class BoundFlags {
 	private void IndInt (int atPos, int atAA, int atRot){
 		
 		//s at j
-		int index1 = atPos*numTotalRot + rotIndOffset[atAA] + atRot;	
+		//int index1 = atPos*numTotalRot + rotIndOffset[atAA] + atRot;	
 		
-		if ((!eliminatedRotAtPos[index1])){ //not pruned
+		if ((!eliminatedRotAtPos.get(atPos,atAA,atRot))){ //not pruned
 
-			double minE = pairwiseMinEnergyMatrix[atPos][atAA][atRot][atPos][0][0];			
-			double minShell = pairwiseMinEnergyMatrix[atPos][atAA][atRot][atPos][0][1];
+			double minE = pairwiseMinEnergyMatrix.getIntraAndShellE( atPos, atAA, atRot );
 			
-			minEmin = Math.min(minEmin,minE+minShell);
+			minEmin = Math.min(minEmin,minE);
 		}
 	}
 	
 	//Called by SumMaxIndInt(.)
-	private void LigandMaxIndInt(){
+	/*private void LigandMaxIndInt(){
 
 		for (int curLigPos=0; curLigPos<numLigRot; curLigPos++){			
 			LigandIndInt(curLigPos);
@@ -599,10 +570,10 @@ public class BoundFlags {
 		
 		curEc += minEmin;//System.out.println(++count+" "+curEc);
 		minEmin = bigE;
-	}
+	}*/
 
 	//Called by LigandMaxIndInt(.)
-	private void LigandIndInt (int ligRot){
+	/*private void LigandIndInt (int ligRot){
 		
 		//s at j (the ligand residue)
 		int index1 = numSiteResidues*numTotalRot + ligRot;
@@ -614,7 +585,7 @@ public class BoundFlags {
 			
 			minEmin = Math.min(minEmin,minE+minShell);
 		}
-	}
+	}*/
 	//////////////////////////////////////////////////////////////////////////////////
 	
 	//////////////////////////////////////////////////////////////////////////////////
@@ -622,7 +593,7 @@ public class BoundFlags {
 	private void SumSumMaxPairInt(int withoutPos1, int withoutPos2){
 		
 		//get the contribution from the active site residue rotamers
-		for (int curPos1=0; curPos1<numSiteResidues; curPos1++){
+		for (int curPos1=0; curPos1<numMutable; curPos1++){
 			if ((curPos1 != withoutPos1)&&(curPos1 != withoutPos2)){
 				for (int curPos2=0; curPos2<curPos1; curPos2++){
 					if ((curPos2 != withoutPos1)&&(curPos2 != withoutPos2)){
@@ -632,7 +603,7 @@ public class BoundFlags {
 			}
 		}
 		
-		if (numLigRot!=0){ //there is a ligand
+		/*if (numLigRot!=0){ //there is a ligand
 			//get the contribution from the ligand rotamers: there is only one ligand residue,
 			//so there is only one position k here for which to add;
 			//the range of j is the number of active site residues
@@ -643,7 +614,7 @@ public class BoundFlags {
 					}
 				}
 			}
-		}
+		}*/
 	}
 	
 	//Called by SumSumMaxPairInt(.)
@@ -651,13 +622,17 @@ public class BoundFlags {
 		
 		int numRotForAAatPos1;
 		
+		int str1=mutRes2Strand[atPos1];
+		int strResNum1=strandMut[str1][mutRes2MutIndex[atPos1]];
+		int str2=mutRes2Strand[atPos2];
+		int strResNum2=strandMut[str2][mutRes2MutIndex[atPos2]];
+		
+		//KER: min_{s,u} E(j_s,k_u)
 		for (int AA1=0; AA1<numAAtypes[atPos1]; AA1++){
 			
-			int curAA1 = sysLR.getIndexOfNthAllowable(residueMap[atPos1],AA1);
+			int curAA1 = strandRot[str1].getIndexOfNthAllowable(strResNum1,AA1);
 			
-			numRotForAAatPos1 = rl.getNumRotForAAtype(curAA1);
-			if (numRotForAAatPos1==0)	//ala or gly
-				numRotForAAatPos1 = 1;
+			numRotForAAatPos1 = getNumRot( str1, strResNum1, curAA1 );
 		
 			for (int curRot1=0; curRot1<numRotForAAatPos1; curRot1++){
 				
@@ -665,11 +640,9 @@ public class BoundFlags {
 				
 				for (int AA2=0; AA2<numAAtypes[atPos2]; AA2++){
 					
-					int curAA2 = sysLR.getIndexOfNthAllowable(residueMap[atPos2],AA2);;
+					int curAA2 = strandRot[str2].getIndexOfNthAllowable(strResNum2,AA2);;
 					
-					numRotForAAatPos2 = rl.getNumRotForAAtype(curAA2);
-					if (numRotForAAatPos2==0)	//ala or gly
-						numRotForAAatPos2 = 1;
+					numRotForAAatPos2 = getNumRot( str2, strResNum2, curAA2 );
 					
 					for (int curRot2=0; curRot2<numRotForAAatPos2; curRot2++){			
 						PairInt(atPos1, curAA1, curRot1, atPos2, curAA2, curRot2);
@@ -683,16 +656,17 @@ public class BoundFlags {
 	}
 	
 	//Called by MaxPairInt(.)
+	//KER: min E(j_s,k_u)
 	private void PairInt (int atPos1, int atAA1, int atRot1, int atPos2, int atAA2, int atRot2){
 		
-		int index1 = atPos1*numTotalRot + rotIndOffset[atAA1] + atRot1;//u at k
-		int index2 = atPos2*numTotalRot + rotIndOffset[atAA2] + atRot2;//s at j
+		Index3 index1 = new Index3(atPos1,atAA1,atRot1);//atPos1*numTotalRot + rotIndOffset[atAA1] + atRot1;//u at k
+		Index3 index2 = new Index3(atPos2,atAA2,atRot2);//atPos2*numTotalRot + rotIndOffset[atAA2] + atRot2;//s at j
 		
-		if ((!eliminatedRotAtPos[index1])&&(!eliminatedRotAtPos[index2])){ //not pruned
+		if ((!eliminatedRotAtPos.get(index1))&&(!eliminatedRotAtPos.get(index2))){ //not pruned
 			
-			if ((!useFlags)||(!splitFlags[index1][index2])){ //not using split flags or not flagged
+			if ((!useFlags)||(!splitFlags[atPos1][atAA1][atRot1][atPos2][atAA2][atRot2])){ //not using split flags or not flagged
 
-				double minE = pairwiseMinEnergyMatrix[atPos1][atAA1][atRot1][atPos2][atAA2][atRot2];
+				double minE = pairwiseMinEnergyMatrix.getPairwiseE( atPos1, atAA1, atRot1, atPos2, atAA2, atRot2 );
 				
 				minEmin = Math.min(minEmin,minE);
 			}
@@ -700,7 +674,7 @@ public class BoundFlags {
 	}
 	
 	//Called by SumSumMaxPairInt(.)
-	private void LigandMaxPairInt (int atPos){
+	/*private void LigandMaxPairInt (int atPos){
 
 		int numRotForAAatPos;
 		
@@ -722,10 +696,10 @@ public class BoundFlags {
 		
 		curEc += minEmin;//System.out.println(++count+" "+curEc);
 		minEmin = bigE;
-	}
+	}*/
 	
 	//Called by LigandMaxPairInt(.)
-	private void LigandPairInt (int atPos, int atAA, int atRot, int ligRot){
+	/*private void LigandPairInt (int atPos, int atAA, int atRot, int ligRot){
 		
 		int index1 = numSiteResidues*numTotalRot + ligRot;//u at k (the ligand residue)
 		int index2 = atPos*numTotalRot + rotIndOffset[atAA] + atRot;//s at j
@@ -739,13 +713,13 @@ public class BoundFlags {
 				minEmin = Math.min(minEmin,minE);
 			}
 		}
-	}
+	}*/
 	///////////////////////////////////////////////////////////////////////////////////////
 	
 	///////////////////////////////////////////////////////////////////////////////////////
 	//Same as CanEliminate(), just checks the ligand rotamers for pruning
 	//Called by ComputeEliminatedRotConf()
-	private void CanEliminateLig (int curLigRot, int posNum2, int AANumAtPos2, int rotNumAtPos2){
+	/*private void CanEliminateLig (int curLigRot, int posNum2, int AANumAtPos2, int rotNumAtPos2){
 		
 		double minIndVoxelE_ir, minIndVoxelE_js;
 		double minShellResE_ir, minShellResE_js;
@@ -764,11 +738,11 @@ public class BoundFlags {
 		curEc += indInt[numSiteResidues][posNum2];							//formula term 3
 		curEc += pairInt[numSiteResidues][posNum2];							//formula term 5
 		SumMinDiffPVELig(curLigRot, posNum2, AANumAtPos2, rotNumAtPos2);	//formula term 4
-	}
+	}*/
 	
 	//Same as SumMinDiffPVE(), just checks the ligand rotamers for pruning;
 	//Called by CanEliminateLig()
-	private void SumMinDiffPVELig (int withRot1, int atPos2, int withAA2, int withRot2){
+	/*private void SumMinDiffPVELig (int withRot1, int atPos2, int withAA2, int withRot2){
 		
 		//get the contribution from the active site residue rotamers
 		curEc += pairwiseMinEnergyMatrix[numSiteResidues][ligAANum][withRot1][atPos2][withAA2][withRot2];
@@ -778,11 +752,11 @@ public class BoundFlags {
 				IndMinDiffPVE(atPos2, withAA2, withRot2, curPos);
 			}
 		}
-	}
+	}*/
 	
 	//Same as IndMinDiffPVE(), just checks the ligand rotamers for pruning
 	//Called by SumMinDiffPVELig()
-	private void IndMinDiffPVELig (int firstRot1, int secondPos){
+	/*private void IndMinDiffPVELig (int firstRot1, int secondPos){
 		
 		double curEmin;
 		
@@ -824,5 +798,5 @@ public class BoundFlags {
 			curEc += minEmin;
 		}
 		minEmin = bigE;
-	}
+	}*/
 }

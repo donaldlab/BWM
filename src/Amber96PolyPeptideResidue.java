@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,22 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // Amber96PolyPeptideResidue.java
 //
-//  Version:           0.1
+//  Version:           2.1 beta
 //
 //
 // authors:
 //    initials    name            organization                email
 //   ---------   --------------  ------------------------    ------------------------------
 //     RHL        Ryan Lilien     Dartmouth College           ryan.lilien@dartmouth.edu
-//
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -85,13 +86,50 @@ import java.awt.*;
  */
 public class Amber96PolyPeptideResidue {
 	
+	AminoAcidTemplates aat = null;
 	Residue residue;
+
+	public Amber96PolyPeptideResidue() {
+		
+		loadAminoAcidTemplates();
+		
+		
+	}
+	
+	private void loadAminoAcidTemplates() {
+		if(aat == null){
+			try{
+				aat = new AminoAcidTemplates(); }
+			catch (Exception E){
+				System.out.println("Problem Loading Amino Acid Templates");
+			}
+		}
+		
+	}
 
 	Residue getResidue( String residueName ){
 		
+		int numAtoms = 0;
+		int aaResIndex = -1;
+		for(int i=0; i<aat.numAAs;i++){
+			if(aat.aaResidues[i].name.equalsIgnoreCase(residueName)){
+					numAtoms = aat.aaResidues[i].numberOfAtoms;
+					aaResIndex = i;
+					break;
+			}
+		}
+		
+		createResidue(residueName, numAtoms);
+		//KER: Need to make sure that when we copy the residue we are
+		//doing a deep copy and not a shallow copy
+		for(int i=0; i<numAtoms; i++){
+			residue.atom[i] = aat.aaResidues[aaResIndex].atom[i].copy();
+		}
+		
+		
 		// RHL: If only a three character residue name is given, assume
 		//  we want the L form
-		if (residueName.length() == 3) {
+		/*if (residueName.length() == 3) {
 			String tmp = new String("L");
 			residueName = tmp.concat(residueName);
 		}
@@ -1414,7 +1452,7 @@ public class Amber96PolyPeptideResidue {
 			residue.atom[ 6 ].addBond( 7, 8, 12 );
 			residue.atom[ 8 ].addBond( 9, 10, 11 );
 			residue.atom[ 12 ].addBond( 13, 14, 15 );
-		}
+		}*/
 
 		// Make the bonds bidirectional
 		completeBonds();
@@ -1447,5 +1485,7 @@ public class Amber96PolyPeptideResidue {
 			}
 		}
 	}
+	
+	
 
 }

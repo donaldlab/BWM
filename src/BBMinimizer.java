@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,22 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	BBMinimizer.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	 ---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -74,33 +75,37 @@ public class BBMinimizer implements Serializable {
 	Molecule m = null;
 	Amber96ext a96ff = null;
 	
-	int numFlexRes = -1; //the number of residues with flexible side-chains (only in the system strand, and not the ligand)
+	int numFlexRes[] = null; //the number of residues with flexible side-chains (only in the system strand, and not the ligand)
+	int totalFlexRes = 0;
+	int totalTransRotStrands = 0;
+	int totalNonTransRotStrands = 0;
 	int flexResAtomList[][] = new int[0][0]; 
 		// each row is a residue and contains
 		//  the moleucleatomnumbers located more
 		//  distal than the 3rd atom of any dihedral
 	int flexResListSize[] = new int[0]; // the number of valid elements in each row of flexResAtomList
 	
-	int residueMap[] = null; //the mapping between AS and molecule-relative residue numbering
+	//int residueMap[] = null; //the mapping between AS and molecule-relative residue numbering
+	int strandMut[][] = null;
 	
-	int ligResNum = -1; // the residue index of the ligand in the flexResAtomList, flexResListSize
-	int ligStrNum = -1; // the ligand strand number (if ligStrNum == -1 then there is no ligand)
+	//int ligResNum = -1; // the residue index of the ligand in the flexResAtomList, flexResListSize
+	//int ligStrNum = -1; // the ligand strand number (if ligStrNum == -1 then there is no ligand)
 	
-	int sysStrNum = -1; //the system strand number
-	
+	//int sysStrNum = -1; //the system strand number
+	int numberOfStrands;
 	final int numStepsFiPsi = 15; //the number of phi/psi minimization steps to be performed	
 	final float sysMaxDihedRot = 3.0f; //the maximum rotation from the initial phi/sp values
 	private float sysFiPsiStep = 0.8f; //initial step size for phi/psi changes; used for full conformation energy minimization
 	
-	float sysCurFiPsiDisp[][] = null; //the current displacement from the initial phi/psi angle for each residue
+	float molCurFiPsiDisp[][] = null; //the current displacement from the initial phi/psi angle for each residue
 	
 	float ligRotSize = 0.5f; //initial rotation angle size (in degrees)
 	float ligTransSize = 0.5f; //initial translation size (in angstrom)
 	
 	float sysMaxTrans = 1.5f;//2.0f; //the maximum displacement (in angstrom) from the initial CA
 	private int molAtNumCA[] = null; //the molecule atom numbers for the CA atoms for each residue
-	double sysStartCA[][] = null; // the position of the initial CA for each residue
-	private double sysCurCA[][] = null; // the current CA coordinates for each residue
+	double molStartCA[][] = null; // the position of the initial CA for each residue
+	private double molCurCA[][] = null; // the current CA coordinates for each residue
 	
 	
 	//constructor
@@ -108,19 +113,22 @@ public class BBMinimizer implements Serializable {
 	}
 	
 	//Initialize for the system strand only
-	public void initialize(Molecule mol, Amber96ext theA96ff, int resMap[], int sysStrand) {
+	public void initialize(Molecule mol, Amber96ext theA96ff, int strMut[][], int numStrands) {
 		
 		m = mol;
 		a96ff = theA96ff;
-		sysStrNum = sysStrand;
-		
-		residueMap = resMap;
+		numberOfStrands = numStrands;
+		strandMut = strMut;
+		//sysStrNum = sysStrand;
+		//residueMap = resMap;
 
 		// Count number of flexible residues
-		numFlexRes = 0;
-		for(int i=0;i<m.strand[sysStrNum].numberOfResidues;i++){
-			if(m.strand[sysStrNum].residue[i].flexible)
-				numFlexRes++;
+		numFlexRes = new int[numberOfStrands];;
+		for(int str=0; str<numberOfStrands;str++){
+			for(int i=0;i<m.strand[str].numberOfResidues;i++){
+				if(m.strand[str].residue[i].flexible)
+					numFlexRes[str]++;
+			}
 		}
 		
 		// 2 is added to numFlexRes so that there is room for the ligand at the
@@ -129,10 +137,55 @@ public class BBMinimizer implements Serializable {
 		// The first ligand term includes nonbonded terms for computing energies
 		// The second ligand term includes nonbonded terms for computing the gradient
 		//  and thus includes terms for all atoms
-		flexResAtomList = new int[numFlexRes+2][MAX_NUM_ATOMS_RES];
-		flexResListSize = new int[numFlexRes+2];
+		totalFlexRes = 0;
+		for(int i=0; i<numberOfStrands;i++)
+			totalFlexRes += numFlexRes[i];
+		
+		totalTransRotStrands = 0;
+		for(int i=0; i<numberOfStrands;i++)
+			if(m.strand[i].rotTrans)
+				totalTransRotStrands++;
+		
+		totalNonTransRotStrands = numberOfStrands-totalTransRotStrands;
+		
+		flexResAtomList = new int[totalFlexRes+totalTransRotStrands][];
+		flexResListSize = new int[totalFlexRes+totalTransRotStrands];
+		
+
 		
 		int curNumFlex = 0;
+		int curTransRotInd = -1;
+		int strResNumPP = -1;
+		for(int str=0;str<numberOfStrands;str++){
+			if(m.strand[str].rotTrans){
+				curTransRotInd++;
+				strResNumPP = totalFlexRes+curTransRotInd;
+				flexResListSize[strResNumPP] = mol.strand[str].numberOfAtoms;
+				flexResAtomList[strResNumPP] = new int[flexResListSize[strResNumPP]];
+			}
+			
+			int prevNumAtoms = 0;
+			for(int i=0; i<m.strand[str].numberOfResidues;i++){
+				Residue localRes = m.strand[str].residue[i];
+				
+				for(int k=0;k<localRes.numberOfAtoms;k++){
+					if(m.strand[str].rotTrans)
+						flexResAtomList[strResNumPP][k+prevNumAtoms] = localRes.atom[k].moleculeAtomNumber;
+				}
+				prevNumAtoms += localRes.numberOfAtoms;
+				if(m.strand[str].residue[i].flexible){
+					flexResListSize[curNumFlex] = localRes.numberOfAtoms; 
+					flexResAtomList[curNumFlex] = new int[flexResListSize[curNumFlex]];
+					for(int k=0;k<flexResListSize[curNumFlex];k++){
+						flexResAtomList[curNumFlex][k] = localRes.atom[k].moleculeAtomNumber;
+					}
+					curNumFlex++;
+				}
+			}
+		}
+		
+		
+		/*int curNumFlex = 0;
 		Residue localRes = null;
 		for(int i=0;i<m.strand[sysStrNum].numberOfResidues;i++){
 			localRes = m.strand[sysStrNum].residue[i];
@@ -143,28 +196,28 @@ public class BBMinimizer implements Serializable {
 				}
 				curNumFlex++;
 			}
-		}
+		}*/
 		
-		molAtNumCA = getMolAtNumCA(); //this must be set before setting sysStartCA and sysCurCA
+		molAtNumCA = getMolAtNumCA(); //this must be set before setting molStartCA and molCurCA
 		
-		sysStartCA = new double[m.numberOfResidues][3];
-		sysCurCA = new double[m.numberOfResidues][3];
+		molStartCA = new double[m.numberOfResidues][3];
+		molCurCA = new double[m.numberOfResidues][3];
 		for (int i=0; i<m.numberOfResidues; i++){
-			sysStartCA[i] = getCAcoord(i);
-			sysCurCA[i][0] = sysStartCA[i][0];
-			sysCurCA[i][1] = sysStartCA[i][1];
-			sysCurCA[i][2] = sysStartCA[i][2];
+			molStartCA[i] = getCAcoord(i);
+			molCurCA[i][0] = molStartCA[i][0];
+			molCurCA[i][1] = molStartCA[i][1];
+			molCurCA[i][2] = molStartCA[i][2];
 		}
 		
-		sysCurFiPsiDisp = new float[m.numberOfResidues][2];
-		for (int i=0; i<sysCurFiPsiDisp.length; i++){
-			sysCurFiPsiDisp[i][0] = 0.0f;
-			sysCurFiPsiDisp[i][1] = 0.0f;
+		molCurFiPsiDisp = new float[m.numberOfResidues][2];
+		for (int i=0; i<molCurFiPsiDisp.length; i++){
+			molCurFiPsiDisp[i][0] = 0.0f;
+			molCurFiPsiDisp[i][1] = 0.0f;
 		}
 	}
 	
 	//Initialize for a system and a ligand
-	public void initialize(Molecule mol, Amber96ext theA96ff, int residueMap[], int sysStrand,
+	/*public void initialize(Molecule mol, Amber96ext theA96ff, int residueMap[], int sysStrand,
 			int ligStrand){
 		
 		MAX_NUM_ATOMS_RES = Math.max(MAX_NUM_ATOMS_RES, mol.strand[ligStrand].residue[0].numberOfAtoms);
@@ -188,7 +241,7 @@ public class BBMinimizer implements Serializable {
 				flexResAtomList[ligResNum][k] = localRes.atom[k].moleculeAtomNumber;
 			}
 		}
-	}
+	}*/
 	
 	//Minimizes the energy of a fully-assigned AA sequence with fully-assigned rotamer identities,
 	//		starting with a given template
@@ -208,34 +261,49 @@ public class BBMinimizer implements Serializable {
 		Backbone bb = new Backbone();
 		
 		for (int i=0; i<numStepsFiPsi; i++) {
-		
-			for (int j=0; j<residueMap.length; j++){ //apply the current phi/psi step for each of the flexible residues
-				int asResNum = m.residue[residueMap[j]].strandResidueNumber;
+			for (int str=0; str<numberOfStrands;str++){
+				for (int j=0; j<strandMut[str].length; j++){ //apply the current phi/psi step for each of the flexible residues
+					int asResNum = strandMut[str][j]; //strandMut is strandResidue specific
 				for (int a=0; a<2; a++){ // (a==0) applies a phi change; (a==1) applies a psi change
-					float change = compFiPsi(asResNum,sysStrNum,a,fiPsiStep,bb,pemComp);
+						
+						if( (!m.strand[str].residue[asResNum].nterm && !(asResNum==0) && a==0) ||
+								(!m.strand[str].residue[asResNum].cterm && !(asResNum==(m.strand[str].numberOfResidues-1)) && a==1) ){
+							float change = compFiPsi(asResNum,str,a,fiPsiStep,bb,pemComp);
 					if (Math.abs(change)>0.001){ //smaller changes should not be applies
-						bb.applyFiPsi(m,sysStrNum,asResNum,change,a);
-						sysCurFiPsiDisp[m.residue[residueMap[j]].moleculeResidueNumber][a] += change;
+								bb.applyFiPsi(m,str,asResNum,change,a);
+								molCurFiPsiDisp[m.strand[str].residue[strandMut[str][j]].moleculeResidueNumber][a] += change;
 					}
 				}
 			}
-			
-			if (ligStrNum!=-1){ //there is a ligand, so translate/rotate the ligand
-				
-				int resNums[] = new int[1];
-				resNums[0] = m.strand[ligStrNum].residue[0].moleculeResidueNumber;
-				
-				for (int curCoord=0; curCoord<3; curCoord++){
-					float dTrans = compTrans(resNums,1,curCoord,transStep,ligResNum);
-					if (Math.abs(dTrans)!=0.0)
-						updateCumulativeTrans(resNums[0],curCoord,dTrans,false);
 				}
+			}
+			int curTransRotInd = totalFlexRes-1;
+			for (int str=0; str<numberOfStrands;str++){
+				if(m.strand[str].rotTrans){
+					curTransRotInd++;
+					int resNums[] = new int[m.strand[str].numberOfResidues];
+					for(int q=0;q<resNums.length;q++)
+						resNums[q] = m.strand[str].residue[q].moleculeResidueNumber;
+				
 				for (int curCoord=0; curCoord<3; curCoord++){
-					float axisToRot[] = getRotVector(resNums[0],curCoord); //determine the axis of rotation
-					float dRot = compRot(resNums,1,rotStep,sysCurCA[resNums[0]],axisToRot,ligResNum);
+						float dTrans = compTrans(resNums,resNums.length,curCoord,transStep,curTransRotInd);
+						if (Math.abs(dTrans)!=0.0){
+							for(int k=0;k<resNums.length;k++)
+								updateCumulativeTrans(resNums[k],curCoord,dTrans,false);
+				}
+					}
+				for (int curCoord=0; curCoord<3; curCoord++){
+						float axisToRot[] = getRotVector(curCoord); //determine the axis of rotation
+						float[] myCenter = m.strand[str].getCenterOfMass();
+						double[] center = new double[3];
+						for(int j=0;j<3;j++)
+							center[j] = myCenter[j];
+						float dRot = compRot(resNums,resNums.length,rotStep,center,axisToRot,curTransRotInd);
 					if (Math.abs(dRot)!=0.0)
-						updateCumulativeRot(resNums[0],dRot,sysCurCA[resNums[0]],false,axisToRot,true);
+							for(int k=0; k<resNums.length;k++)
+								updateCumulativeRot(resNums[k],dRot,center,false,axisToRot,false);
 				}
+			}
 			}
 			
 			//reduce the step size for the next minimization step
@@ -257,55 +325,55 @@ public class BBMinimizer implements Serializable {
 		float storedCoord[][] = new float[m.numberOfResidues][];
 		
 		//Store the actualCoordinates[] before any changes
-		for (int i=0; i<m.strand[strandNum].numberOfResidues; i++)
-			storedCoord[i] = storeCoord(m.strand[strandNum].residue[i].moleculeResidueNumber);
+		for (int i=0; i<m.numberOfResidues; i++)
+			storedCoord[i] = storeCoord(m.residue[i].moleculeResidueNumber);
 		
 		
 		//Check at initial position
 		initialEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);
 		
 		//Check at +fiPsiStep rotation
-		bb.applyFiPsi(m,sysStrNum,resNum,fiPsiStep,angleType);	
+		bb.applyFiPsi(m,strandNum,resNum,fiPsiStep,angleType);	
 		secondEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);	
 		if ( (!checkCAallRes(strandNum)) ) //at least one residue moved too far away or unallowed steric for PEMcomp, so make this step impossible
 			secondEnergy[0] = Math.pow(10, 38);
 		for (int i=0; i<m.strand[strandNum].numberOfResidues; i++)
-			restoreCoord(i,storedCoord[m.strand[strandNum].residue[i].moleculeResidueNumber]);
+			restoreCoord(m.strand[strandNum].residue[i].moleculeResidueNumber,storedCoord[m.strand[strandNum].residue[i].moleculeResidueNumber]);
 		
 		//Check at -fiPsiStep rotation
-		bb.applyFiPsi(m,sysStrNum,resNum,-fiPsiStep,angleType);
+		bb.applyFiPsi(m,strandNum,resNum,-fiPsiStep,angleType);
 		thirdEnergy = a96ff.calculateTotalEnergy(m.actualCoordinates,-1);
 		if ( (!checkCAallRes(strandNum)) ) //at least one residue moved too far away or unallowed steric for PEMcomp, so make this step impossible
 			thirdEnergy[0] = Math.pow(10, 38);
 		for (int i=0; i<m.strand[strandNum].numberOfResidues; i++)
-			restoreCoord(i,storedCoord[m.strand[strandNum].residue[i].moleculeResidueNumber]);
+			restoreCoord(m.strand[strandNum].residue[i].moleculeResidueNumber,storedCoord[m.strand[strandNum].residue[i].moleculeResidueNumber]);
 		
 		float step = getDir(initialEnergy[0],secondEnergy[0],thirdEnergy[0],fiPsiStep);
 		
 		int molResNum = m.strand[strandNum].residue[resNum].moleculeResidueNumber;
-		if (step + sysCurFiPsiDisp[molResNum][angleType] > sysMaxDihedRot)
-			step = sysMaxDihedRot - sysCurFiPsiDisp[molResNum][angleType];
-		if (step + sysCurFiPsiDisp[molResNum][angleType] < -sysMaxDihedRot)
-			step = -sysMaxDihedRot - sysCurFiPsiDisp[molResNum][angleType];
+		if (step + molCurFiPsiDisp[molResNum][angleType] > sysMaxDihedRot)
+			step = sysMaxDihedRot - molCurFiPsiDisp[molResNum][angleType];
+		if (step + molCurFiPsiDisp[molResNum][angleType] < -sysMaxDihedRot)
+			step = -sysMaxDihedRot - molCurFiPsiDisp[molResNum][angleType];
 		
 		return step;
 	}
 	
-	//Updates the CA coordinates for all residues; should be called from within functions that use/modify sysCurCA[]
+	//Updates the CA coordinates for all residues; should be called from within functions that use/modify molCurCA[]
 	private void updateCurCA(){
 		for (int i=0; i<m.numberOfResidues; i++)
-			sysCurCA[i] = getCAcoord(i);
+			molCurCA[i] = getCAcoord(i);
 	}
 	
 	//Setup the Amber partial arrays
 	private void setupPartialAmber(){
 		// numFlexRes, flexResAtomList, and flexResListSize include the ligand if one exists
-		if(ligStrNum != -1)
-			a96ff.setupPartialArrays(numFlexRes+2,MAX_NUM_ATOMS_RES,flexResAtomList,
+		//if(ligStrNum != -1)
+			a96ff.setupPartialArrays(totalFlexRes+totalTransRotStrands,MAX_NUM_ATOMS_RES,flexResAtomList,
 				flexResListSize);
-		else
-			a96ff.setupPartialArrays(numFlexRes,MAX_NUM_ATOMS_RES,flexResAtomList,
-				flexResListSize);
+		/*else
+			a96ff.setupPartialArrays(totalFlexRes,MAX_NUM_ATOMS_RES,flexResAtomList,
+				flexResListSize);*/
 	}
 	
 	//Determines the direction for the translation of size transStep for
@@ -356,17 +424,17 @@ public class BBMinimizer implements Serializable {
 		//Determine the new CA if we took this step (the translation is only in the direction of the coord coordinate)
 		double tmpCA[] = new double[3];
 		for (int i=0; i<3; i++)
-			tmpCA[i] = sysCurCA[resNum][i];
-		tmpCA[coord] = sysCurCA[resNum][coord] + transStep;
+			tmpCA[i] = molCurCA[resNum][i];
+		tmpCA[coord] = molCurCA[resNum][coord] + transStep;
 		
 		//Compute how large of a step this would be from the start point
-		double dist = getDist(tmpCA,sysStartCA[resNum]);
+		double dist = getDist(tmpCA,molStartCA[resNum]);
 			
 		if (dist > sysMaxTrans){ // if the step would take us too far away then scale it back
 			double curDisp[] = new double[3];
-			curDisp[0] = sysCurCA[resNum][0] - sysStartCA[resNum][0];
-			curDisp[1] = sysCurCA[resNum][1] - sysStartCA[resNum][1];
-			curDisp[2] = sysCurCA[resNum][2] - sysStartCA[resNum][2];
+			curDisp[0] = molCurCA[resNum][0] - molStartCA[resNum][0];
+			curDisp[1] = molCurCA[resNum][1] - molStartCA[resNum][1];
+			curDisp[2] = molCurCA[resNum][2] - molStartCA[resNum][2];
 			
 			double a[] = new double[2];
 			int ind = 0;
@@ -398,7 +466,7 @@ public class BBMinimizer implements Serializable {
 			m.translateResidue(resNum, theTranslation[0], theTranslation[1], theTranslation[2], false);
 			
 			// update the current CA
-			sysCurCA[resNum] = getCAcoord(resNum);
+			molCurCA[resNum] = getCAcoord(resNum);
 		}
 		
 		return transStep;
@@ -451,13 +519,13 @@ public class BBMinimizer implements Serializable {
 		m.rotateResidue(resNum, axisToRot[0], axisToRot[1], axisToRot[2], center[0], center[1], center[2], rotStep, false);
 		
 		double CAcoord[] = getCAcoord(resNum);
-		double dist = getDist(CAcoord,sysStartCA[resNum]);
+		double dist = getDist(CAcoord,molStartCA[resNum]);
 		
 		if ( (!centerIsCA) && (dist>sysMaxTrans) ) { //further than allowed, so restore, find the optimal rotStep value, and rotate with that value, if necessary
 			
 			restoreCoord(resNum,storedCoord);
 			
-			if ( getDist(sysStartCA[resNum],sysCurCA[resNum]) > (sysMaxTrans-0.01) ) //the current CA is already approximately at the limit
+			if ( getDist(molStartCA[resNum],molCurCA[resNum]) > (sysMaxTrans-0.01) ) //the current CA is already approximately at the limit
 				return 0.0f;
 			
 			else {
@@ -469,7 +537,7 @@ public class BBMinimizer implements Serializable {
 		}
 		
 		if (!checkOnly) //rotation is actually performed, so update the CA coordinates
-			sysCurCA[resNum] = getCAcoord(resNum);
+			molCurCA[resNum] = getCAcoord(resNum);
 		else
 			restoreCoord(resNum,storedCoord);
 		
@@ -493,7 +561,7 @@ public class BBMinimizer implements Serializable {
 		while (Math.abs(thetaStep)>0.01){ //thetaStep can be negative
 		
 			newCoord = rotatePoint(coord,thetaDeg,axisToRot,center);
-			newDist = getDist(newCoord,sysStartCA[resNum]);
+			newDist = getDist(newCoord,molStartCA[resNum]);
 			if ( (newDist < sysMaxTrans) && (newDist >= (sysMaxTrans-0.01) ) ){
 				return thetaDeg;
 			}
@@ -582,7 +650,7 @@ public class BBMinimizer implements Serializable {
 	
 	//Determines the vector around which the rotation is to be performed;
 	//Currently, the vector is the coordinate axis specified by axisNum
-	public float [] getRotVector(int resNum, int axisNum){
+	public float [] getRotVector(int axisNum){
 		
 		float axisToRot[] = new float[3];
 		for (int i=0; i<axisToRot.length; i++)
@@ -662,7 +730,7 @@ public class BBMinimizer implements Serializable {
 		for (int i=0; i<m.strand[strandNum].numberOfResidues; i++){
 			int resNum = m.strand[strandNum].residue[i].moleculeResidueNumber;
 			double tmpCA[] = getCAcoord(resNum);
-			double dist = getDist(tmpCA,sysStartCA[resNum]);
+			double dist = getDist(tmpCA,molStartCA[resNum]);
 			if (dist>sysMaxTrans)
 				return false;
 		}

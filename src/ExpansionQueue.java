@@ -1,37 +1,34 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-//	ExpansionQueue.java
-//
-//	Version:           0.3
-//
-//
-//	  authors:
-// 	  initials    name                 organization                email
-//	 ---------   -----------------    ------------------------    ----------------------------
-//	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
-///////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
-* Written by Ivelin Georgiev (2004-2006)
-* 
-*/
+import java.util.concurrent.PriorityBlockingQueue;
 
 /*
-	This library is free software; you can redistribute it and/or
-	modify it under the terms of the GNU Lesser General Public
-	License as published by the Free Software Foundation; either
-	version 2.1 of the License, or (at your option) any later version.
-	This library is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-	Lesser General Public License for more details.
+This file is part of OSPREY.
+
+OSPREY Protein Redesign Software Version 2.1 beta
+Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
+
+OSPREY is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as 
+published by the Free Software Foundation, either version 3 of 
+the License, or (at your option) any later version.
+
+OSPREY is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, see:
+      <http://www.gnu.org/licenses/>.
 	
-	You should have received a copy of the GNU Lesser General Public
-	License along with this library; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
-	USA
-	
-	Contact Info:
+There are additional restrictions imposed on the use and distribution
+of this open-source code, including: (A) this header must be included
+in any modification or extension of the code; (B) you are required to
+cite our papers in any publications that use this code. The citation
+for the various different modules of our software, together with a
+complete list of requirements and restrictions are found in the
+document license.pdf enclosed with this distribution.
+
+Contact Info:
 		Bruce Donald
 		Duke University
 		Department of Computer Science
@@ -39,34 +36,44 @@
 		Durham
 		NC 27708-0129 
 		USA
-		brd@cs.duke.edu
-	
-	If you use or publish any results derived from the use of this
-	program please cite:
-	Georgiev I, Lilien R, Donald B. "Improved Pruning Algorithms and
-	Divide-and-Conquer Strategies for Dead-End Elimination, with Application 
-	to Protein Design" Bioinformatics, 22(14): e174-e183, 2006.
-	
-	Copyright (C) 2006 Ivelin Georgiev, Ryan H. Lilien, and Bruce R. Donald
-		
-	<signature of Bruce Donald>, 23 Aug, 2006
-	Bruce Donald, Professor of Computer Science
+		e-mail:   www.cs.duke.edu/brd/
+
+<signature of Bruce Donald>, Mar 1, 2012
+Bruce Donald, Professor of Computer Science
 */
 
-/*
- * This queue is ordered in terms of increasing f(n) values of the nodes;
- * 		only the visible nodes are contained in the queue
- */
-import java.util.*;
+///////////////////////////////////////////////////////////////////////////////////////////////
+//	ExpansionQueue.java
+//
+//	Version:           2.1 beta
+//
+//
+//	  authors:
+// 	  initials    name                 organization                email
+//	 ---------   -----------------    ------------------------    ----------------------------
+//	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
+//	  KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//    PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
+///////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+* Written by Ivelin Georgiev (2004-2009)
+* 
+*/
+
+/**
+ * This queue is ordered in terms of increasing f(n) values of the nodes in the A* expansion tree;
+ * 		only the visible nodes are contained in the queue.
+ */
 public class ExpansionQueue {
+	
+	 private PriorityBlockingQueue<QueueNode> thequeue;
 	
 	//a pointer to the first node in the expansion list
 	public QueueNode curFront;
 	
 	//number of nodes in the list
 	public int numNodes;
-	private PriorityQueue<QueueNode> thequeue;
 	
 	//the unique id of each node in the queue
 	public int idNUM;
@@ -75,19 +82,13 @@ public class ExpansionQueue {
 	ExpansionQueue () {
 		curFront = null;
 		numNodes = 0;
-	        thequeue = new PriorityQueue<QueueNode>(50000);
+		
+		 thequeue = new PriorityBlockingQueue<QueueNode>(50000);
+		
 	}
-	public void insert(QueueNode newNode){
-               thequeue.add(newNode);
-               curFront = thequeue.peek();
-       }
-       public void delete(QueueNode delNode){
-               thequeue.remove(delNode);
-               curFront = thequeue.peek();
-       }
-	
+	/*
 	//inserts a new node into the expansion queue
-	/*public void insert (QueueNode newNode){
+	public void insert (QueueNode newNode){
 		
 		boolean done;
 		int i;
@@ -165,6 +166,18 @@ public class ExpansionQueue {
 			}
 		}
 	}*/
+	
+	 public void insert(QueueNode newNode){
+         thequeue.add(newNode);
+         curFront = thequeue.peek();
+	 }
+	 public void delete(QueueNode delNode){
+         thequeue.remove(delNode);
+         curFront = thequeue.peek();
+	 }
+	 public QueueNode getMin(){
+         return thequeue.poll();
+	}
 	
 	//Checks if the two given nodes have the same partially assigned conformation
 	private boolean checkConf(QueueNode node1, QueueNode node2){

@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,21 +36,23 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //	DEESplit2f.java
 //
-//	Version:           1.0
+//	Version:           2.1 beta
 //
 //
 //	  authors:
 // 	  initials    name                 organization                email
 //	 ---------   -----------------    ------------------------    ----------------------------
 //	  ISG		 Ivelin Georgiev	  Duke University			  ivelin.georgiev@duke.edu
-//
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
+//     MAH        Mark A. Hallen	Duke University         mah43@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -62,162 +64,47 @@
  * Performs full split-DEE (conformational splitting) with 2 plit positions
  * 
 */
-public class DEESplit2f {
+public class DEESplit2f extends DEE {
 
-	//two pairwise energy matrices: one for the min energies and one for the max
-	private float pairwiseMinEnergyMatrix[][][][][][] = null;
-	private float pairwiseMaxEnergyMatrix[][][][][][] = null;
-
-	//eliminated rotamers at position i, for all positions
-	private boolean eliminatedRotAtPos [] = null;
+	private class ArrayIndex{
+		public ArrayIndex(int posNum, int AANumAtPos, int rotNumAtPos) {
+			// TODO Auto-generated constructor stub
+			pos = posNum;
+			aa = AANumAtPos;
+			rot = rotNumAtPos;
+		}
+		int pos;
+		int aa;
+		int rot;
+	}
 	
-	//number of residues under consideration
-	private int numSiteResidues;
 	
-	//for each residue, number of possible amino acids
-	private int numTotalRot;
-	
-	//number of possible rotamers for the ligand
-	int numLigRot;
-	
-	//offset of the given rotamer in the total rotamer set (?152?)
-	int rotIndOffset[];
-	
-	//the number of AA types allowed for each AS residue
-	int numAAtypes[] = null;
-	
-	//number of rotamers for the current AA type at the given residue
-	//int numRotForAAtypeAtRes[];
-	
-	//this value depends on the particular value specified in the pairwise energy matrices;
-	//		in KSParser, this value is 10^38;
-	//entries with this particular value will not be examined, as they are not allowed;
-	//note that when computing E intervals, if a steric is not allowed, (maxE-minE)=0,
-	//		so no comparison with stericE is necessary there
-	private float bigE = (float)Math.pow(10,38);
-	
-	//steric energy that determines incompatibility of a rotamer with the template
-	float stericE = bigE;
-	
-	//size of the pairwise energy matrix
-	private int PEMsize;
-	
-	private float curEw = 0.0f;	//the max allowable difference from the GMEC (checkSum<=curEw should not be pruned)
-	
-	//the minimum difference in the checkSum when a rotamer cannot be pruned
-	private double minDiff = -(float)Math.pow(10,30);
-	
-	//int count = 0;
-	
-	//the rotamer library
-	RotamerLibrary rl = null;
-	
-	//The system rotamer handler
-	StrandRotamers sysLR = null;
-	
-	//The mapping from AS position to actual residue numbers
-	int residueMap[] = null;
-	
-	int numRotForRes[] = null;
-	
-	//the number of split positions
-	int numSplits = 0;
-	
-	//the single and pair interval terms in the MinDEE criterion
-	double indIntMinDEE[] = null;
-	double pairIntMinDEE[] = null;
-	
-	//split flags for all rotamer pairs;
-	//only the dead-ending pairs that contain i_r (the rotamer to be pruned) can be 
-	// 		discarded from the summation; the pairs with i_t and the pairs in the interval terms (if MinDEE/BD/BRDEE)
-	// 		must still be a part of the summation.
-	boolean splitFlags[][] = null;
-	
-	//determines if split flags are used
-	boolean useFlags = false;
-	
-	//the number of runs
-	int numRuns = 1;
-	
-	//determines if energy minimization is performed: either traditional-DEE or MinDEE is used
-	boolean doMinimize = false;
-	
-	//determines which residue is checked (only for the distributed DEE)
-	boolean resInMut[] = null;
-	
-	//determines if distributed DEE is performed
-	boolean distrDEE = false;
-	
-	//determines if backbone minimization is performed
-	boolean minimizeBB = false;
-	
-	//the template interval energy (0.0 if fixed backbone)
-	float templateInt = 0.0f;
-	
-	//the current ligand amino acid index
-	int ligAANum = -1;
-
+		
 	//constructor
-	DEESplit2f(float arpMatrix[][][][][][], float arpMatrixMax[][][][][][], int numResInActiveSite, 
-			int numTotalRotamers, int numLigRotamers, int rotamerIndexOffset[], int resMap[], float initEw, 
-			StrandRotamers systemLRot, boolean prunedRotAtRes[], boolean residueMut[], 
-			boolean doMin, double indInt[], double pairInt[], boolean spFlags[][], boolean useSF, boolean dDEE, boolean minBB, 
-			RotamerLibrary rlP, StrandRotamers ligROT) {
-		
-		doMinimize = doMin;
-		
-		//size of the pairwise energy matrix: (km+1)x(km+1)
-		PEMsize = arpMatrix.length;
-		
-		pairwiseMinEnergyMatrix = arpMatrix;
-		if (doMinimize) //max matrix is different
-			pairwiseMaxEnergyMatrix = arpMatrixMax;
-		else //no minimization, so the same matrix
-			pairwiseMaxEnergyMatrix = pairwiseMinEnergyMatrix;
-		
-		eliminatedRotAtPos = prunedRotAtRes;
-		splitFlags = spFlags;
-		rotIndOffset = rotamerIndexOffset;		
-		residueMap = resMap;
-		indIntMinDEE = indInt;
-		pairIntMinDEE = pairInt;
-		sysLR = systemLRot;
-		rl = rlP;
-		useFlags = useSF;
-		resInMut = residueMut;
-		distrDEE = dDEE;
-		minimizeBB = minBB;
-		
-		numSiteResidues = numResInActiveSite;		// tested with 9
-		numTotalRot = numTotalRotamers;				// ?152?
-		numLigRot = numLigRotamers;					// 0 if no ligand
-		if (numLigRot>0)
-			ligAANum = ligROT.getIndexOfNthAllowable(0,0);
-		
-		numAAtypes = new int[numSiteResidues];
-		for (int i=0; i<numAAtypes.length; i++) //the number of AAs allowed for each AS residue
-			numAAtypes[i] = sysLR.getNumAllowable(residueMap[i]);
-		
+	DEESplit2f(PairwiseEnergyMatrix arpMatrix, PairwiseEnergyMatrix arpMatrixMax, int numResMutable,
+			int strMut[][], float initEw, 
+			StrandRotamers strandLRot[], PrunedRotamers<Boolean> prunedRotAtRes, boolean residueMut[], 
+			boolean doMin, double indInt[], double pairInt[], boolean spFlags[][][][][][], boolean useSF, boolean dDEE, boolean minBB, 
+			int mutRes2StrandP[], int mutRes2MutIndexP[], boolean typeDep, boolean aIMinDEE, float aIval, boolean doPerts) {
+
+                init(arpMatrix, arpMatrixMax, numResMutable,
+			strMut, initEw, strandLRot, prunedRotAtRes, doMin, indInt, pairInt,
+                        spFlags, useSF, minBB, mutRes2StrandP, mutRes2MutIndexP, typeDep, aIMinDEE, aIval,
+                        false, dDEE, residueMut, null, doPerts);
+
 		compNumRotForRes(); //compute the number of rotamers for each residue position
 		
-		curEw = initEw;
-		
-		numRuns = 1;
-		
-		templateInt = 0.0f;
-		if (minimizeBB) //backbone minimization, so we need the template interval energy (otherwise, templateInt will be 0.0)			
-			templateInt = pairwiseMaxEnergyMatrix[pairwiseMaxEnergyMatrix.length-1][0][0][0][0][0] - pairwiseMinEnergyMatrix[pairwiseMinEnergyMatrix.length-1][0][0][0][0][0];
 	}
 	
 	//return the split flags for all rotamer pairs
-	public boolean[][] getSplitFlags(){
+	public boolean[][][][][][] getSplitFlags(){
 		return splitFlags;
 	}
 
 	//Compute the conformations that can be eliminated
 	//Return a boolean matrix in which an element is true if
 	//the corresponding r at i can be eliminated, and false otherwise
-	public boolean [] ComputeEliminatedRotConf(){
+	public PrunedRotamers<Boolean> ComputeEliminatedRotConf(){
 			
 		int numRotForCurAAatPos;
 		
@@ -232,47 +119,48 @@ public class DEESplit2f {
 			System.out.println("Current run: "+numRuns);
 		
 			//Compute for the AS residues first
-			for (int curPos=0; curPos<numSiteResidues; curPos++){
+			for (int curPos=0; curPos<numMutable; curPos++){
 				
-				if ((!distrDEE)||(resInMut[curPos])) {//not distributed DEE or the residue to be checked for distrDEE
+				int str=mutRes2Strand[curPos];
+				int strResNum=strandMut[str][mutRes2MutIndex[curPos]];
 				
-					System.out.print("Starting AS residue "+curPos);
+				if ((!distrDEE)||(resInPair[curPos])) {//not distributed DEE or the residue to be checked for distrDEE
+				
+					//System.out.print("Starting AS residue "+curPos);
 					
 					for (int AA=0; AA<numAAtypes[curPos]; AA++){
 						
-						System.out.print(".");
+						//System.out.print(".");
 						
-						int curAA = sysLR.getIndexOfNthAllowable(residueMap[curPos],AA);
+						int curAA = strandRot[str].getIndexOfNthAllowable(strResNum,AA);
 						
 						//find how many rotamers are allowed for the current AA type at the given residue;
 						//note that ala and gly have 0 possible rotamers
-						numRotForCurAAatPos = rl.getNumRotForAAtype(curAA);
-						if (numRotForCurAAatPos==0)	//ala or gly
-							numRotForCurAAatPos = 1;
+						numRotForCurAAatPos = getNumRot( str, strResNum, curAA );
 						
 						for(int curRot=0; curRot<numRotForCurAAatPos; curRot++){
 						
-							if (!eliminatedRotAtPos[curPos*numTotalRot + rotIndOffset[curAA] + curRot]){//not already pruned
+							if (!eliminatedRotAtPos.get(curPos,curAA,curRot)){//not already pruned
 								
 								if (CanEliminate(curPos, curAA, curRot)){
-									eliminatedRotAtPos[curPos*numTotalRot + rotIndOffset[curAA] + curRot] = true;
+									eliminatedRotAtPos.set(curPos,curAA,curRot,true);
 									//System.out.println(curEc);
 									
 									prunedCurRun++;
 								}
 								else
-									eliminatedRotAtPos[curPos*numTotalRot + rotIndOffset[curAA] + curRot] = false;
+									eliminatedRotAtPos.set(curPos,curAA,curRot,false);
 							}
 						}
 					}
-					System.out.println("done");
+					//System.out.println("done");
 				}
 			}//System.out.println("Ec: "+Ec);
 			
 			//If there is a ligand, compute MinDEE for the lig rotamers as well
-			if (numLigRot!=0){
+			/*if (numLigRot!=0){
 				
-				if ((!distrDEE)||(resInMut[numSiteResidues])) {//not distributed DEE or ligand to be checked for distrDEE
+				if ((!distrDEE)||(resInPair[numSiteResidues])) {//not distributed DEE or ligand to be checked for distrDEE
 					
 					System.out.print("Starting ligand run");
 					System.out.print("..");
@@ -290,7 +178,7 @@ public class DEESplit2f {
 					}
 					System.out.println("done");
 				}
-			}
+			}*/
 			
 			System.out.println("Number of rotamers pruned this run: "+prunedCurRun);
 			System.out.println("DEE: The minimum difference is "+minDiff);
@@ -326,23 +214,25 @@ public class DEESplit2f {
 		double indVoxelInterval, pairVoxelInterval;
 		double minDiffPairVoxelE;
 		
-		int index_r, index_t;
 		
 		double checkSum;
 		
+		int str=mutRes2Strand[posNum];
+		int strResNum=strandMut[str][mutRes2MutIndex[posNum]];
+		
 		//In the energy matrix, column 0 gives the individual energies for each r at i;
 		//skip row 0, as the individual energies start from row 1 (and are all in column 0)
-		index_r = posNum*numTotalRot + rotIndOffset[AANumAtPos] + rotNumAtPos;
+		//index_r = posNum*numTotalRot + rotIndOffset[AANumAtPos] + rotNumAtPos;
+		Index3 index_r_AI = new Index3(posNum,AANumAtPos,rotNumAtPos);
 		
-		if ((!eliminatedRotAtPos[index_r])){ //not already pruned
+		if ((!eliminatedRotAtPos.get(posNum,AANumAtPos,rotNumAtPos))){ //not already pruned
 			
-			minIndVoxelE = pairwiseMinEnergyMatrix[posNum][AANumAtPos][rotNumAtPos][posNum][0][0]; 	//formula term 1
-			minShellResE = pairwiseMinEnergyMatrix[posNum][AANumAtPos][rotNumAtPos][posNum][0][1];
+			minIndVoxelE = pairwiseMinEnergyMatrix.getIntraAndShellE( posNum, AANumAtPos, rotNumAtPos ); 	//formula term 1.  Intra+shell
 			
-			if ((minIndVoxelE + minShellResE)>=stericE) //rotamer incompatible with template, so prune
+			if ( minIndVoxelE >=stericE) //rotamer incompatible with template, so prune
 				return true;				
 		
-			if (doMinimize){ //MinDEE, so compute the interval terms
+			if (doMinimize && !doIMinDEE){ //MinDEE, so compute the interval terms
 				indVoxelInterval = indIntMinDEE[posNum];							//formula term 3
 				pairVoxelInterval = pairIntMinDEE[posNum];							//formula term 4
 			}
@@ -354,7 +244,7 @@ public class DEESplit2f {
 			
 			//int splitPos[] = chooseSplitPos(posNum,majorSplitPos,index_r); //choose the split position
 			int splitPos[] = new int[2];
-			for (int i1=0; i1<numSiteResidues; i1++){
+			for (int i1=0; i1<numMutable; i1++){
 				
 				boolean found = true;
 				/*for (int i=0; i<majorSplitPos.length; i++){
@@ -362,7 +252,7 @@ public class DEESplit2f {
 						found = false;
 				}*/
 				if ((i1!=posNum)&&(found)){
-					for (int i2=i1+1; i2<numSiteResidues; i2++){
+					for (int i2=i1+1; i2<numMutable; i2++){
 						
 						found = true;
 						/*for (int i=0; i<majorSplitPos.length; i++){
@@ -401,8 +291,14 @@ public class DEESplit2f {
 							
 							//get the mapping between rotamer number for the split residues and the index of that
 							//	rotamer into the *boolean* matrix (1 is NOT added, in contrast to the PEM indices)
-							int indexMap1[] = getIndexMap(splitPos[0]);
-							int indexMap2[] = getIndexMap(splitPos[1]);
+							ArrayIndex indexMap1[] = getIndexMap(splitPos[0]);
+							ArrayIndex indexMap2[] = getIndexMap(splitPos[1]);
+							
+							int str0=mutRes2Strand[splitPos[0]];
+							int strResNum0=strandMut[str0][mutRes2MutIndex[splitPos[0]]];
+							int str1=mutRes2Strand[splitPos[1]];
+							int strResNum1=strandMut[str1][mutRes2MutIndex[splitPos[1]]];
+							
 							
 							
 							//For the particular position, compare the energy performance (one by one)
@@ -412,142 +308,140 @@ public class DEESplit2f {
 							
 							for (int AA=0; AA<numAAtypes[posNum]; AA++){
 								
-								int altAA = sysLR.getIndexOfNthAllowable(residueMap[posNum],AA);
+								int altAA = strandRot[str].getIndexOfNthAllowable(strResNum,AA);
 								
-								numRotForAAatPos = rl.getNumRotForAAtype(altAA);
-								if (numRotForAAatPos==0)	//ala or gly
-									numRotForAAatPos = 1;
+								if(!typeDependent || (altAA == AANumAtPos)){
 								
-								for (int altRot=0; altRot<numRotForAAatPos; altRot++){
+                                                                    numRotForAAatPos = getNumRot( str, strResNum, altAA );
+								
+                                                                    for (int altRot=0; altRot<numRotForAAatPos; altRot++){
 											
 									//if t and r are not actually the same rotamer of the same AA
 									if (!((altAA==AANumAtPos)&&(altRot==rotNumAtPos))){
 										
 										//at this point, we know what r at i and t at i are
 										
-										index_t = posNum*numTotalRot + rotIndOffset[altAA] + altRot;
+											//index_t = posNum*numTotalRot + rotIndOffset[altAA] + altRot;
 										
-										maxIndVoxelE = pairwiseMaxEnergyMatrix[posNum][altAA][altRot][posNum][0][0];		//formula term 2
-										maxShellResE = pairwiseMaxEnergyMatrix[posNum][altAA][altRot][posNum][0][1];
+										maxIndVoxelE = pairwiseMaxEnergyMatrix.getIntraAndShellE( posNum, altAA, altRot );//formula term 2
 										
 										//if ((maxIndVoxelE<=stericEThreshIntra)&&(maxShellResE<=stericEThreshPair)){//check only if not an unallowed steric
-										if ((!eliminatedRotAtPos[index_t])){ //not pruned 	
-										
-											minDiffPairVoxelE = SumMinDiffPVE(posNum, AANumAtPos, rotNumAtPos, altAA, altRot, splitPos[0], splitPos[1]);	//formula term 5
-											
-											
-											int partCount = 0; //the visited partitions count
-											int countFirst = 0; //the current rotamer for the first residue
-											for (int spAA1=0; spAA1<numAAtypes[splitPos[0]]; spAA1++){//for each AA at the first splitting residue
-												
-												int partAA1 = sysLR.getIndexOfNthAllowable(residueMap[splitPos[0]],spAA1);
-												int numRotForPartAA1 = rl.getNumRotForAAtype(partAA1);
-												if (numRotForPartAA1==0)	//ala or gly
-													numRotForPartAA1 = 1;
-											
-												for (int partRot1=0; partRot1<numRotForPartAA1; partRot1++){//for each rot for the given partitioning AA
-													
-													countFirst++;
-													
-													int index_hv1 = splitPos[0]*numTotalRot + rotIndOffset[partAA1] + partRot1; //the index of the partitioning rotamer
-													
-													if ((!eliminatedRotAtPos[index_hv1])&&((!useFlags)||(!splitFlags[index_r][index_hv1]))){ //not pruned 	
-														
-														double splitPosDiffE1 = pairwiseMinEnergyMatrix[posNum][AANumAtPos][rotNumAtPos][splitPos[0]][partAA1][partRot1] - pairwiseMaxEnergyMatrix[posNum][altAA][altRot][splitPos[0]][partAA1][partRot1]; //formula term 6
-														
-														int countSecond = 0; //the current rotamer for the second residue
-														for (int spAA2=0; spAA2<numAAtypes[splitPos[1]]; spAA2++){//for each AA at the second splitting residue
-															
-															int partAA2 = sysLR.getIndexOfNthAllowable(residueMap[splitPos[1]],spAA2);
-															int numRotForPartAA2 = rl.getNumRotForAAtype(partAA2);
-															if (numRotForPartAA2==0)	//ala or gly
-																numRotForPartAA2 = 1;
-														
-															for (int partRot2=0; partRot2<numRotForPartAA2; partRot2++){//for each rot for the given partitioning AA
-																
-																countSecond++;
-																
-																if (!partitionPruned[partCount]){ //only if r at i not pruned for this partition yet
-																	
-																	int index_hv2 = splitPos[1]*numTotalRot + rotIndOffset[partAA2] + partRot2; //the index of the partitioning rotamer
-																	
-																	if ((!eliminatedRotAtPos[index_hv2])&&((!useFlags)||(!splitFlags[index_r][index_hv2]))){ //not pruned 	
-																		
-																		double splitPosDiffE2 = pairwiseMinEnergyMatrix[posNum][AANumAtPos][rotNumAtPos][splitPos[1]][partAA2][partRot2] - pairwiseMaxEnergyMatrix[posNum][altAA][altRot][splitPos[1]][partAA2][partRot2]; //formula term 6
-														
-																		checkSum = -templateInt + (minIndVoxelE + minShellResE) - (maxIndVoxelE + maxShellResE)
-																					- indVoxelInterval - pairVoxelInterval + minDiffPairVoxelE + splitPosDiffE1 + splitPosDiffE2;
-																		
-																		if (checkSum > curEw){
-																			//System.out.println(index_r+" "+index_t+" "+checkSum+" "+minIndVoxelE+" "+minShellResE+" "+maxIndVoxelE+" "+maxShellResE+" "+indVoxelInterval+" "+pairVoxelInterval+" "+minDiffPairVoxelE);
-																			partitionPruned[partCount] = true; //r at i can be pruned for this partition
-																			
-																			if (useFlags){
-																				sf1[countFirst-1][countSecond-1] = true;//incremented above, so subtract 1
-																				sf2[countSecond-1][countFirst-1] = true;
-																			}
-																		}										
-																			
-																		else {
-																			minDiff = Math.max(minDiff,checkSum);
-																		}
-																	}
-																	else //v at h is pruned, so we set the pruning of r at i for this partition to true
-																		partitionPruned[partCount] = true;
-																}
-																partCount++; //the next partition
-															}
-														}
-													}
-													else {//v at h is pruned, so we set the pruning of r at i for this partition to true
-														//all of the partitions that involve hv1 are pruned; also re-synchronize the count
-														for (int synchCount=0; synchCount<numRotForRes[splitPos[1]]; synchCount++){
-															partitionPruned[partCount] = true;
-															partCount++;
-														}
-													}
-												}
-											}
-											
-											if (useFlags){
-												//check for global split flags
-												for (int partP1=0; partP1<sf1.length; partP1++){
-													int sfCount = 0;
-													for (int partP2=0; partP2<sf1[0].length; partP2++){
-														if (sf1[partP1][partP2])
-															sfCount++;
-													}
-													if (sfCount==sf1[0].length){ //r at i is pruned for all subpartitions of the first residue
-														splitFlags[index_r][indexMap1[partP1]] = true; //flag as a dead-ending pair
-														splitFlags[indexMap1[partP1]][index_r] = true;
-													}
-												}
-												for (int partP1=0; partP1<sf2.length; partP1++){
-													int sfCount = 0;
-													for (int partP2=0; partP2<sf2[0].length; partP2++){
-														if (sf2[partP1][partP2])
-															sfCount++;
-													}
-													if (sfCount==sf2[0].length){ //r at i is pruned for all subpartitions of the second residue
-														splitFlags[index_r][indexMap2[partP1]] = true; //flag as a dead-ending pair
-														splitFlags[indexMap2[partP1]][index_r] = true;
-													}
-												}
-											}
-											
-											//after checking all partitions, return if r at i is pruned for all of the partitions;
-											//	otherwise, go to the next competitor t at i
-											boolean canPrune = true;
-											for (int curPartCheck=0; curPartCheck<partitionPruned.length; curPartCheck++){
-												if (!partitionPruned[curPartCheck]){
-													canPrune = false;
-													break;
-												}								
-											}
-											if (canPrune)
-												return true;
-										}
+                                                                                    if ((!eliminatedRotAtPos.get(posNum,altAA,altRot))){ //not pruned
+
+                                                                                    minDiffPairVoxelE = SumMinDiffPVE(posNum, AANumAtPos, rotNumAtPos, altAA, altRot, splitPos[0], splitPos[1]);	//formula term 5
+
+
+                                                                                    int partCount = 0; //the visited partitions count
+                                                                                    int countFirst = 0; //the current rotamer for the first residue
+                                                                                    for (int spAA1=0; spAA1<numAAtypes[splitPos[0]]; spAA1++){//for each AA at the first splitting residue
+
+                                                                                            int partAA1 = strandRot[str0].getIndexOfNthAllowable(strResNum0,spAA1);
+                                                                                            int numRotForPartAA1 = getNumRot( str0, strResNum0, partAA1 );
+
+                                                                                            for (int partRot1=0; partRot1<numRotForPartAA1; partRot1++){//for each rot for the given partitioning AA
+
+                                                                                                    countFirst++;
+
+                                                                                                            //int index_hv1 = splitPos[0]*numTotalRot + rotIndOffset[partAA1] + partRot1; //the index of the partitioning rotamer
+
+                                                                                                            if ((!eliminatedRotAtPos.get(splitPos[0],partAA1,partRot1))&&((!useFlags)||(!splitFlags[posNum][AANumAtPos][rotNumAtPos][splitPos[0]][partAA1][partRot1]))){ //not pruned
+
+                                                                                                            double splitPosDiffE1 = pairwiseMinEnergyMatrix.getPairwiseE( posNum, AANumAtPos, rotNumAtPos, splitPos[0], partAA1, partRot1 )
+                                                                                                                    - pairwiseMaxEnergyMatrix.getPairwiseE( posNum, altAA, altRot, splitPos[0], partAA1, partRot1 ); //formula term 6
+
+                                                                                                            int countSecond = 0; //the current rotamer for the second residue
+                                                                                                            for (int spAA2=0; spAA2<numAAtypes[splitPos[1]]; spAA2++){//for each AA at the second splitting residue
+
+                                                                                                                    int partAA2 = strandRot[str1].getIndexOfNthAllowable(strResNum1,spAA2);
+                                                                                                                    int numRotForPartAA2 = getNumRot( str1, strResNum1, partAA2 );
+
+                                                                                                                    for (int partRot2=0; partRot2<numRotForPartAA2; partRot2++){//for each rot for the given partitioning AA
+
+                                                                                                                            countSecond++;
+
+                                                                                                                            if (!partitionPruned[partCount]){ //only if r at i not pruned for this partition yet
+
+                                                                                                                                            //int index_hv2 = splitPos[1]*numTotalRot + rotIndOffset[partAA2] + partRot2; //the index of the partitioning rotamer
+
+                                                                                                                                            if ((!eliminatedRotAtPos.get(splitPos[1],partAA2,partRot2))&&((!useFlags)||(!splitFlags[posNum][AANumAtPos][rotNumAtPos][splitPos[1]][partAA2][partRot2]))){ //not pruned
+
+                                                                                                                                            double splitPosDiffE2 = pairwiseMinEnergyMatrix.getPairwiseE( posNum, AANumAtPos, rotNumAtPos, splitPos[1], partAA2, partRot2 )
+                                                                                                                                                    - pairwiseMaxEnergyMatrix.getPairwiseE( posNum, altAA, altRot, splitPos[1], partAA2, partRot2 ); //formula term 6
+
+                                                                                                                                            checkSum = -templateInt + minIndVoxelE - maxIndVoxelE
+                                                                                                                                                                    - indVoxelInterval - pairVoxelInterval + minDiffPairVoxelE + splitPosDiffE1 + splitPosDiffE2;
+
+                                                                                                                                            if (checkSum > curEw){
+                                                                                                                                                    //System.out.println(index_r+" "+index_t+" "+checkSum+" "+minIndVoxelE+" "+minShellResE+" "+maxIndVoxelE+" "+maxShellResE+" "+indVoxelInterval+" "+pairVoxelInterval+" "+minDiffPairVoxelE);
+                                                                                                                                                    partitionPruned[partCount] = true; //r at i can be pruned for this partition
+
+                                                                                                                                                    if (useFlags){
+                                                                                                                                                            sf1[countFirst-1][countSecond-1] = true;//incremented above, so subtract 1
+                                                                                                                                                            sf2[countSecond-1][countFirst-1] = true;
+                                                                                                                                                    }
+                                                                                                                                            }
+
+                                                                                                                                            else {
+                                                                                                                                                    minDiff = Math.max(minDiff,checkSum);
+                                                                                                                                            }
+                                                                                                                                    }
+                                                                                                                                    else //v at h is pruned, so we set the pruning of r at i for this partition to true
+                                                                                                                                            partitionPruned[partCount] = true;
+                                                                                                                            }
+                                                                                                                            partCount++; //the next partition
+                                                                                                                    }
+                                                                                                            }
+                                                                                                    }
+                                                                                                    else {//v at h is pruned, so we set the pruning of r at i for this partition to true
+                                                                                                            //all of the partitions that involve hv1 are pruned; also re-synchronize the count
+                                                                                                            for (int synchCount=0; synchCount<numRotForRes[splitPos[1]]; synchCount++){
+                                                                                                                    partitionPruned[partCount] = true;
+                                                                                                                    partCount++;
+                                                                                                            }
+                                                                                                    }
+                                                                                            }
+                                                                                    }
+
+                                                                                    if (useFlags){
+                                                                                            //check for global split flags
+                                                                                            for (int partP1=0; partP1<sf1.length; partP1++){
+                                                                                                    int sfCount = 0;
+                                                                                                    for (int partP2=0; partP2<sf1[0].length; partP2++){
+                                                                                                            if (sf1[partP1][partP2])
+                                                                                                                    sfCount++;
+                                                                                                    }
+                                                                                                    if (sfCount==sf1[0].length){ //r at i is pruned for all subpartitions of the first residue
+                                                                                                                    splitFlags[index_r_AI.pos][index_r_AI.aa][index_r_AI.rot][indexMap1[partP1].pos][indexMap1[partP1].aa][indexMap1[partP1].rot] = true; //flag as a dead-ending pair
+                                                                                                                    splitFlags[indexMap1[partP1].pos][indexMap1[partP1].aa][indexMap1[partP1].rot][index_r_AI.pos][index_r_AI.aa][index_r_AI.rot] = true;
+                                                                                                    }
+                                                                                            }
+                                                                                            for (int partP1=0; partP1<sf2.length; partP1++){
+                                                                                                    int sfCount = 0;
+                                                                                                    for (int partP2=0; partP2<sf2[0].length; partP2++){
+                                                                                                            if (sf2[partP1][partP2])
+                                                                                                                    sfCount++;
+                                                                                                    }
+                                                                                                    if (sfCount==sf2[0].length){ //r at i is pruned for all subpartitions of the second residue
+                                                                                                                    splitFlags[index_r_AI.pos][index_r_AI.aa][index_r_AI.rot][indexMap2[partP1].pos][indexMap2[partP1].aa][indexMap2[partP1].rot] = true; //flag as a dead-ending pair
+                                                                                                                    splitFlags[indexMap2[partP1].pos][indexMap2[partP1].aa][indexMap2[partP1].rot][index_r_AI.pos][index_r_AI.aa][index_r_AI.rot] = true;
+                                                                                                    }
+                                                                                            }
+                                                                                    }
+
+                                                                                    //after checking all partitions, return if r at i is pruned for all of the partitions;
+                                                                                    //	otherwise, go to the next competitor t at i
+                                                                                    boolean canPrune = true;
+                                                                                    for (int curPartCheck=0; curPartCheck<partitionPruned.length; curPartCheck++){
+                                                                                            if (!partitionPruned[curPartCheck]){
+                                                                                                    canPrune = false;
+                                                                                                    break;
+                                                                                            }
+                                                                                    }
+                                                                                    if (canPrune)
+                                                                                            return true;
+                                                                                    }
 									}
+                                                                    }
 								}
 							}
 						}
@@ -565,13 +459,16 @@ public class DEESplit2f {
 	
 	//Get the mapping between rotamer indices (into the pruning matrix) and the number of the
 	//	current rotamer for the giveen residue; assumes sysLR in rs is valid (all allowables for the AS residues)
-	private int [] getIndexMap(int curRes){
+	/*private int [] getIndexMap(int curRes){
+		
+		int str=mutRes2Strand[curRes];
+		int strResNum=strandMut[str][mutRes2MutIndex[curRes]];
 		
 		int indexMap[] = new int[numRotForRes[curRes]];
 		int indNum = 0;
-		for (int AA=0; AA<sysLR.getNumAllowable(residueMap[curRes]); AA++){ //for each AA for the given AS residue
-			int curAA = sysLR.getIndexOfNthAllowable(residueMap[curRes],AA);
-			int numRotForAA = rl.getNumRotForAAtype(curAA);
+		for (int AA=0; AA<strandRot[str].getNumAllowable(strResNum); AA++){ //for each AA for the given AS residue
+			int curAA = strandRot[str].getIndexOfNthAllowable(strResNum,AA);
+			int numRotForAA = strandRot[str].rl.getNumRotForAAtype(curAA);
 			if (numRotForAA==0) //GLY or ALA
 				numRotForAA = 1;
 			
@@ -581,35 +478,34 @@ public class DEESplit2f {
 			}
 		}
 		return indexMap;
+	}*/
+	
+	private void index_r_AI(int posNum, int aANumAtPos, int rotNumAtPos) {
+		// TODO Auto-generated method stub
+		
 	}
 	
-	//Compute the number of rotamers for each residue position (assign to numRotForRes[])
-	private void compNumRotForRes(){
+	//KER: instead of returning the flat index return the curRes, curAA, and curRot
+	private ArrayIndex [] getIndexMap(int curRes){
 		
-		boolean ligPresent = (numLigRot==0); //ligand present
-		int treeLevels = numSiteResidues;
-		if (ligPresent)
-			treeLevels++;
+		int str=mutRes2Strand[curRes];
+		int strResNum=strandMut[str][mutRes2MutIndex[curRes]];
 		
-		numRotForRes = new int[treeLevels];
-		
-		int curNumRot = 0;
-		for (int curLevel=0; curLevel<treeLevels; curLevel++){
-			if ((ligPresent)&&(curLevel==(treeLevels-1))){ //the ligand level
-				curNumRot = numLigRot;
+		ArrayIndex indexMap[] = new ArrayIndex[numRotForRes[curRes]];
+		int indNum = 0;
+		for (int AA=0; AA<strandRot[str].getNumAllowable(strResNum); AA++){ //for each AA for the given AS residue
+			int curAA = strandRot[str].getIndexOfNthAllowable(strResNum,AA);
+			int numRotForAA = getNumRot( str, strResNum, curAA );
+			
+			for (int curRot=0; curRot<numRotForAA; curRot++){ //for each rot for the given AA
+				indexMap[indNum] = new ArrayIndex(curRes, curAA, curRot);
+				indNum++;
 			}
-			else { //AS residue				
-				curNumRot = 0;
-				for (int i=0; i<sysLR.getNumAllowable(residueMap[curLevel]); i++){ //add the rot for all allowable AA at this residue
-					int newRot = rl.getNumRotForAAtype(sysLR.getIndexOfNthAllowable(residueMap[curLevel],i));
-					if (newRot==0) //GLY or ALA
-						newRot = 1;
-					curNumRot += newRot; 
-				}
-			}
-			numRotForRes[curLevel] = curNumRot;
 		}
+		return indexMap;
 	}
+	
+	
 	
 	////////////////////////////////////////////////////////////////////////
 
@@ -621,18 +517,18 @@ public class DEESplit2f {
 		double sum = 0;
 		
 		//get the contribution from the active site residue rotamers
-		for (int curPos=0; curPos<numSiteResidues; curPos++){			
+		for (int curPos=0; curPos<numMutable; curPos++){			
 				
 			if ((curPos != atPos)&&(curPos!=splitPos1)&&(curPos!=splitPos2)) // j!=i and j!=k
 			
 				sum += IndMinDiffPVE(atPos, withAA1, withRot1, withAA2, withRot2, curPos);
 		}
 		
-		if (numLigRot!=0){ //there is a ligand
+		/*if (numLigRot!=0){ //there is a ligand
 			//get the contribution from the ligand rotamers: there is only one ligand residue,
 			//so there is only one position j here for which to add
 			sum += LigandIndMinDiffPVE (atPos, withAA1, withRot1, withAA2, withRot2);
-		}
+		}*/
 
 		return sum;
 	}
@@ -647,23 +543,24 @@ public class DEESplit2f {
 		int numRotForAAatPos;
 		
 		//r at i
-		index1 = firstPos*numTotalRot + rotIndOffset[firstAA1] + firstRot1;
+		//index1 = firstPos*numTotalRot + rotIndOffset[firstAA1] + firstRot1;
+		
+		int str2=mutRes2Strand[secondPos];
+		int strResNum2=strandMut[str2][mutRes2MutIndex[secondPos]];
 		
 		//t at i
-		index3 = firstPos*numTotalRot + rotIndOffset[firstAA2] + firstRot2;
+		//index3 = firstPos*numTotalRot + rotIndOffset[firstAA2] + firstRot2;
 		
 		boolean found = false;
 		
-		if (((!eliminatedRotAtPos[index1]))&&
-				((!eliminatedRotAtPos[index3]))){ //not pruned 
+		if (((!eliminatedRotAtPos.get(firstPos,firstAA1,firstRot1)))&&
+				((!eliminatedRotAtPos.get(firstPos,firstAA2,firstRot2)))){ //not pruned 
 		
 			for (int AA=0; AA<numAAtypes[secondPos]; AA++){
 				
-				int curAA = sysLR.getIndexOfNthAllowable(residueMap[secondPos],AA);;
+				int curAA = strandRot[str2].getIndexOfNthAllowable(strResNum2,AA);
 				
-				numRotForAAatPos = rl.getNumRotForAAtype(curAA);
-				if (numRotForAAatPos==0)	//ala or gly
-					numRotForAAatPos = 1;
+				numRotForAAatPos = getNumRot( str2, strResNum2, curAA );
 				
 				for (int curRot=0; curRot<numRotForAAatPos; curRot++){
 						
@@ -671,14 +568,14 @@ public class DEESplit2f {
 					//so pairwise energies start from row 1, column 1
 					
 					//s at j
-					index2 = secondPos*numTotalRot + rotIndOffset[curAA] + curRot;
+					//index2 = secondPos*numTotalRot + rotIndOffset[curAA] + curRot;
 					
-					if ((!eliminatedRotAtPos[index2])){ //not pruned 
+					if ((!eliminatedRotAtPos.get(secondPos,curAA,curRot))){ //not pruned 
 						
-						if ((!useFlags)||(!splitFlags[index1][index2])){ //not using split flags or not flagged
+						if ((!useFlags)||(!splitFlags[firstPos][firstAA1][firstRot1][secondPos][curAA][curRot])){ //not using split flags or not flagged
 		
-							curEmin = pairwiseMinEnergyMatrix[firstPos][firstAA1][firstRot1][secondPos][curAA][curRot];
-							curEmax = pairwiseMaxEnergyMatrix[firstPos][firstAA2][firstRot2][secondPos][curAA][curRot];
+							curEmin = pairwiseMinEnergyMatrix.getPairwiseE( firstPos, firstAA1, firstRot1, secondPos, curAA, curRot );
+							curEmax = pairwiseMaxEnergyMatrix.getPairwiseE( firstPos, firstAA2, firstRot2, secondPos, curAA, curRot );
 							//if (/*(curEmin<=stericEThreshPair)&&*/(curEmax<=stericEThreshPair)){//check only if not an unallowed steric
 								if ((curEmin-curEmax) < minE)
 									minE = curEmin-curEmax;
@@ -700,7 +597,7 @@ public class DEESplit2f {
 	}
 	
 	//Called by SumMaxMaxPVE(.)
-	private double LigandIndMinDiffPVE (int firstPos, int firstAA1, int firstRot1, int firstAA2, int firstRot2){
+	/*private double LigandIndMinDiffPVE (int firstPos, int firstAA1, int firstRot1, int firstAA2, int firstRot2){
 		
 		double minE = bigE;
 		double curEmin, curEmax;
@@ -729,7 +626,7 @@ public class DEESplit2f {
 				
 						curEmin = pairwiseMinEnergyMatrix[firstPos][firstAA1][firstRot1][numSiteResidues][ligAANum][curLigPos];
 						curEmax = pairwiseMaxEnergyMatrix[firstPos][firstAA2][firstRot2][numSiteResidues][ligAANum][curLigPos];
-						//if (/*(curEmin<=stericEThreshPair)&&*/(curEmax<=stericEThreshPair)){//check only if not an unallowed steric
+						//if (/*(curEmin<=stericEThreshPair)&&*//*(curEmax<=stericEThreshPair)){//check only if not an unallowed steric
 							if ((curEmin-curEmax) < minE)
 								minE = curEmin-curEmax;
 						//}
@@ -746,13 +643,13 @@ public class DEESplit2f {
 			minE = 0.0; //contributes nothing to the sum
 		
 		return minE;
-	}
+	}*/
 	//////////////////////////////////////////////////////////////////////////////////
 	
 	///////////////////////////////////////////////////////////////////////////////////////
 	//Same as CanEliminate(), just checks the ligand rotamers for pruning
 	//Called by ComputeEliminatedRotConf()
-	private boolean CanEliminateLig (int curLigRot){
+	/*private boolean CanEliminateLig (int curLigRot){
 		
 		double minIndVoxelE, maxIndVoxelE;
 		double minShellResE, maxShellResE;
@@ -824,11 +721,11 @@ public class DEESplit2f {
 		//We have tried all of the other rotamers at the current position and none
 		//of them is able to prune the given rotamer, so we return false
 		return false;
-	}
+	}*/
 	
 	//Same as SumMinDiffPVE(), just checks the ligand rotamers for pruning;
 	//Called by CanEliminateLig()
-	private double SumMinDiffPVELig (int withRot1, int withRot2){
+	/*private double SumMinDiffPVELig (int withRot1, int withRot2){
 		
 		double sum = 0;
 		
@@ -839,11 +736,11 @@ public class DEESplit2f {
 		}
 		
 		return sum;
-	}
+	}*/
 	
 	//Same as IndMinDiffPVE(), just checks the ligand rotamers for pruning
 	//Called by SumMinDiffPVELig()
-	private double IndMinDiffPVELig (int firstRot1, int firstRot2, int secondPos){
+	/*private double IndMinDiffPVELig (int firstRot1, int firstRot2, int secondPos){
 		
 		double minE = bigE;
 		double curEmin, curEmax;
@@ -884,7 +781,7 @@ public class DEESplit2f {
 		
 							curEmin = pairwiseMinEnergyMatrix[numSiteResidues][ligAANum][firstRot1][secondPos][curAA][curRot];
 							curEmax = pairwiseMaxEnergyMatrix[numSiteResidues][ligAANum][firstRot2][secondPos][curAA][curRot];
-							//if (/*(curEmin<=stericEThreshPair)&&*/(curEmax<=stericEThreshPair)){//check only if not an unallowed steric
+							//if (/*(curEmin<=stericEThreshPair)&&*//*(curEmax<=stericEThreshPair)){//check only if not an unallowed steric
 								if ((curEmin-curEmax) < minE)
 									minE = curEmin-curEmax;
 							//}
@@ -902,5 +799,5 @@ public class DEESplit2f {
 			minE = 0.0; //contributes nothing to the sum
 		
 		return minE;
-	}
+	}*/
 }

@@ -1,8 +1,8 @@
 /*
 	This file is part of OSPREY.
 
-	OSPREY Protein Redesign Software Version 1.0
-	Copyright (C) 2001-2009 Bruce Donald Lab, Duke University
+	OSPREY Protein Redesign Software Version 2.1 beta
+	Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 	
 	OSPREY is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as 
@@ -36,14 +36,14 @@
 			USA
 			e-mail:   www.cs.duke.edu/brd/
 	
-	<signature of Bruce Donald>, 12 Apr, 2009
+	<signature of Bruce Donald>, Mar 1, 2012
 	Bruce Donald, Professor of Computer Science
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Atom.java
 //
-//  Version:           1.0
+//  Version:           2.1 beta
 //
 //
 // authors:
@@ -51,7 +51,8 @@
 //   ---------   -----------------    ------------------------    ----------------------------
 //     RHL        Ryan Lilien          Dartmouth College           ryan.lilien@dartmouth.edu
 //	   ISG		  Ivelin Georgiev	   Duke University			   ivelin.georgiev@duke.edu
-//
+//     KER        Kyle E. Roberts       Duke University         ker17@duke.edu
+//     PGC        Pablo Gainza C.       Duke University         pablo.gainza@duke.edu
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -104,6 +105,8 @@ public class Atom implements Serializable {
 	double	mass;				// atomic mass
 	float	coord[] = new float[3];		// atomic coordinates
 	boolean isBBatom = false;
+        float BFactor;
+
 
 	Atom(){
 	}
@@ -151,6 +154,10 @@ public class Atom implements Serializable {
 		
 		isBBatom = setIsBBatom();
 	}
+
+        Atom(float coor[]){
+            coord = coor;
+        }
 
 	// Changes the atom name and sets the atom properties element number,
 	//  element type, radii, and mass
@@ -1129,5 +1136,49 @@ public class Atom implements Serializable {
 	//Checks if this is a backbone atom
 	public boolean getIsBBatom(){
 		return isBBatom;
+	}
+
+	//Hopefully these two functions will provide a deep 
+	//copy of the current atom instead of just pointing 
+	//to it
+	public Atom copy(){
+		return new Atom(this);
+	}
+	
+	protected Atom (Atom a){
+		moleculeAtomNumber = a.moleculeAtomNumber;
+		residueAtomNumber = a.residueAtomNumber;
+		modelAtomNumber = a.modelAtomNumber;
+		moleculeResidueNumber = a.moleculeResidueNumber;
+		strandResidueNumber = a.strandResidueNumber;
+		strandNumber = a.strandNumber;
+		elementNumber = a.elementNumber;
+		numberOfBonds = a.numberOfBonds;
+		elementType = a.elementType;
+		forceFieldType = a.forceFieldType;
+		type = a.type;
+		selected = a.selected;
+		name = a.name;
+		segID = a.segID;
+		charge = a.charge;
+		radius = a.radius;
+		mass = a.mass;
+		isBBatom = a.isBBatom;
+		if(a.bond != null){
+			bond = new int[a.bond.length];
+			for(int i=0; i<bond.length;i++)
+				bond[i] = a.bond[i];
+		}
+		
+		coord = new float[3];
+		for(int i=0; i<3;i++)
+			coord[i] = a.coord[i];
+		
+	}
+
+	public void setCoords(float xpos, float ypos, float zpos){
+		coord[0] = xpos;
+		coord[1] = ypos;
+		coord[2] = zpos;
 	}
 }
