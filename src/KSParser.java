@@ -6542,7 +6542,9 @@ public class KSParser
 		sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
 		
 		int numInAS = (new Integer((String)sParams.getValue("NUMINAS"))).intValue();		
-		String runNameEMatrixMin = (String)(sParams.getValue("MINENERGYMATRIXNAME"));
+		String eMatrixNameMin = (String)(sParams.getValue("MINENERGYMATRIXNAME"));
+		String eMatrixNameMax = (String)(sParams.getValue("MAXENERGYMATRIXNAME"));
+                
 		boolean ligPresent = (new Boolean((String)sParams.getValue("LIGPRESENT"))).booleanValue();
 		String ligType = null;
 		if (ligPresent)
@@ -6551,9 +6553,13 @@ public class KSParser
 		boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
 		String bdFile = sParams.getValue("BRANCHDFILE");
 		
-		Molecule m = new Molecule();
-		int numLigRotamers = setupMolSystem(m,sParams,ligPresent,ligType);
-		
+		MolParameters mp = new MolParameters();
+                loadStrandParams(sParams, mp, COMPLEX);
+                
+                Molecule m = new Molecule();
+                m = setupMolSystem(m,sParams,mp.strandPresent,mp.strandLimits);
+                
+				
 		int numLevels = numInAS;
 		if (ligPresent)
 			numLevels++;
@@ -6568,29 +6574,46 @@ public class KSParser
 		System.out.print("Mol residue map:");
 		for(int i=0;i<numInAS;i++){
 			int pdbResNum = (new Integer(getToken(resMapString,i+1))).intValue();
-			residueMap[i] = m.strand[sysStrNum].mapPDBresNumToStrandResNum(pdbResNum);
-			resDefault[i] = m.strand[sysStrNum].residue[residueMap[i]].name;
+			residueMap[i] = m.strand[0].mapPDBresNumToStrandResNum(pdbResNum);
+			resDefault[i] = m.strand[0].residue[residueMap[i]].name;
 			molResMap[i] = m.mapPDBresNumToMolResNum(pdbResNum);
 			invResMap[molResMap[i]] = i;
 			System.out.print(" "+molResMap[i]+"("+m.residue[molResMap[i]].fullName+")");
 		}
 		if (ligPresent) { //ligand is present
-			molResMap[numInAS] = m.strand[ligStrNum].residue[0].moleculeResidueNumber;
+			molResMap[numInAS] = m.strand[1].residue[0].moleculeResidueNumber;
 			invResMap[molResMap[numInAS]] = numInAS;
 			System.out.print(" "+molResMap[numInAS]+"("+m.residue[molResMap[numInAS]].fullName+")");
 		}
 		System.out.println();
 		
-		RotamerSearch rs = new RotamerSearch(m,sysStrNum,ligStrNum,hElect,hVDW,hSteric,true,true,0.0f,stericThresh,
-				softStericThresh,distDepDielect,dielectConst,doDihedE,doSolvationE,solvScale,softvdwMultiplier,rl,grl);
+//		RotamerSearch rs = new RotamerSearch(m,sysStrNum,ligStrNum,hElect,hVDW,hSteric,true,true,0.0f,stericThresh,
+//				softStericThresh,distDepDielect,dielectConst,doDihedE,doSolvationE,solvScale,softvdwMultiplier,rl,grl);
+		
+		boolean useTriples = (new Boolean((String)sParams.getValue("USETRIPLES","false"))).booleanValue();
+		boolean magicBulletTriples = (new Boolean((String)sParams.getValue("MAGICBULLETTRIPLES","true"))).booleanValue();//Use only "magic bullet" competitor triples
+		int magicBulletNumTriples = (new Integer((String)sParams.getValue("MAGICBULLETNUMTRIPLES","5"))).intValue();//Number of magic bullet triples to use
+		boolean useFlagsAStar = (new Boolean((String)sParams.getValue("USEFLAGSASTAR","false"))).booleanValue();
+
+
+		// DEEPer parameters
+		boolean doPerturbations = (new Boolean((String)sParams.getValue("DOPERTURBATIONS","false"))).booleanValue();//Triggers DEEPer
+		boolean pertScreen = (new Boolean((String)sParams.getValue("PERTURBATIONSCREEN","false"))).booleanValue();//Triggers perturbation screen: pruning-only run with rigid perturbations
+		String pertFile = (String)sParams.getValue("PERTURBATIONFILE","defaultPerturbationFileName.pert");//Input file giving perturbation information
+		boolean minimizePerts = (new Boolean((String)sParams.getValue("MINIMIZEPERTURBATIONS","false"))).booleanValue();//Allow continuous minimization with respect to perturbation parameters
+		String screenOutFile = ((String)sParams.getValue("SCREENOUTFILE","screenOutFileDefaultName.pert"));//Name of file for outputting results of screen (same format as PERTURBATIONFILE)
+		boolean selectPerturbations = (new Boolean((String)sParams.getValue("SELECTPERTURBATIONS","false"))).booleanValue();//Should perturbations be automatically selected?
+		Perturbation.idealizeSC = (new Boolean((String)sParams.getValue("IDEALIZESIDECHAINS","true"))).booleanValue();
+		   
+		
+		RotamerSearch rs = new RotamerSearch(mp.m,mp.numberMutable, mp.strandsPresent, hElect, hVDW, hSteric, true,
+			true, 0.0f, stericThresh, softStericThresh, distDepDielect, dielectConst, doDihedE, doSolvationE, solvScale, softvdwMultiplier, grl,
+			doPerturbations, pertFile, minimizePerts, useTriples, useFlagsAStar);
 		
 		System.out.print("Loading precomputed energy matrix...");
-		loadPairwiseEnergyMatrices(sParams,rs,runNameEMatrixMin+".dat",false,null);
+		//loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,null);
+		loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,eMatrixNameMax,0);
 		System.out.println("done");
-		
-		long startTimeCPU = CPUTime();
-		long startTimeUser = UserTime();
-		long startTimeSystem = SystemTime();
 		
 		//Set the allowable AAs for each AS residue
 		boolean addWT = (new Boolean((String)sParams.getValue("ADDWT"))).booleanValue();
@@ -6625,13 +6648,6 @@ public class KSParser
 		BranchTree bt = new BranchTree(bdFile,m,numUnprunedRot,molResMap,invResMap,sysStrNum,numInAS,ligPresent);
 		bt.traverseTree(rs.sysLR, rs.ligROT, m, rl, grl, prunedRotAtRes, totalNumRotamers, rotamerIndexOffset, rs.getMinMatrix());
 		
-		long stopTimeCPU = CPUTime();
-		long stopTimeUser = UserTime();
-		long stopTimeSystem = SystemTime();
-		System.out.println("GBD done");
-		System.out.println("Total execution time: CPU "+((stopTimeCPU-startTimeCPU)/(60.0*1000000000.0)));
-		System.out.println("Total execution time: User "+((stopTimeUser-startTimeUser)/(60.0*1000000000.0)));
-		System.out.println("Total execution time: System "+((stopTimeSystem-startTimeSystem)/(60.0*1000000000.0)));
 	}
 
 //////////////////////////////////////////////////////
