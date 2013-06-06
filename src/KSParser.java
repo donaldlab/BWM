@@ -6604,6 +6604,8 @@ public class KSParser
 		String screenOutFile = ((String)sParams.getValue("SCREENOUTFILE","screenOutFileDefaultName.pert"));//Name of file for outputting results of screen (same format as PERTURBATIONFILE)
 		boolean selectPerturbations = (new Boolean((String)sParams.getValue("SELECTPERTURBATIONS","false"))).booleanValue();//Should perturbations be automatically selected?
 		Perturbation.idealizeSC = (new Boolean((String)sParams.getValue("IDEALIZESIDECHAINS","true"))).booleanValue();
+		boolean doMinimize = (new Boolean((String)sParams.getValue("DOMINIMIZE", "false"))).booleanValue();
+                
 		   
 		
 		RotamerSearch rs = new RotamerSearch(mp.m,mp.numberMutable, mp.strandsPresent, hElect, hVDW, hSteric, true,
@@ -6612,22 +6614,28 @@ public class KSParser
 		
 		System.out.print("Loading precomputed energy matrix...");
 		//loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,null);
-		loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,eMatrixNameMax,0);
+		loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",doMinimize,eMatrixNameMax,0);
 		System.out.println("done");
 		
 		//Set the allowable AAs for each AS residue
 		boolean addWT = (new Boolean((String)sParams.getValue("ADDWT"))).booleanValue();
-		for (int j=0; j<numInAS; j++){
-			setAllowablesHelper(rs, sParams, addWT, j, residueMap, resDefault);
-		}
+                int molStrand = 0;
+                for (int strNum=0; strNum<mp.numOfStrands; strNum++){
+                        if(mp.strandPresent[strNum]){
+                                for (int k=0; k<mp.strandMut[molStrand].length; k++){
+                                        setAllowablesHelper(rs, sParams, addWT, strNum, molStrand, k, mp.strandMut, mp.strandDefault);
+                                }
+                                molStrand++;
+                        }
+                }
 		
 		float eRef[] = null;
 		if (useEref) { //add the reference energies to the min (and max) intra-energies
 			eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.sysLR,residueMap,null,numInAS);
-			rs.addEref(eRef, false, ligPresent, numInAS, residueMap);
+			rs.addEref(eRef, doMinimize, mp.strandMut);
 		}
 		
-		int numRotForRes[] = compNumRotForRes(numInAS, rs, numLigRotamers, residueMap);
+		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, residueMap);
 		int numUnprunedRot[] = new int[numRotForRes.length];
 		for (int curRes=0; curRes<numInAS; curRes++){			
 			int curPruned = 0;
@@ -6646,7 +6654,7 @@ public class KSParser
 		}
 		
 		BranchTree bt = new BranchTree(bdFile,m,numUnprunedRot,molResMap,invResMap,sysStrNum,numInAS,ligPresent);
-		bt.traverseTree(rs.sysLR, rs.ligROT, m, rl, grl, prunedRotAtRes, totalNumRotamers, rotamerIndexOffset, rs.getMinMatrix());
+		bt.traverseTree(rs.strandRot[0], rs.strandRot[1], m, rotlibs[0], grl, prunedRotAtRes, totalNumRotamers, rotamerIndexOffset, rs.getMinMatrix());
 		
 	}
 
