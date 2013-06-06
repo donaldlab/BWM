@@ -6536,6 +6536,9 @@ public class KSParser
 		// 2: Mutation search parameter filename (string)
 		// 3: Branch decomposition filename (string)
 		
+		int sysStrNum = 0;
+    	int ligStrNum = 1;
+		
 		// Read System parameters for the reference structure
 		ParamSet sParams = new ParamSet();
 		sParams.addParamsFromFile(getToken(s,2)); //read system parameters
@@ -6574,14 +6577,14 @@ public class KSParser
 		System.out.print("Mol residue map:");
 		for(int i=0;i<numInAS;i++){
 			int pdbResNum = (new Integer(getToken(resMapString,i+1))).intValue();
-			residueMap[i] = m.strand[0].mapPDBresNumToStrandResNum(pdbResNum);
-			resDefault[i] = m.strand[0].residue[residueMap[i]].name;
+			residueMap[i] = m.strand[sysStrNum].mapPDBresNumToStrandResNum(pdbResNum);
+			resDefault[i] = m.strand[sysStrNum].residue[residueMap[i]].name;
 			molResMap[i] = m.mapPDBresNumToMolResNum(pdbResNum);
 			invResMap[molResMap[i]] = i;
 			System.out.print(" "+molResMap[i]+"("+m.residue[molResMap[i]].fullName+")");
 		}
 		if (ligPresent) { //ligand is present
-			molResMap[numInAS] = m.strand[1].residue[0].moleculeResidueNumber;
+			molResMap[numInAS] = m.strand[ligStrNum].residue[0].moleculeResidueNumber;
 			invResMap[molResMap[numInAS]] = numInAS;
 			System.out.print(" "+molResMap[numInAS]+"("+m.residue[molResMap[numInAS]].fullName+")");
 		}
@@ -6628,18 +6631,20 @@ public class KSParser
                                 molStrand++;
                         }
                 }
-		
-		float eRef[] = null;
-		if (useEref) { //add the reference energies to the min (and max) intra-energies
-			eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.sysLR,residueMap,null,numInAS);
-			rs.addEref(eRef, doMinimize, mp.strandMut);
-		}
-		
+		float eRef[][] = null;
+    	if (useEref) { //add the reference energies to the min (and max) intra-energies
+    		String eRefName = sParams.getValue("EREFMATRIXNAME", "Eref");
+    		eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
+    		//eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.strandRot,mp.strandMut,null,mp.numberMutable,mp.mutRes2Strand,mp.mutRes2StrandMutIndex);
+    		rs.addEref(eRef, doMinimize, mp.strandMut);
+    	}
+		int totalNumRotamers = grl[sysStrNum].getTotalNumRotamers();
+		int numLigRotamers = grl[ligStrNum].getTotalNumRotamers();
 		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, residueMap);
 		int numUnprunedRot[] = new int[numRotForRes.length];
 		for (int curRes=0; curRes<numInAS; curRes++){			
 			int curPruned = 0;
-			for (int curRot=0; curRot<totalNumRotamers; curRot++){
+			for (int curRot=0; curRot<totalNumRotamers; curRot++) {
 				if (prunedRotAtRes[curRes*totalNumRotamers+curRot]) //cur rot is pruned (pruned rotamers are necessarily in the cur set of allowed AAs)
 					curPruned++;
 			}			
@@ -6654,7 +6659,7 @@ public class KSParser
 		}
 		
 		BranchTree bt = new BranchTree(bdFile,m,numUnprunedRot,molResMap,invResMap,sysStrNum,numInAS,ligPresent);
-		bt.traverseTree(rs.strandRot[0], rs.strandRot[1], m, rotlibs[0], grl, prunedRotAtRes, totalNumRotamers, rotamerIndexOffset, rs.getMinMatrix());
+		bt.traverseTree(rs.strandRot[sysStrNum], rs.strandRot[1], m, grl[sysStrNum], grl[1], prunedRotAtRes, null, -1, rs.getMinMatrix());
 		
 	}
 

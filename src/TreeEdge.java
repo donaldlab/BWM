@@ -145,7 +145,7 @@ public class TreeEdge implements Serializable{
 	
 	//Computes and stores the A matrix for the current edge; must be called after the L and lambda sets for the current edge have already been computed (using compLlambda())
 	public void computeA(StrandRotamers sysLR, StrandRotamers ligRot, Molecule m, RotamerLibrary rl, RotamerLibrary grl, 
-			boolean prunedRot[], int numTotalRot, int rotIndOffset[], float eMatrix[][][][][][], InteractionGraph G){
+			boolean prunedRot[], int numTotalRot, int rotIndOffset[], PairwiseEnergyMatrix eMatrix, InteractionGraph G){
 		
 		int maxDepth = M.size() + lambda.size();
 		
@@ -169,7 +169,7 @@ public class TreeEdge implements Serializable{
 	//Called by computeA(.)
 	private void computeAhelper(int depth, int maxDepth, Object arrayM[], Object arrayLambda[], StrandRotamers sysLR, StrandRotamers ligRot,
 			Molecule m, RotamerLibrary rl, RotamerLibrary grl, boolean prunedRot[], int numTotalRot, int rotIndOffset[], 
-			int curState[], float eMatrix[][][][][][], InteractionGraph G, int bestState[], float bestEnergy[], float energy_store[]){		
+			int curState[], PairwiseEnergyMatrix eMatrix, InteractionGraph G, int bestState[], float bestEnergy[], float energy_store[]){		
 		if (depth >= maxDepth){ //end level of recursive calls; call the backtracking procedure to look-up the optimal states for (L-lambda)
 			
 			
@@ -369,10 +369,10 @@ public class TreeEdge implements Serializable{
 	
 	
 	
-	private void computeEforState(int curState[],float eMatrix[][][][][][],Molecule m, InteractionGraph G, float en[]){
+	private void computeEforState(int curState[],PairwiseEnergyMatrix eMatrix,Molecule m, InteractionGraph G, float en[]){
 		
 		int pi=0,ai=0,ri=0,pj=0,aj=0,rj=0;
-		en[0] = eMatrix[eMatrix.length-1][0][0][0][0][0]; //Add shell shell energy
+		en[0] =eMatrix.getShellShellE(); //Add shell shell energy
 		int numPos = M.size() + lambda.size();
 		for(int i=0;i<numPos;i++){
 			
@@ -380,12 +380,17 @@ public class TreeEdge implements Serializable{
 			ai=rtm[i][curState[i]].aa;
 			ri=rtm[i][curState[i]].rot;
 			if(i>=M.size()){
+				/*
 				en[1]+=eMatrix[pi][ai][ri][pi][0][1]; //add the self energy of the rotamer of the lambda residue
 				en[1]+=eMatrix[pi][ai][ri][pi][0][0];
+				*/
+				en[1]+=eMatrix.getShellRotE(pi, ai, ri);
 			}
-			
+			/*
 			en[0]+=eMatrix[pi][ai][ri][pi][0][1]; //add the self energy of the rotamer of the lambda residue
 			en[0]+=eMatrix[pi][ai][ri][pi][0][0];
+			*/
+			en[1]+=eMatrix.getShellRotE(pi, ai, ri);
 
 			for(int j=i+1;j<numPos;j++){
 			
@@ -396,10 +401,13 @@ public class TreeEdge implements Serializable{
 				if(G.edgeExists(molResMap[pi],molResMap[pj])){  // if edge exists between residues in the interaction graph
 
 					if(j<M.size()) //intreacting between M set
-						en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
+						//en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
+						en[0]+=eMatrix.getPairwiseE(pi, ai, rj, pj, aj, rj);
 					else if(j>=M.size()){ //interaction between lambda set or M and lambda set
-						en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
-						en[1]+=eMatrix[pi][ai][ri][pj][aj][rj];
+						//en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
+						en[0]+=eMatrix.getPairwiseE(pi, ai, rj, pj, aj, rj);
+						//en[1]+=eMatrix[pi][ai][ri][pj][aj][rj];
+						en[1]+=eMatrix.getPairwiseE(pi, ai, rj, pj, aj, rj);
 					}
 				}
 			}
