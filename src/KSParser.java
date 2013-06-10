@@ -6659,7 +6659,7 @@ public class KSParser
 		}
 		
 		BranchTree bt = new BranchTree(bdFile,m,numUnprunedRot,molResMap,invResMap,sysStrNum,numInAS,ligPresent);
-		bt.traverseTree(rs.strandRot[sysStrNum], rs.strandRot[1], m, grl[sysStrNum], grl[1], prunedRotAtRes, null, -1, rs.getMinMatrix());
+		bt.traverseTree(rs.strandRot[sysStrNum], rs.strandRot[1], m, grl[sysStrNum], grl[1], prunedRotAtRes, grl[0].getTotalNumRotamers(), grl[0].getRotamerIndexOffset(), rs.getMinMatrix());
 		
 	}
 
