@@ -145,7 +145,7 @@ public class TreeEdge implements Serializable{
 	
 	//Computes and stores the A matrix for the current edge; must be called after the L and lambda sets for the current edge have already been computed (using compLlambda())
 	public void computeA(StrandRotamers sysLR, StrandRotamers ligRot, Molecule m, RotamerLibrary rl, RotamerLibrary grl, 
-			boolean prunedRot[], int numTotalRot, int rotIndOffset[], PairwiseEnergyMatrix eMatrix, InteractionGraph G){
+			PrunedRotamers<Boolean> prunedRot, int numTotalRot, int rotIndOffset[], PairwiseEnergyMatrix eMatrix, InteractionGraph G){
 		
 		int maxDepth = M.size() + lambda.size();
 		
@@ -168,7 +168,7 @@ public class TreeEdge implements Serializable{
 	
 	//Called by computeA(.)
 	private void computeAhelper(int depth, int maxDepth, Object arrayM[], Object arrayLambda[], StrandRotamers sysLR, StrandRotamers ligRot,
-			Molecule m, RotamerLibrary rl, RotamerLibrary grl, boolean prunedRot[], int numTotalRot, int rotIndOffset[], 
+			Molecule m, RotamerLibrary rl, RotamerLibrary grl, PrunedRotamers<Boolean> prunedRot, int numTotalRot, int rotIndOffset[], 
 			int curState[], PairwiseEnergyMatrix eMatrix, InteractionGraph G, int bestState[], float bestEnergy[], float energy_store[]){		
 		if (depth >= maxDepth){ //end level of recursive calls; call the backtracking procedure to look-up the optimal states for (L-lambda)
 			
@@ -239,7 +239,7 @@ public class TreeEdge implements Serializable{
 						rotInd = curPos*numTotalRot + w;
 					}
 					
-					if (!prunedRot[rotInd]){ //rotamer not pruned, so check
+					if (!prunedRot.get(curPos, AAindex, w)){ //rotamer not pruned, so check
 						
 						curState[depth]++;
 						

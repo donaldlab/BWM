@@ -164,6 +164,10 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 		prunedRot[i.pos][i.aa][i.rot] = val;
 	}
 	
+	public int getNumPositions(){
+		return prunedRot.length;
+	}
+	
 }
 
 class PrunedRotIterator<T> implements Iterator<RotInfo<T>> {

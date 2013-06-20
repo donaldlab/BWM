@@ -30,14 +30,14 @@ public class BranchTree implements Serializable {
 	
 	//Traverses the current tree starting at the root
 	public void traverseTree(StrandRotamers sysLR, StrandRotamers ligRot, Molecule m, RotamerLibrary rl,
-			RotamerLibrary grl, boolean prunedRot[], int numTotalRot, int rotIndOffset[], PairwiseEnergyMatrix eMatrix){
+			RotamerLibrary grl, PrunedRotamers<Boolean> prunedRot, int numTotalRot, int rotIndOffset[], PairwiseEnergyMatrix eMatrix){
 		
 		traverseTreeHelper(root, sysLR, ligRot, m, rl, grl, prunedRot, numTotalRot, rotIndOffset, eMatrix);
 	}
 
 	//Performs post-order traversal of the tree
 	private void traverseTreeHelper(TreeNode n, StrandRotamers sysLR, StrandRotamers ligRot, Molecule m, RotamerLibrary rl,
-			RotamerLibrary grl, boolean prunedRot[], int numTotalRot, int rotIndOffset[], PairwiseEnergyMatrix eMatrix){
+			RotamerLibrary grl, PrunedRotamers<Boolean> prunedRot, int numTotalRot, int rotIndOffset[], PairwiseEnergyMatrix eMatrix){
 		
 		TreeNode lc = n.getlc();
 		if (lc!=null) //traverse left subtree first

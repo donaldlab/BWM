@@ -6554,6 +6554,8 @@ public class KSParser
 			ligType = (String)(sParams.getValue("LIGTYPE"));
 		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF"))).booleanValue();
 		boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
+
+		PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers)readObject(sParams.getValue("PRUNEDROTFILE"),false);
 		String bdFile = sParams.getValue("BRANCHDFILE");
 		
 		MolParameters mp = new MolParameters();
@@ -6641,10 +6643,23 @@ public class KSParser
 		int totalNumRotamers = grl[sysStrNum].getTotalNumRotamers();
 		int numLigRotamers = grl[ligStrNum].getTotalNumRotamers();
 		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, residueMap);
+		
+		
+		/**
+		 * for (int str1=0; str1<strandMut.length; str1++){
+			for (int i=0; i<strandMut[str1].length; i++){
+				prunedRot[p1] = (T[][]) new Object[rs.strandRot[str1].rl.getNumAAallowed()][];
+				for (int a1=0; a1<rs.strandRot[str1].getNumAllowable(strandMut[str1][i]); a1++){
+					int curAAind1 = rs.strandRot[str1].getIndexOfNthAllowable(strandMut[str1][i],a1);
+
+		 */
+
 		int numUnprunedRot[] = new int[numRotForRes.length];
 		for (int curRes=0; curRes<numInAS; curRes++){			
 			int curPruned = 0;
+			for(int curAA = 0; curAA < grl[sysStrNum].getNumAAallowed(); curAA++)
 			for (int curRot=0; curRot<totalNumRotamers; curRot++) {
+				if(prunedRotAtResObject.get(curRes, curAA, curRot));
 				if (prunedRotAtRes[curRes*totalNumRotamers+curRot]) //cur rot is pruned (pruned rotamers are necessarily in the cur set of allowed AAs)
 					curPruned++;
 			}			
@@ -6659,7 +6674,7 @@ public class KSParser
 		}
 		
 		BranchTree bt = new BranchTree(bdFile,m,numUnprunedRot,molResMap,invResMap,sysStrNum,numInAS,ligPresent);
-		bt.traverseTree(rs.strandRot[sysStrNum], rs.strandRot[1], m, grl[sysStrNum], grl[1], prunedRotAtRes, grl[0].getTotalNumRotamers(), grl[0].getRotamerIndexOffset(), rs.getMinMatrix());
+		bt.traverseTree(rs.strandRot[sysStrNum], rs.strandRot[1], m, grl[sysStrNum], grl[1], prunedRotAtResObject, grl[0].getTotalNumRotamers(), grl[0].getRotamerIndexOffset(), rs.getMinMatrix());
 		
 	}
 
