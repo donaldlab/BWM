@@ -28,7 +28,13 @@ public class BranchDecomposition {
 			System.exit(1);
 		}
 		
-		BranchDecompositionH bd = new BranchDecompositionH(args);
+		try{
+		    BranchDecompositionH bd = new BranchDecompositionH(args);
+		}
+		catch( Exception e)
+		{
+		    e.printStackTrace();
+		}
 	}
 
 	// This function returns the xth token in string s

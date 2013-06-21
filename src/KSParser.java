@@ -6544,31 +6544,28 @@ public class KSParser
 		sParams.addParamsFromFile(getToken(s,2)); //read system parameters
 		sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
 		
-		int numInAS = (new Integer((String)sParams.getValue("NUMINAS"))).intValue();		
-		String eMatrixNameMin = (String)(sParams.getValue("MINENERGYMATRIXNAME"));
-		String eMatrixNameMax = (String)(sParams.getValue("MAXENERGYMATRIXNAME"));
+		int numInAS = (new Integer((String)sParams.getValue("NUMINAS"))).intValue();
+	        String runName = (String)sParams.getValue("RUNNAME");
+		String eMatrixNameMin = (String)sParams.getValue("MINENERGYMATRIXNAME", runName+"minM");
+                String eMatrixNameMax = (String)sParams.getValue("MAXENERGYMATRIXNAME", runName+"maxM");
                 
 		boolean ligPresent = (new Boolean((String)sParams.getValue("LIGPRESENT"))).booleanValue();
 		String ligType = null;
 		if (ligPresent)
 			ligType = (String)(sParams.getValue("LIGTYPE"));
 		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF"))).booleanValue();
-		boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
+		//boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
 
 		PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers)readObject(sParams.getValue("PRUNEDROTFILE"),false);
 		String bdFile = sParams.getValue("BRANCHDFILE");
 		
-		MolParameters mp = new MolParameters();
-                loadStrandParams(sParams, mp, COMPLEX);
-                
-                Molecule m = new Molecule();
-                m = setupMolSystem(m,sParams,mp.strandPresent,mp.strandLimits);
+		MolParameters mp = loadMolecule(sParams, COMPLEX);
                 
 				
 		int numLevels = numInAS;
 		if (ligPresent)
 			numLevels++;
-		
+		/*
 		int residueMap[] = new int[numInAS];
 		String resMapString = (String)sParams.getValue("RESIDUEMAP");
 		String resDefault[] = new String[numInAS];
@@ -6591,7 +6588,7 @@ public class KSParser
 			System.out.print(" "+molResMap[numInAS]+"("+m.residue[molResMap[numInAS]].fullName+")");
 		}
 		System.out.println();
-		
+		*/
 //		RotamerSearch rs = new RotamerSearch(m,sysStrNum,ligStrNum,hElect,hVDW,hSteric,true,true,0.0f,stericThresh,
 //				softStericThresh,distDepDielect,dielectConst,doDihedE,doSolvationE,solvScale,softvdwMultiplier,rl,grl);
 		
@@ -6617,10 +6614,7 @@ public class KSParser
 			true, 0.0f, stericThresh, softStericThresh, distDepDielect, dielectConst, doDihedE, doSolvationE, solvScale, softvdwMultiplier, grl,
 			doPerturbations, pertFile, minimizePerts, useTriples, useFlagsAStar);
 		
-		System.out.print("Loading precomputed energy matrix...");
-		//loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,null);
-		loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",doMinimize,eMatrixNameMax,0);
-		System.out.println("done");
+		
 		
 		//Set the allowable AAs for each AS residue
 		boolean addWT = (new Boolean((String)sParams.getValue("ADDWT"))).booleanValue();
@@ -6636,13 +6630,18 @@ public class KSParser
 		float eRef[][] = null;
     	if (useEref) { //add the reference energies to the min (and max) intra-energies
     		String eRefName = sParams.getValue("EREFMATRIXNAME", "Eref");
-    		eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
+    		//eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
+    		rs.loadPairwiseEnergyMatrices(eRefName+".dat", true);
     		//eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.strandRot,mp.strandMut,null,mp.numberMutable,mp.mutRes2Strand,mp.mutRes2StrandMutIndex);
-    		rs.addEref(eRef, doMinimize, mp.strandMut);
+    		//rs.addEref(eRef, doMinimize, mp.strandMut);
     	}
-		int totalNumRotamers = grl[sysStrNum].getTotalNumRotamers();
-		int numLigRotamers = grl[ligStrNum].getTotalNumRotamers();
-		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, residueMap);
+    	else {
+        	System.out.print("Calculating energy matrix...");
+            //loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,null);
+            loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",doMinimize,eMatrixNameMax,0);
+            System.out.println("done");
+    	}
+		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, mp.mutRes2StrandMutIndex);
 		
 		
 		/**
@@ -6655,6 +6654,26 @@ public class KSParser
 		 */
 
 		int numUnprunedRot[] = new int[numRotForRes.length];
+		for(int strand = 0; strand < mp.strandsPresent; strand++){
+
+		    for (int curRes=0; curRes<mp.numberMutable; curRes++){                      
+		        int curPruned = 0;
+		        for(int curAA=0;curAA<grl[strand].getNumAAallowed();curAA++){
+		            int curAAind1 = rs.strandRot[strand].getIndexOfNthAllowable(mp.strandMut[strand][curRes],curAA);
+		            if(curAAind1 < 0)
+		            {
+		                System.out.println("WHAT?");
+		                continue;
+		            }
+		            for (int curRot=0; curRot< rs.strandRot[strand].rl.getNumRotForAAtype(curAAind1); curRot++) {
+		                if (prunedRotAtResObject.get(strand, curRes, curAAind1, curRot)) //cur rot is pruned (pruned rotamers are necessarily in the cur set of allowed AAs)
+		                    curPruned++;
+		            }                       
+		        }
+		        numUnprunedRot[curRes] = numRotForRes[curRes] - curPruned;
+		    }
+		}
+		/*
 		for (int curRes=0; curRes<numInAS; curRes++){			
 			int curPruned = 0;
 			for(int curAA = 0; curAA < grl[sysStrNum].getNumAAallowed(); curAA++)
@@ -6671,10 +6690,10 @@ public class KSParser
 				if (prunedRotAtRes[numInAS*totalNumRotamers+curRot])
 					curPruned++;
 			numUnprunedRot[numInAS] = numLigRotamers - curPruned;
-		}
+		}*/
 		
-		BranchTree bt = new BranchTree(bdFile,m,numUnprunedRot,molResMap,invResMap,sysStrNum,numInAS,ligPresent);
-		bt.traverseTree(rs.strandRot[sysStrNum], rs.strandRot[1], m, grl[sysStrNum], grl[1], prunedRotAtResObject, grl[0].getTotalNumRotamers(), grl[0].getRotamerIndexOffset(), rs.getMinMatrix());
+		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.mutRes2StrandMutIndex,sysStrNum,numInAS,ligPresent);
+		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
 		
 	}
 

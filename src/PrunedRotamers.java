@@ -59,6 +59,7 @@ import java.util.StringTokenizer;
 public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 
 	private T[][][] prunedRot;
+	private int[] strandOffsetIndex;
 	
 	public PrunedRotamers(int numMutable, int[][] strandMut, RotamerSearch rs, T initVal){
 		prunedRot = initializePrunedRot(numMutable, strandMut, rs, initVal);
@@ -72,7 +73,7 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 	}
 	
 	public T [][][] initializePrunedRot(int numMutable, int[][] strandMut, RotamerSearch rs, T initVal) {
-		
+	        strandOffsetIndex = new int[strandMut.length];
 		T prunedRot[][][] = null;
 		int numPos = numMutable;
 		/*if (ligPresent)
@@ -80,6 +81,7 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 		prunedRot = (T[][][]) new Object[numPos][][];
 		int p1 = 0;
 		for (int str1=0; str1<strandMut.length; str1++){
+                        strandOffsetIndex[str1] = p1;
 			for (int i=0; i<strandMut[str1].length; i++){
 				prunedRot[p1] = (T[][]) new Object[rs.strandRot[str1].rl.getNumAAallowed()][];
 				for (int a1=0; a1<rs.strandRot[str1].getNumAllowable(strandMut[str1][i]); a1++){
@@ -98,6 +100,10 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 					for (int r1=0; r1<numRot1; r1++){
 						prunedRot[p1][curAAind1][r1] = initVal;
 						
+					}
+					if(prunedRot[p1][curAAind1] == null)
+					{
+					    System.out.println("WHEE");
 					}
 				}
 				p1++;		
@@ -144,6 +150,15 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 		return prunedRot[curPos][curAA][curRot];
 	}
 	
+	public T get(int strand, int curPos, int curAA, int curRot){
+	    return prunedRot[getPos(strand, curPos)][curAA][curRot];
+	}
+	
+	private int getPos(int strand, int positionInStrand){
+	    return strandOffsetIndex[strand] + positionInStrand;
+	}
+	
+	
 	public void set(int curPos, int curAA, int curRot, T val){
 		prunedRot[curPos][curAA][curRot] = val;
 	}
@@ -162,10 +177,6 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 	
 	public void set(Index3 i, T val){
 		prunedRot[i.pos][i.aa][i.rot] = val;
-	}
-	
-	public int getNumPositions(){
-		return prunedRot.length;
 	}
 	
 }
