@@ -402,12 +402,12 @@ public class TreeEdge implements Serializable{
 
 					if(j<M.size()) //intreacting between M set
 						//en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
-						en[0]+=eMatrix.getPairwiseE(pi, ai, rj, pj, aj, rj);
+						en[0]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
 					else if(j>=M.size()){ //interaction between lambda set or M and lambda set
 						//en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
-						en[0]+=eMatrix.getPairwiseE(pi, ai, rj, pj, aj, rj);
+						en[0]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
 						//en[1]+=eMatrix[pi][ai][ri][pj][aj][rj];
-						en[1]+=eMatrix.getPairwiseE(pi, ai, rj, pj, aj, rj);
+						en[1]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
 					}
 				}
 			}

@@ -3353,6 +3353,7 @@ public class KSParser
 		int numberMutable;
 		int mutRes2Strand[];
 		int mutRes2StrandMutIndex[];
+		int pdbRes2StrandMutIndex[][];
 	}
 	
 	public MolParameters loadMolecule(ParamSet sParams, int curStrForMatrix){	
@@ -3374,14 +3375,17 @@ public class KSParser
 		
 		mp.mutRes2Strand = new int[totalLength];
 		mp.mutRes2StrandMutIndex = new int[totalLength];
+		mp.pdbRes2StrandMutIndex = new int[totalLength][];
 		int ctr=0;
-		for(int i=0;i<mp.strandMut.length;i++)
+		for(int i=0;i<mp.strandMut.length;i++){
+			mp.pdbRes2StrandMutIndex[i] = new int[mp.m.strand[i].numberOfResidues];
 			for(int j=0;j<mp.strandMut[i].length;j++){
 				mp.mutRes2Strand[ctr] = i;
 				mp.mutRes2StrandMutIndex[ctr] = j;
+				mp.pdbRes2StrandMutIndex[i][mp.strandMut[i][j]] = ctr;
 				ctr++;
 			}
-		
+		}
 		mp.numberMutable = getNumberMutable(mp.strandMut);
 		
 		return mp;
@@ -6607,8 +6611,7 @@ public class KSParser
 		boolean selectPerturbations = (new Boolean((String)sParams.getValue("SELECTPERTURBATIONS","false"))).booleanValue();//Should perturbations be automatically selected?
 		Perturbation.idealizeSC = (new Boolean((String)sParams.getValue("IDEALIZESIDECHAINS","true"))).booleanValue();
 		boolean doMinimize = (new Boolean((String)sParams.getValue("DOMINIMIZE", "false"))).booleanValue();
-                
-		   
+		
 		
 		RotamerSearch rs = new RotamerSearch(mp.m,mp.numberMutable, mp.strandsPresent, hElect, hVDW, hSteric, true,
 			true, 0.0f, stericThresh, softStericThresh, distDepDielect, dielectConst, doDihedE, doSolvationE, solvScale, softvdwMultiplier, grl,
@@ -6627,18 +6630,19 @@ public class KSParser
                                 molStrand++;
                         }
                 }
-		float eRef[][] = null;
+                
+        loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin,doMinimize,eMatrixNameMax,0);        
     	if (useEref) { //add the reference energies to the min (and max) intra-energies
+    		float eRef[][] = null;
     		String eRefName = sParams.getValue("EREFMATRIXNAME", "Eref");
-    		//eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
-    		rs.loadPairwiseEnergyMatrices(eRefName+".dat", true);
+    		eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
+    		//rs.loadPairwiseEnergyMatrices(eRefName+".dat", true);
     		//eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.strandRot,mp.strandMut,null,mp.numberMutable,mp.mutRes2Strand,mp.mutRes2StrandMutIndex);
-    		//rs.addEref(eRef, doMinimize, mp.strandMut);
+    		rs.addEref(eRef, doMinimize, mp.strandMut);
     	}
     	else {
         	System.out.print("Calculating energy matrix...");
             //loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,null);
-            loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",doMinimize,eMatrixNameMax,0);
             System.out.println("done");
     	}
 		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, mp.mutRes2StrandMutIndex);
@@ -6692,7 +6696,7 @@ public class KSParser
 			numUnprunedRot[numInAS] = numLigRotamers - curPruned;
 		}*/
 		
-		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.mutRes2StrandMutIndex,sysStrNum,numInAS,ligPresent);
+		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,ligPresent);
 		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
 		
 	}

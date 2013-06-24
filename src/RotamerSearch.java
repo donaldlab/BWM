@@ -591,7 +591,10 @@ public class RotamerSearch implements Serializable
                         }
 			in.close();
 		}
-		catch (Exception e){}		
+		catch (Exception e){
+			e.printStackTrace();
+			
+		}		
 	}
 	
 	public PairwiseEnergyMatrix getMinMatrix(){
