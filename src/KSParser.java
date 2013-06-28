@@ -270,6 +270,8 @@ public class KSParser
 			handleDoDEE(s);
 		else if (firstToken.equalsIgnoreCase("doBranchDGMEC")) //added for BWM to work - Swati
 			handleCompBranchDGMEC(s);
+		else if (firstToken.equalsIgnoreCase("doBWM"))
+		        handleDoBWM(s);
 		else if (firstToken.equalsIgnoreCase("genStructDEE"))
 			handleMinDEEApplyRot(s);
 		else if (firstToken.equalsIgnoreCase("generateRandConfs"))
@@ -6533,6 +6535,7 @@ public class KSParser
 		
 		return m1;
 	}
+	
 	public void handleCompBranchDGMEC (String s) { //funciton added for BWM - Swati
 
 		// Takes the following parameters
@@ -6565,51 +6568,15 @@ public class KSParser
 		
 		MolParameters mp = loadMolecule(sParams, COMPLEX);
                 
-				
-		int numLevels = numInAS;
-		if (ligPresent)
-			numLevels++;
-		/*
-		int residueMap[] = new int[numInAS];
-		String resMapString = (String)sParams.getValue("RESIDUEMAP");
-		String resDefault[] = new String[numInAS];
-		int molResMap[] = new int[numLevels];
-		int invResMap[] = new int[m.numberOfResidues];
-		for (int i=0; i<invResMap.length; i++)
-			invResMap[i] = -1;
-		System.out.print("Mol residue map:");
-		for(int i=0;i<numInAS;i++){
-			int pdbResNum = (new Integer(getToken(resMapString,i+1))).intValue();
-			residueMap[i] = m.strand[sysStrNum].mapPDBresNumToStrandResNum(pdbResNum);
-			resDefault[i] = m.strand[sysStrNum].residue[residueMap[i]].name;
-			molResMap[i] = m.mapPDBresNumToMolResNum(pdbResNum);
-			invResMap[molResMap[i]] = i;
-			System.out.print(" "+molResMap[i]+"("+m.residue[molResMap[i]].fullName+")");
-		}
-		if (ligPresent) { //ligand is present
-			molResMap[numInAS] = m.strand[ligStrNum].residue[0].moleculeResidueNumber;
-			invResMap[molResMap[numInAS]] = numInAS;
-			System.out.print(" "+molResMap[numInAS]+"("+m.residue[molResMap[numInAS]].fullName+")");
-		}
-		System.out.println();
-		*/
-//		RotamerSearch rs = new RotamerSearch(m,sysStrNum,ligStrNum,hElect,hVDW,hSteric,true,true,0.0f,stericThresh,
-//				softStericThresh,distDepDielect,dielectConst,doDihedE,doSolvationE,solvScale,softvdwMultiplier,rl,grl);
-		
+	
 		boolean useTriples = (new Boolean((String)sParams.getValue("USETRIPLES","false"))).booleanValue();
-		boolean magicBulletTriples = (new Boolean((String)sParams.getValue("MAGICBULLETTRIPLES","true"))).booleanValue();//Use only "magic bullet" competitor triples
-		int magicBulletNumTriples = (new Integer((String)sParams.getValue("MAGICBULLETNUMTRIPLES","5"))).intValue();//Number of magic bullet triples to use
 		boolean useFlagsAStar = (new Boolean((String)sParams.getValue("USEFLAGSASTAR","false"))).booleanValue();
 
 
 		// DEEPer parameters
 		boolean doPerturbations = (new Boolean((String)sParams.getValue("DOPERTURBATIONS","false"))).booleanValue();//Triggers DEEPer
-		boolean pertScreen = (new Boolean((String)sParams.getValue("PERTURBATIONSCREEN","false"))).booleanValue();//Triggers perturbation screen: pruning-only run with rigid perturbations
 		String pertFile = (String)sParams.getValue("PERTURBATIONFILE","defaultPerturbationFileName.pert");//Input file giving perturbation information
 		boolean minimizePerts = (new Boolean((String)sParams.getValue("MINIMIZEPERTURBATIONS","false"))).booleanValue();//Allow continuous minimization with respect to perturbation parameters
-		String screenOutFile = ((String)sParams.getValue("SCREENOUTFILE","screenOutFileDefaultName.pert"));//Name of file for outputting results of screen (same format as PERTURBATIONFILE)
-		boolean selectPerturbations = (new Boolean((String)sParams.getValue("SELECTPERTURBATIONS","false"))).booleanValue();//Should perturbations be automatically selected?
-		Perturbation.idealizeSC = (new Boolean((String)sParams.getValue("IDEALIZESIDECHAINS","true"))).booleanValue();
 		boolean doMinimize = (new Boolean((String)sParams.getValue("DOMINIMIZE", "false"))).booleanValue();
 		
 		
@@ -6699,6 +6666,23 @@ public class KSParser
 		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,ligPresent);
 		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
 		
+	}
+	
+	public void handleDoBWM (String s)
+	{
+	    // 1. doDEE
+	    // 2. Generate Branch Decomposition
+	    // 3. doBranchGMEC
+	    
+	    ParamSet sParams = new ParamSet();
+            sParams.addParamsFromFile(getToken(s,2)); //read system parameters
+            sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
+            
+            handleDoDEE(s);
+            String[] args = new String[]{"Whee", "whee", "whee"};
+            BranchDecomposition.BranchDecomposition.main(args);
+            handleCompBranchDGMEC(s);
+	    
 	}
 
 //////////////////////////////////////////////////////
