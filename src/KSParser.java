@@ -2985,7 +2985,12 @@ public class KSParser
 				String eRefName = sParams.getValue("EREFMATRIXNAME", "Eref");
 				eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
 				//eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.strandRot,mp.strandMut,null,mp.numberMutable,mp.mutRes2Strand,mp.mutRes2StrandMutIndex);
-				rs.addEref(eRef, doMinimize, mp.strandMut);
+				if(eRef == null)
+				{
+					System.err.println("Eref file "+eRefName+" not found. Proceedingw without adding energy reference matrix.");
+				}
+				else
+					rs.addEref(eRef, doMinimize, mp.strandMut);
 			}
 			if(EnvironmentVars.useEntropy)
 				rs.addEntropyTerm(doMinimize, mp.strandMut);
@@ -6536,7 +6541,12 @@ public class KSParser
 		return m1;
 	}
 	
-	public void handleCompBranchDGMEC (String s) { //funciton added for BWM - Swati
+	public void handleCompBranchDGMEC(String s)
+	{
+		handleCompBranchDGMEC(s, false);
+	}
+	
+	public void handleCompBranchDGMEC (String s, boolean eRefGenerated) { //funciton added for BWM - Swati
 
 		// Takes the following parameters
 		// 1: System parameter filename (string)
@@ -6561,10 +6571,12 @@ public class KSParser
 		if (ligPresent)
 			ligType = (String)(sParams.getValue("LIGTYPE"));
 		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF"))).booleanValue();
+		if(eRefGenerated) 
+			useEref = true;
 		//boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
 
-		PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers)readObject(sParams.getValue("PRUNEDROTFILE"),false);
-		String bdFile = sParams.getValue("BRANCHDFILE");
+		PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers<Boolean>)readObject(sParams.getValue("PRUNEDROTFILE"),false);
+		String bdFile = sParams.getValue("BRANCHDFILE", runName+"_bd");
 		
 		MolParameters mp = loadMolecule(sParams, COMPLEX);
                 
@@ -6679,9 +6691,12 @@ public class KSParser
             sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
             
             handleDoDEE(s);
-            String[] args = new String[]{"Whee", "whee", "whee"};
+            String runName = (String)sParams.getValue("RUNNAME");
+            String[] args = new String[]{runName, runName+"_bd"};
+            System.out.println("Dead-End Elimination Complete. Generating Branch Decomposition...");
             BranchDecomposition.BranchDecomposition.main(args);
-            handleCompBranchDGMEC(s);
+            System.out.println("Branch Decomposition generated. Calculating GMEC...");
+            handleCompBranchDGMEC(s, true);
 	    
 	}
 
