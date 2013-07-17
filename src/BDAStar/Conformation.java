@@ -3,9 +3,9 @@ package BDAStar;
 import java.util.Collection;
 
 public interface Conformation {
-    public void append (Choice c);
+    public void append (Position p, Choice c);
 
-    public void delete (Choice c);
+    public void delete (Position p);
     
     public void deleteLast();
 
@@ -15,5 +15,7 @@ public interface Conformation {
 
     //Generate a new copy Conformation joining the conformation with it.
     public Conformation join (Conformation conformation);
+
+	public Choice getChoiceAt(Position p);
 
 }

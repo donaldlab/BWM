@@ -10,14 +10,19 @@ public class Position {
         return null;
     }
     
-    public Position(Choice c)
+    public Position(int i, Choice c)
     {
-        
+        pos = i;
     }
     
     public Position(int i)
     {
         pos = i;
+    }
+    
+    public boolean equals(Position p)
+    {
+    	return p.pos == pos;
     }
 
 }

@@ -2,24 +2,23 @@ package BDAStar;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 
 public class AbstractConformation implements Conformation{
 
-    ArrayList<Position> positions;
+    private HashMap<Position, Choice> positions;
     public AbstractConformation()
     {
-        positions = new ArrayList<Position>();
+        positions = new HashMap<Position, Choice>();
     }
     
-    @Override
     public void append (Choice c) {
-        positions = new ArrayList<Position>();
     }
 
     @Override
-    public void delete (Choice c) {
+    public void delete (Position p) {
         // TODO Auto-generated method stub
-        
+        positions.remove(p);
     }
 
     @Override
@@ -31,7 +30,7 @@ public class AbstractConformation implements Conformation{
     @Override
     public Collection<Position> getPositions () {
         // TODO Auto-generated method stub
-        return null;
+        return positions.keySet();
     }
 
     @Override
@@ -42,8 +41,18 @@ public class AbstractConformation implements Conformation{
 
     @Override
     public void deleteLast () {
-        // TODO Auto-generated method stub
-        
+    	positions.remove(positions.size()-1);
     }
+
+	@Override
+	public void append(Position p, Choice c) {
+		// TODO Auto-generated method stub
+		positions.put(p, c);
+	}
+
+	@Override
+	public Choice getChoiceAt(Position p) {
+		return positions.get(p);
+	}
 
 }

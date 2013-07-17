@@ -31,26 +31,38 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
         Queue<BDAStarNode> remaining = new LinkedList<BDAStarNode>();
         remaining.add(AStarRoot);
         int cycles = 0;
-        while(remaining.size() > 0 && cycles <15)
+        while(remaining.size() > 0 && cycles <20)
         {
             cycles ++;
             System.out.println("Remaining: "+remaining.size());
             BDAStarNode current = remaining.poll();
+            System.out.println("Remaining after poll: "+remaining.size());
             Conformation currentConf = new TestConformation(current.getConformation());
-            Set<Position> lambdaCopy = copy(lambda);
-            lambdaCopy.removeAll(currentConf.getPositions());
+            System.out.println("Parent conformation positions: "+currentConf.getPositions().size());
+            Set<Position> lambdaCopy = difference(lambda, currentConf.getPositions());//copy(lambda);
+            /*
+            for(Position p : currentConf.getPositions())
+            {
+            	System.out.println("Position "+p+": "+p.pos);
+            }
+            lambdaCopy.removeAll(currentConf.getPositions());*/
             boolean isLeaf = lambdaCopy.size() == 0;
-            System.out.println("Total conformation positions: "+currentConf.getPositions().size());
+            System.out.println("Current conformation positions: "+currentConf.getPositions().size());
             System.out.println("Lambda Size: "+lambdaCopy.size());
+            if(!lambdaCopy.iterator().hasNext()) break;
             Position p = lambdaCopy.iterator().next();
                 System.out.println("WHEEE" + p.pos);
                 for (Choice c : s.getChoices(p))
                 {
                     System.out.println("Position "+p.pos+", choice "+c.choice);
-                    currentConf.append(c);
-                    System.out.println("Current conformation positions: "+currentConf.getPositions().size());
+                    currentConf.append(p, c);
+                    System.out.println("New conformation positions: "+currentConf.getPositions().size());
+                    for(Position p2 : currentConf.getPositions())
+                    {
+                    	System.out.println("Position "+p2+": "+p2.pos);
+                    }
                     
-                    BDAStarNode newNode = new BDAStarNode(currentConf);
+                    BDAStarNode newNode = new BDAStarNode(new TestConformation(currentConf));
                     if(isLeaf)
                     {
                         if(root.getIsLeaf())
@@ -64,8 +76,10 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
                         }
                     }
                     current.addChild(newNode);
-                    remaining.add(current);
-                    currentConf.deleteLast();
+                    System.out.println("New Node conformation size check: "+newNode.getConformation().getPositions().size());
+                    remaining.add(newNode);
+                    System.out.println("Next one is "+remaining.peek()+" size: "+remaining.peek().getConformation().getPositions().size());
+                    currentConf.delete(p);
                 }
             
         }
@@ -79,6 +93,29 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
         {
             newset.add(p);
         }
+        return newset;
+    }
+    
+    private static Set<Position> difference(Set<Position> set, Collection<Position> removed)
+    {
+        Set<Position> newset = new LinkedHashSet<Position>();
+        for(Position p : set)
+        {
+        	boolean skip = false;
+        	System.out.println("Should we add "+p.pos+"?");
+            for(Position p2 : removed)
+            {
+            	System.out.println("Check against "+p2.pos);
+            	if(p.equals(p2)){ skip = true;
+            	System.out.println("Skip is true");
+            	}
+            }
+            if(!skip){
+            	System.out.println("Adding "+p.pos);
+            	newset.add(p);
+            }
+        }
+
         return newset;
     }
     
