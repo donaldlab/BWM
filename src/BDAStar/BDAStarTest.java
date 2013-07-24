@@ -15,7 +15,9 @@ public class BDAStarTest {
         TreeEdge edge = new TreeEdge(0, 1, lambda, null, null, null, 0, true);
         root.setCofEdge(edge);
         SolutionSpace space = new SolutionSpace();
-        BDAStarNode.CreateTree(root, space);
+        BDAStarNode rootNode = BDAStarNode.CreateTree(root, space);
+        System.out.println("Done!");
+        rootNode.getNextConformation();
     }
 
 }
