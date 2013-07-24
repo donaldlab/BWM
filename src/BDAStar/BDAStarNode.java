@@ -160,6 +160,8 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
             return partialConformation;
         System.out.println("Children size: "+children.size());
         BDAStarNode next = children.poll();
+        System.out.println("I have "+children.size()+" children");
+        System.out.println("Next conformation is: "+next);
         Conformation nextConf = next.getNextConformation();
         //update next conformation
         children.add(next);
