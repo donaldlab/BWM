@@ -21,7 +21,28 @@ public class TestConformation extends AbstractConformation {
         }
     }
 
-    public void append (Choice c) {
+    public TestConformation(Conformation testConformation,
+			Conformation nextConformation) {
+    	for(Position p : testConformation.getPositions())
+    	{
+    		if(nextConformation.getChoiceAt(p) != null){
+    			System.out.println("WARNING: redundant position joining.");
+    		}
+    		System.out.println("Add "+testConformation.getChoiceAt(p).choice+" at "+p.pos);
+    		append(p, testConformation.getChoiceAt(p));
+    	}
+    	for(Position p : nextConformation.getPositions())
+    	{
+    		if(testConformation.getChoiceAt(p) != null){
+    			System.out.println("WARNING: redundant position joining.");
+    		}
+    		System.out.println("Add "+nextConformation.getChoiceAt(p).choice+" at "+p.pos);
+    		
+    		append(p, nextConformation.getChoiceAt(p));
+    	}
+	}
+
+	public void append (Choice c) {
     	getPositions().add(new Position(getPositions().size(),c));
         
     }
@@ -31,16 +52,17 @@ public class TestConformation extends AbstractConformation {
     	int out = 0;
         for(Position p : getPositions())
         {
-            out-=getChoiceAt(p).choice;
+            out+=getChoiceAt(p).choice;
         }
         return out;
     }
 
 
     //Generate a new copy Conformation joining the conformation with it.
-    public TestConformation join (TestConformation nextConformation) {
+    public Conformation join (Conformation nextConformation) {
         // TODO Auto-generated method stub
-        return null;
+    	System.out.println("Joining "+this+" and "+nextConformation);
+        return new TestConformation(this, nextConformation);
     }
     
     public String toString()
@@ -48,7 +70,7 @@ public class TestConformation extends AbstractConformation {
     	String out = "[";
         for(Position p : getPositions())
         {
-            out+=getChoiceAt(p).choice+",";
+            out+=p.pos+": "+getChoiceAt(p).choice+", ";
         }
         out+="]";
         return out;

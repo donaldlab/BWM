@@ -587,11 +587,16 @@ public class TreeEdge implements Serializable{
 		return;
 	}
 
+	public void setPositions(LinkedHashSet<Integer> set)
+	{
+		lambda = set;
+	}
+	
     public Set<Position> getPositionSet () {
         LinkedHashSet<Position> out = new LinkedHashSet<Position>();
         if(lambda == null)
         {
-            lambda = new LinkedHashSet<Integer>();
+            //lambda = new LinkedHashSet<Integer>();
             for(int i = 0; i < 2; i ++)
                 lambda.add(i);
         }

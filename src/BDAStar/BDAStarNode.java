@@ -49,18 +49,18 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
             boolean isLeaf = lambdaCopy.size() == 1;
             System.out.println("Current conformation positions: "+currentConf.getPositions().size());
             System.out.println("Lambda Size: "+lambdaCopy.size());
-            System.out.println("Leaf? "+isLeaf);
+           // System.out.println("Leaf? "+isLeaf);
             if(!lambdaCopy.iterator().hasNext()) break;
             Position p = lambdaCopy.iterator().next();
-                System.out.println("WHEEE" + p.pos);
+                System.out.println("Processing next position: " + p.pos);
                 for (Choice c : s.getChoices(p))
                 {
                     System.out.println("Position "+p.pos+", choice "+c.choice);
                     currentConf.append(p, c);
-                    System.out.println("New conformation positions: "+currentConf.getPositions().size());
+                    //System.out.println("New conformation positions: "+currentConf.getPositions().size());
                     for(Position p2 : currentConf.getPositions())
                     {
-                    	System.out.println("Position "+p2+": "+p2.pos);
+                    	//System.out.println("Position "+p2+": "+p2.pos);
                     }
                     
                     BDAStarNode newNode = new BDAStarNode(new TestConformation(currentConf));
@@ -151,19 +151,22 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
             return leftSubtree.peekNextConformation().join(rightSubtree.peekNextConformation());
         if(isLeaf || /*no children yet...*/ children.size() < 1)
             return partialConformation;
-        return children.peek().peekNextConformation();
+        return children.peek().peekNextConformation().join(partialConformation);
     }
 
-    public Conformation getNextConformation () {
-        if(branching)
+    public Conformation getNextConformation () 
+    {
+        if(branching){
+        	System.out.println ("Branch!");
             return leftSubtree.getNextConformation().join(rightSubtree.getNextConformation());
+        }
         if(isLeaf)
             return partialConformation;
         System.out.println("Children size: "+children.size());
         BDAStarNode next = children.poll();
         System.out.println("I have "+children.size()+" children");
         System.out.println("Next conformation is: "+next.partialConformation);
-        Conformation nextConf = next.getNextConformation();
+        Conformation nextConf = next.getNextConformation().join(partialConformation);
         //update next conformation
         children.add(next);
         return nextConf;

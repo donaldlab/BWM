@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 
-public class AbstractConformation implements Conformation{
+public abstract class AbstractConformation implements Conformation{
 
     private HashMap<Position, Choice> positions;
     public AbstractConformation()
@@ -34,10 +34,7 @@ public class AbstractConformation implements Conformation{
     }
 
     @Override
-    public Conformation join (Conformation nextConformation) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+    public abstract Conformation join (Conformation nextConformation);
 
     @Override
     public void deleteLast () {
