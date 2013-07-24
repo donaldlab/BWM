@@ -46,9 +46,10 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
             	System.out.println("Position "+p+": "+p.pos);
             }
             lambdaCopy.removeAll(currentConf.getPositions());*/
-            boolean isLeaf = lambdaCopy.size() == 0;
+            boolean isLeaf = lambdaCopy.size() == 1;
             System.out.println("Current conformation positions: "+currentConf.getPositions().size());
             System.out.println("Lambda Size: "+lambdaCopy.size());
+            System.out.println("Leaf? "+isLeaf);
             if(!lambdaCopy.iterator().hasNext()) break;
             Position p = lambdaCopy.iterator().next();
                 System.out.println("WHEEE" + p.pos);
@@ -161,11 +162,25 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
         System.out.println("Children size: "+children.size());
         BDAStarNode next = children.poll();
         System.out.println("I have "+children.size()+" children");
-        System.out.println("Next conformation is: "+next);
+        System.out.println("Next conformation is: "+next.partialConformation);
         Conformation nextConf = next.getNextConformation();
         //update next conformation
         children.add(next);
         return nextConf;
+    }
+    
+    public void printTree(String prefix)
+    {
+    	System.out.println(prefix+" "+this);
+    	for(BDAStarNode child: children)
+    	{
+    		child.printTree(prefix+"+--");
+    	}
+    	if(branching)
+    	{
+    		leftSubtree.printTree(prefix+"L--");
+    		rightSubtree.printTree(prefix+"R--");
+    	}
     }
     
     public int compareTo(BDAStarNode node)

@@ -28,8 +28,12 @@ public class TestConformation extends AbstractConformation {
 
     
     public double score () {
-        // This will require a scoring function...
-        return 0;
+    	int out = 0;
+        for(Position p : getPositions())
+        {
+            out-=getChoiceAt(p).choice;
+        }
+        return out;
     }
 
 
@@ -37,6 +41,17 @@ public class TestConformation extends AbstractConformation {
     public TestConformation join (TestConformation nextConformation) {
         // TODO Auto-generated method stub
         return null;
+    }
+    
+    public String toString()
+    {
+    	String out = "[";
+        for(Position p : getPositions())
+        {
+            out+=getChoiceAt(p).choice+",";
+        }
+        out+="]";
+        return out;
     }
 
 }
