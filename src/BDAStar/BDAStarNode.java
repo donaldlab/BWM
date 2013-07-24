@@ -159,6 +159,8 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
         if(isLeaf)
             return partialConformation;
         BDAStarNode next = children.poll();
+        System.out.println("I have "+children.size()+" children");
+        System.out.println("Next conformation is: "+next);
         Conformation nextConf = next.getNextConformation();
         //update next conformation
         children.add(next);
