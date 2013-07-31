@@ -38,7 +38,23 @@ public class BDAStarTest {
         BDAStarNode rootNode = BDAStarNode.CreateTree(root, space);
         System.out.println("Done!");
         rootNode.printTree("");
-        System.out.println("RESULT: "+rootNode.getNextConformation());
+        Conformation c = rootNode.getNextConformation();
+        while(c!= null)
+        {
+            System.out.println("RESULT: "+c+", SCORE: "+c.score());
+            c = rootNode.getNextConformation();
+        }
+        
+        Conformation test = new TestConformation();
+        for(int i = 0; i < 6; i++)
+        {
+            int whee = i;
+            if(i == 5)
+                whee = 4;
+            test.append(new Position(i), new Choice(whee));
+        }
+        System.out.println(test+", "+test.score());
+
     }
 
 }

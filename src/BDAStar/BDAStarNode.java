@@ -64,6 +64,7 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
                     }
                     
                     BDAStarNode newNode = new BDAStarNode(new TestConformation(currentConf));
+                    System.out.println("New node:"+newNode.partialConformation+" score: "+newNode.partialConformation.score());
                     if(isLeaf)
                     {
                         if(root.getIsLeaf())
@@ -72,14 +73,16 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
                         }
                         else 
                         {
+                            System.out.println("BRANCHING!! ");
                             newNode.addBranches(CreateTree(root.getlc(), s), CreateTree(root.getrc(), s));
+                            System.out.println("Branch complete.");
                             newNode.branching = true;
                         }
                     }
                     current.addChild(newNode);
-                    System.out.println("New Node conformation size check: "+newNode.getConformation().getPositions().size());
+                    //System.out.println("New Node conformation size check: "+newNode.getConformation().getPositions().size());
                     remaining.add(newNode);
-                    System.out.println("Next one is "+remaining.peek()+" size: "+remaining.peek().getConformation().getPositions().size());
+                    //System.out.println("Next one is "+remaining.peek()+" size: "+remaining.peek().getConformation().getPositions().size());
                     currentConf.delete(p);
                 }
             
@@ -148,42 +151,56 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
 
     private Conformation peekNextConformation () {
         if(branching)
-            return leftSubtree.peekNextConformation().join(rightSubtree.peekNextConformation());
+            return partialConformation.join(leftSubtree.peekNextConformation().join(rightSubtree.peekNextConformation()));
         if(isLeaf || /*no children yet...*/ children.size() < 1)
             return partialConformation;
+        BDAStarNode peek = children.peek();
         return children.peek().peekNextConformation().join(partialConformation);
     }
 
     public Conformation getNextConformation () 
     {
+        System.out.println("Children size: "+children.size());
+        System.out.println("My conformation is: "+partialConformation+", score: "+partialConformation.score());
+        
         if(branching){
-        	System.out.println ("Branch!");
-            return leftSubtree.getNextConformation().join(rightSubtree.getNextConformation());
+            System.out.println ("Branch!");
+            return partialConformation.join(leftSubtree.getNextConformation().join(rightSubtree.getNextConformation()));
         }
         if(isLeaf)
             return partialConformation;
-        System.out.println("Children size: "+children.size());
+        //if(children.size()<1) return null;
         BDAStarNode next = children.poll();
-        System.out.println("I have "+children.size()+" children");
-        System.out.println("Next conformation is: "+next.partialConformation);
+        //System.out.println("Polled: "+next);
+        //System.out.println("Next conformation is: "+next.partialConformation+", score "+next.partialConformation.score());
         Conformation nextConf = next.getNextConformation().join(partialConformation);
         //update next conformation
-        children.add(next);
+        if(next.children.size()>0 || next.branching)
+        {
+            System.out.println("Reinsert"+next.partialConformation+": "+next.children.size()+" children, branching is "+next.branching);
+            children.add(next);
+        }
         return nextConf;
+    }
+    
+    public void printTree(String prefix, Conformation c)
+    {
+        Conformation joined = partialConformation.join(c);
+        System.out.println(prefix+joined);
+        for(BDAStarNode child: children)
+        {
+                child.printTree(prefix+"+--",joined);
+        }
+        if(branching)
+        {
+                leftSubtree.printTree(prefix+"L--",joined);
+                rightSubtree.printTree(prefix+"R--",joined);
+        }
     }
     
     public void printTree(String prefix)
     {
-    	System.out.println(prefix+" "+this);
-    	for(BDAStarNode child: children)
-    	{
-    		child.printTree(prefix+"+--");
-    	}
-    	if(branching)
-    	{
-    		leftSubtree.printTree(prefix+"L--");
-    		rightSubtree.printTree(prefix+"R--");
-    	}
+        printTree(prefix, partialConformation);
     }
     
     public int compareTo(BDAStarNode node)
