@@ -164,6 +164,14 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
         System.out.println("My conformation is: "+partialConformation+", score: "+partialConformation.score());
         
         if(branching){
+        	/*
+        	 * What actually has to happen here:
+        	 * 1. Arbitrarily assign one tree to be the major subtree. Is bigger or smaller better? We need to count conformations.
+        	 * 2. Poll the minor tree for the next conformation, and store it in a list of any sort.
+        	 * 3. Give all leaves of the major subtree a pointer to the head of that list. From this point forward, all queries traverse the list.
+        	 * 4. If the end of the list is hit, poll the minor tree again, and append to the end of the list.
+        	 * 5. If the minor tree is depleted, do not reinsert. Otherwise, reinsert.
+        	 */
             System.out.println ("Branch!");
             return partialConformation.join(leftSubtree.getNextConformation().join(rightSubtree.getNextConformation()));
         }
