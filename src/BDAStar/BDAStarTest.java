@@ -1,5 +1,7 @@
 package BDAStar;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import kstar.TreeEdge;
 import kstar.TreeNode;
@@ -35,15 +37,25 @@ public class BDAStarTest {
         root.setLc(lchild);
         root.setRc(rchild);
         SolutionSpace space = new SolutionSpace();
-        BDAStarNode rootNode = BDAStarNode.CreateTree(root, space);
+        BDAStarNode rootNode = BDAStarNode.CreateTree(root, new TestConformation(), space);
+        rootNode.resort();
         System.out.println("Done!");
         rootNode.printTree("");
         Conformation c = rootNode.getNextConformation();
         int rank = 0;
-        while(c!= null)
+        HashSet<String> solutions = new HashSet<String>();
+        while(c!= null && rank < 100)
         {
             rank++;
+            if(rank == 4)
+            {
+            	System.out.println("Catch!");
+            }
             System.out.println("RESULT "+rank+": "+c+", SCORE: "+c.score());
+
+            if(solutions.contains(c.toString()))
+            	System.out.println("DUPLICATE!!!");
+            solutions.add(c.toString());
             c = rootNode.getNextConformation();
         }
         

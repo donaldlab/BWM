@@ -63,6 +63,23 @@ public class TestConformation extends AbstractConformation {
         }
         return out;
     }
+    
+    public boolean equals(Object o)
+    {
+    	if(!o.getClass().equals(this.getClass()))
+    		super.equals(o);
+    	TestConformation t = (TestConformation) o;
+    	if(t.getPositions().size() != getPositions().size())
+    		return false;
+    	boolean same = true;
+    	
+    	for(Position p: getPositions())
+    	{
+    		if(getChoiceAt(p) != t.getChoiceAt(p))
+    			same = false;
+    	}
+    	return false;
+    }
 
 
     //Generate a new copy Conformation joining the conformation with it.

@@ -33,7 +33,7 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
     private BDAStarNode leftSubtree;
     private BDAStarNode rightSubtree;
     private LinkedList<Conformation> solutionList;
-    private Map<Conformation, Integer> solutions;
+    private Map<String, Integer> solutions;
     private Conformation partialConformation;
     boolean isLeaf = false;
     boolean branching = false;
@@ -42,14 +42,16 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
     {
         children = new PriorityQueue<BDAStarNode>();
         solutionList = new LinkedList<Conformation>();
-        solutions = new HashMap<Conformation, Integer>();
+        solutions = new HashMap<String, Integer>();
         partialConformation = conf;
     }
     
-    public static BDAStarNode CreateTree(TreeNode root, SolutionSpace s)
+    public static BDAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s)
     {
         Set<Position> lambda = root.getCofEdge().getPositionSet();
-        BDAStarNode AStarRoot = new BDAStarNode(new TestConformation());
+        BDAStarNode AStarRoot = new BDAStarNode(new TestConformation(previous));
+        System.out.println("Root conformation "+AStarRoot.partialConformation+", score "+AStarRoot.partialConformation.score());
+        
         Queue<BDAStarNode> remaining = new LinkedList<BDAStarNode>();
         remaining.add(AStarRoot);
         int cycles = 0;
@@ -69,7 +71,7 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
             }
             lambdaCopy.removeAll(currentConf.getPositions());*/
             boolean isLeaf = lambdaCopy.size() == 1;
-            //System.out.println("Current conformation positions: "+currentConf.getPositions().size());
+            System.out.println("Current conformation "+currentConf+", score "+currentConf.score());
             //System.out.println("Lambda Size: "+lambdaCopy.size());
            // //System.out.println("Leaf? "+isLeaf);
             if(!lambdaCopy.iterator().hasNext()) break;
@@ -96,7 +98,7 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
                         else 
                         {
                             //System.out.println("BRANCHING!! ");
-                            newNode.addBranches(CreateTree(root.getlc(), s), CreateTree(root.getrc(), s));
+                            newNode.addBranches(CreateTree(root.getlc(), currentConf, s), CreateTree(root.getrc(), currentConf, s));
                             //System.out.println("Branch complete.");
                             newNode.branching = true;
                         }
@@ -110,6 +112,22 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
             
         }
         return AStarRoot;
+    }
+    
+    public void resort()
+    {
+    	for(BDAStarNode b : children)
+    	{
+    		b.resort();
+    	}
+    	if(branching)
+    	{
+    		leftSubtree.resort();
+    		rightSubtree.resort();
+    	}
+    	PriorityQueue<BDAStarNode> newHeap = new PriorityQueue<BDAStarNode>();
+    	newHeap.addAll(children);
+    	children = newHeap;
     }
     
     private static Set<Position> copy(Set<Position> set)
@@ -172,19 +190,66 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
     }
 
     private Conformation peekNextConformation () {
-        if(branching)
-            return partialConformation.join(leftSubtree.peekNextConformation().join(rightSubtree.peekNextConformation()));
-        if(isLeaf || /*no children yet...*/ children.size() < 1)
-            return partialConformation;
+    	//System.out.println(partialConformation+" called for heuristic...");
+        if(branching){
+        	Conformation peeked = leftSubtree.peekNextConformation().join(partialConformation);
+        	if(peeked == null){
+        		System.out.println("No left sub tree");
+        		return partialConformation;
+        	}
+        	if(!solutions.containsKey(peeked.toString())) {
+        		//System.out.println("Returning default optima"+ peeked.join(rightSubtree.peekNextConformation()));
+        		return peeked.join(rightSubtree.peekNextConformation()).join(partialConformation);
+        	}
+        	int offset = solutions.get(peeked.toString());
+        	Conformation rightSide = null;
+        	if(offset >= solutionList.size()){
+        		rightSide = rightSubtree.peekNextConformation();
+        		//System.out.println("Getting next best optima:" + partialConformation.join(peeked.join(rightSide)));
+        	}
+        	else rightSide = solutionList.get(offset);
+        	if(rightSide == null && rightSubtree.moreConformations()) 
+        		rightSide = rightSubtree.peekNextConformation();
+        	else {
+        		leftSubtree.getNextConformation();
+        		return peekNextConformation();
+        	}
+        	if(rightSide == null){
+        		System.out.println("No right subtree");
+        		return partialConformation;
+        	}
+            return partialConformation.join(peeked.join(rightSide));
+        }
+        if(isLeaf) 
+        	return partialConformation;
+        if(children.size() < 1)
+        {
+        	return partialConformation;
+        }
         BDAStarNode peek = children.peek();
+        //System.out.println("Return child score: "+children.peek().peekNextConformation().join(partialConformation));
         return children.peek().peekNextConformation().join(partialConformation);
+    }
+    
+    public boolean moreConformations()
+    {
+    	if(isLeaf) return true;
+    	if(branching) return rightSubtree.moreConformations() || 
+    			(solutionList.size() > solutions.get(leftSubtree.peekNextConformation().toString()));
+    	boolean more = false;
+    	for(BDAStarNode b : children)
+    	{
+    		if(b.moreConformations())
+    			more = true;
+    	}
+    	return more;
     }
     
     public boolean branchHasNext()
     {
         return leftSubtree.children.size() > 1;
     }
-    
+     
     public Conformation getNextConformation()
     {
         return getNextConformation(false);
@@ -192,10 +257,11 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
     
     public Conformation getNextConformation (boolean reinsert) 
     {
-        //System.out.println("PROCESS NODE: "+partialConformation+", score: "+partialConformation.score()+", heuristic: "+nextBestScore());
+        System.out.println("PROCESS NODE: "+partialConformation+", score: "+partialConformation.score()+", heuristic: "+peekNextConformation()+" = "+nextBestScore());
         //System.out.println("Children size: "+children.size());
         
-        if(branching){
+
+    	if(branching){
             //System.out.println("Process branching.");
             /*
              * We need to keep track of children and not remove them until they are all had....
@@ -206,38 +272,42 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
                 //System.out.println("...wha?");
             }
             Conformation leftConformation = leftChild.getNextConformation(true);
-            if(solutions.get(leftConformation)==null){
-                //System.out.println("Initialize "+leftChild.partialConformation);
-                solutions.put(leftConformation, 0);
+            if(solutions.get(leftConformation.toString())==null){
+                //System.out.println("Initialize "+leftConformation);
+                solutions.put(leftConformation.toString(), 0);
             }
-            //System.out.println("Starting "+leftChild.partialConformation+" at "+solutions.get(leftChild.partialConformation));
-            Iterator<Conformation> pointer = solutionList.listIterator(solutions.get(leftConformation));
+            //System.out.println("Starting "+leftConformation+" at "+solutions.get(leftConformation.toString()));
+            Iterator<Conformation> pointer = solutionList.listIterator(solutions.get(leftConformation.toString()));
             //System.out.println ("Branch!");
             
-            solutions.put(leftConformation, (solutions.get(leftConformation)+1));
             
             
             Conformation rightChild = null;
             if(pointer.hasNext()){
                 rightChild = pointer.next();
-                leftSubtree.children.add(leftChild);
+                //leftSubtree.children.add(leftChild);
             }
             if(rightChild == null)
             {
                 //System.out.println("polling for new right conformation...");
                 rightChild = rightSubtree.getNextConformation(false);
-                if(rightChild != null){ // no more conformations
+                if(rightChild != null){ 
                     //put child back in, it has more to go!
                     //System.out.println("Reinsert "+leftChild.partialConformation);
                     solutionList.add(rightChild);
                 }
-                else
+                else // no more conformations
                 {
-                    //System.out.println("Right subtree is depleted, removing "+leftChild.partialConformation);
+                    //System.out.println("Right subtree is depleted, removing "+leftConformation);
                     branching = leftSubtree.children.size()>0;
                     leftSubtree.getNextConformation();
+                    solutions.put(leftConformation.toString(), (solutions.get(leftConformation.toString())+1));
+                    
+                    return getNextConformation(reinsert);
                 }
             }
+            solutions.put(leftConformation.toString(), (solutions.get(leftConformation.toString())+1));
+            
             return partialConformation.join(leftConformation.join(rightChild));
         }
         if(isLeaf){
