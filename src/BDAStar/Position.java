@@ -2,7 +2,7 @@ package BDAStar;
 
 import java.util.Collection;
 
-public class Position {
+public class Position implements Comparable<Position>{
     int pos = 0;
     
     public Collection<Choice> getChoices()
@@ -24,5 +24,11 @@ public class Position {
     {
     	return p.pos == pos;
     }
+    
+    public int compareTo(Position p)
+    {
+        return pos - p.pos;
+    }
+
 
 }

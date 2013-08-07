@@ -1,7 +1,9 @@
 package BDAStar;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -72,9 +74,11 @@ public class TestConformation extends AbstractConformation {
     public String toString()
     {
     	String out = "[";
-        for(Position p : getPositions())
+    	Position[] c = getPositions().toArray(new Position[]{});
+    	Arrays.sort(c);
+        for(int i = 0; i < c.length; i++)
         {
-            out+="("+p.pos+": "+getChoiceAt(p).choice+"), ";
+            out+="("+c[i].pos+": "+getChoiceAt(c[i]).choice+"), ";
         }
         out+="]";
         return out;

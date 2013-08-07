@@ -39,9 +39,11 @@ public class BDAStarTest {
         System.out.println("Done!");
         rootNode.printTree("");
         Conformation c = rootNode.getNextConformation();
+        int rank = 0;
         while(c!= null)
         {
-            System.out.println("RESULT: "+c+", SCORE: "+c.score());
+            rank++;
+            System.out.println("RESULT "+rank+": "+c+", SCORE: "+c.score());
             c = rootNode.getNextConformation();
         }
         
