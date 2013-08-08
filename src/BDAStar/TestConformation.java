@@ -101,4 +101,10 @@ public class TestConformation extends AbstractConformation {
         return out;
     }
 
+	@Override
+	public Conformation copy() {
+		// TODO Auto-generated method stub
+		return new TestConformation(this);
+	}
+
 }

@@ -607,5 +607,21 @@ public class TreeEdge implements Serializable{
         }
         return out;
     }
+    
+    public List<Position> getPositionList () {
+        LinkedList<Position> out = new LinkedList<Position>();
+        if(lambda == null)
+        {
+            //lambda = new LinkedHashSet<Integer>();
+            for(int i = 0; i < 2; i ++)
+                lambda.add(i);
+        }
+        
+        for(Integer i : lambda)
+        {
+            out.add(new Position(i));
+        }
+        return out;
+    }
 
 }

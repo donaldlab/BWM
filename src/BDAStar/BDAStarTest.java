@@ -37,7 +37,7 @@ public class BDAStarTest {
         root.setLc(lchild);
         root.setRc(rchild);
         SolutionSpace space = new SolutionSpace();
-        BDAStarNode rootNode = BDAStarNode.CreateTree(root, new TestConformation(), space);
+        BWMAStarNode rootNode = BWMAStarNode.CreateTree(root, new TestConformation(), space);
         rootNode.resort();
         System.out.println("Done!");
         rootNode.printTree("");

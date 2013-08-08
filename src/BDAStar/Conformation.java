@@ -18,4 +18,6 @@ public interface Conformation {
 
 	public Choice getChoiceAt(Position p);
 
+	public Conformation copy();
+
 }
