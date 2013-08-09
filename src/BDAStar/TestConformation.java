@@ -19,6 +19,10 @@ public class TestConformation extends AbstractConformation {
     	super();
         for(Position p : t.getPositions())
         {
+            if(getChoiceAt(p) != null && t.getChoiceAt(p) != getChoiceAt(p))
+            {
+                System.out.println("OVERWRITING CHOICE!!!");
+            }
             append(p, t.getChoiceAt(p));
         }
     }

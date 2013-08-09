@@ -44,6 +44,10 @@ public abstract class AbstractConformation implements Conformation{
 	@Override
 	public void append(Position p, Choice c) {
 		// TODO Auto-generated method stub
+	        if(positions.containsKey(p) && !positions.get(p).equals(c))
+	        {
+	            System.out.println("FATAL OVERWRITE: "+positions.get(p).choice+" with "+c.choice);
+	        }
 		positions.put(p, c);
 	}
 

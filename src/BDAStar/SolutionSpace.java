@@ -8,7 +8,7 @@ public class SolutionSpace {
     public Collection<Choice> getChoices (Position p) 
     {
         ArrayList<Choice> choices = new ArrayList<Choice>();
-        for(int i = 0; i< 2; i++)
+        for(int i = 0; i< 6; i++)
             choices.add(new Choice(i));
         return choices;
     }
