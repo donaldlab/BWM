@@ -70,7 +70,7 @@ public class BDAStarTest {
         }
         
         HashSet<String> fullSpace = new HashSet<String>(); 
-        buildAllSolutions(fullSpace, new TestConformation(), 0, 2, 2);
+        buildAllSolutions(fullSpace, new TestConformation(), 0, 5, 2);
         System.out.println("Total possible solutions: "+fullSpace.size());
         fullSpace.removeAll(solutions);
         System.out.println("Missing solutions: "+fullSpace.size());

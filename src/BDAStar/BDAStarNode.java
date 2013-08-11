@@ -180,12 +180,6 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
     
     public double nextBestScore()
     {
-        /* Redundant code paths 
-        if(isLeaf) //This case could only occur at the leaf of a single tree.
-            return partialConformation.score();
-        if(branching)
-            return leftSubtree.peekNextConformation().join(rightSubtree.peekNextConformation()).score();
-            */
         return peekNextConformation().score();
     }
 
