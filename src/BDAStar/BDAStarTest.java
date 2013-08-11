@@ -44,19 +44,19 @@ public class BDAStarTest {
         rootNode.resort();
         System.out.println("Done!");
         //rootNode.printTree("");
-        Conformation c = rootNode.getNextConformation();
         int rank = 0;
         HashSet<String> solutions = new HashSet<String>();
-        while(c!= null && rank < 500)
+        while(rootNode.moreConformations() && rank < 500)
         {
             rank++;
+            Conformation c = rootNode.getNextConformation();
             System.out.println("RESULT "+rank+": "+c+", SCORE: "+c.score());
 
             if(solutions.contains(c.toString()))
             	System.out.println("DUPLICATE!!!");
             solutions.add(c.toString());
             //rootNode.printTree("");
-            c = rootNode.getNextConformation();
+            
 
         }
         
