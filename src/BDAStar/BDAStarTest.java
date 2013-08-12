@@ -43,7 +43,7 @@ public class BDAStarTest {
         
         rootNode.resort();
         System.out.println("Done!");
-        //rootNode.printTree("");
+        rootNode.printTree("");
         int rank = 0;
         HashSet<String> solutions = new HashSet<String>();
         while(rootNode.moreConformations() && rank < 500)

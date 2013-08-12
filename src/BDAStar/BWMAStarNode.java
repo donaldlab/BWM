@@ -113,12 +113,6 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             return fullConformation(out);
         }
 
-        if(children.size() < 1)
-        {
-            Conformation out = partialConformation;
-            return fullConformation(out);
-        }
-
         if(branching)
         {
             Conformation peeked = leftSubtree.peekNextConformation();
@@ -133,7 +127,13 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                 Conformation out = partialConformation;
                 return fullConformation(out);
             }
-            return peeked;
+            return peeked.join(rightSide);
+        }
+        
+        if(children.size() < 1)
+        {
+            Conformation out = partialConformation;
+            return fullConformation(out);
         }
 
         Conformation out = children.peek().peekNextConformation();
@@ -180,6 +180,8 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public Conformation getNextConformation () 
     {
+    	System.out.println("PROCESS NODE: "+partialConformation+", score: "+partialConformation.score()+", heuristic: "+peekNextConformation()+" = "+nextBestScore());
+        
         if(isLeaf){
             BWMAStarNode out = children.poll();
             return out.partialConformation;
@@ -248,7 +250,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         Conformation joined = partialConformation;
         if(rightSideConformation != null)
             joined = joined.join(rightSideConformation);
-        String output = prefix+joined+", "+peekNextConformation().score();
+        String output = prefix+joined+", "+peekNextConformation().score()+" leaf? "+isLeaf;
 
         System.out.println(output);
         for(BWMAStarNode child: children)
@@ -294,7 +296,9 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                 }
             }
         }
-        else AStarRoot.isLeaf = true;
+        else {
+        	AStarRoot.isLeaf = true;
+        }
         return AStarRoot;
     }
 
