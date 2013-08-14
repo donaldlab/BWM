@@ -589,39 +589,39 @@ public class TreeEdge implements Serializable{
 
 	public void setPositions(LinkedHashSet<Integer> set)
 	{
-		lambda = set;
+	    lambda = set;
 	}
-	
-    public Set<Position> getPositionSet () {
-        LinkedHashSet<Position> out = new LinkedHashSet<Position>();
-        if(lambda == null)
-        {
-            //lambda = new LinkedHashSet<Integer>();
-            for(int i = 0; i < 2; i ++)
-                lambda.add(i);
-        }
-        
-        for(Integer i : lambda)
-        {
-            out.add(new Position(i));
-        }
-        return out;
-    }
-    
-    public List<Position> getPositionList () {
-        LinkedList<Position> out = new LinkedList<Position>();
-        if(lambda == null)
-        {
-            //lambda = new LinkedHashSet<Integer>();
-            for(int i = 0; i < 1; i ++)
-                lambda.add(i);
-        }
-        
-        for(Integer i : lambda)
-        {
-            out.add(new Position(i));
-        }
-        return out;
-    }
+
+	public Set<Position> getPositionSet () {
+	    LinkedHashSet<Position> out = new LinkedHashSet<Position>();
+	    if(lambda == null)
+	    {
+	        //lambda = new LinkedHashSet<Integer>();
+	        for(int i = 0; i < 2; i ++)
+	            lambda.add(i);
+	    }
+
+	    for(Integer i : lambda)
+	    {
+	        out.add(new Position(i));
+	    }
+	    return out;
+	}
+
+	public List<Position> getPositionList () {
+	    LinkedList<Position> out = new LinkedList<Position>();
+	    if(lambda == null)
+	    {
+	        //lambda = new LinkedHashSet<Integer>();
+	        for(int i = 0; i < 1; i ++)
+	            lambda.add(i);
+	    }
+
+	    for(Integer i : lambda)
+	    {
+	        out.add(new Position(i));
+	    }
+	    return out;
+	}
 
 }
