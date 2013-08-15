@@ -48,11 +48,6 @@ public class TestConformation extends AbstractConformation {
     	}
 	}
 
-	public void append (Choice c) {
-    	getPositions().add(new Position(getPositions().size(),c));
-        
-    }
-
     
     public double score () {
     	double out = 0;

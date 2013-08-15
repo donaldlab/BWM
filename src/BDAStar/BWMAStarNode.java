@@ -115,7 +115,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
         if(branching)
         {
-            Conformation peeked = leftSubtree.peekNextConformation();
+            Conformation peeked = leftSubtree.peekPartial();
             int offset = getRightConformation(peeked);
             Conformation rightSide = null;
             if(offset >= solutionList.size()){

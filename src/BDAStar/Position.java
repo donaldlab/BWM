@@ -1,19 +1,7 @@
 package BDAStar;
 
-import java.util.Collection;
-
 public class Position implements Comparable<Position>{
-    int pos = 0;
-    
-    public Collection<Choice> getChoices()
-    {
-        return null;
-    }
-    
-    public Position(int i, Choice c)
-    {
-        pos = i;
-    }
+    int pos = -1;
     
     public Position(int i)
     {
