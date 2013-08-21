@@ -393,7 +393,7 @@ public class TreeEdge implements Serializable{
 			en[0]+=eMatrix[pi][ai][ri][pi][0][1]; //add the self energy of the rotamer of the lambda residue
 			en[0]+=eMatrix[pi][ai][ri][pi][0][0];
 			*/
-			en[1]+=eMatrix.getShellRotE(pi, ai, ri);
+			en[0]+=eMatrix.getShellRotE(pi, ai, ri);
 
 			for(int j=i+1;j<numPos;j++){
 			
