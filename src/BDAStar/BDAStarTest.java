@@ -3,6 +3,7 @@ package BDAStar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import kstar.RotamerLibrary;
 import kstar.TreeEdge;
 import kstar.TreeNode;
 
@@ -37,9 +38,10 @@ public class BDAStarTest {
         rchild.setCofEdge(edge3);
         root.setLc(lchild);
         root.setRc(rchild);
-        SolutionSpace space = new SolutionSpace();
+        RotamerLibrary temp = null;
+        SolutionSpace space = new BWMSolutionSpace(temp);
         //BDAStarNode rootNode = BDAStarNode.CreateTree(root, new TestConformation(), space);
-        BWMAStarNode rootNode = BWMAStarNode.CreateTree(root, new TestConformation(), space);
+        BWMAStarNode rootNode = BWMAStarNode.CreateTree(root, space.getEmptyConformation(), space);
         
         rootNode.resort();
         System.out.println("Done!");
