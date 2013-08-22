@@ -52,7 +52,8 @@ public class ProteinConformation extends AbstractConformation {
     	}
 	}
 
-	public void append (Choice c) {
+    public void append (Choice c) 
+    {
     	getPositions().add(new Position(getPositions().size()));
         
     }
