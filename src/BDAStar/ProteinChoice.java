@@ -4,8 +4,8 @@ public class ProteinChoice extends Choice {
 
     public int aminoAcid;
     public int rotamer;
-    public ProteinChoice (int i, int AA, int r) {
-        super(i);
+    public ProteinChoice (int AA, int r) {
+    	super(AA);
         // TODO Auto-generated constructor stub
         aminoAcid = AA;
         rotamer = r;

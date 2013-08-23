@@ -13,7 +13,7 @@ import kstar.PairwiseEnergyMatrix;
 public class ProteinConformation extends AbstractConformation {
  
     private EnergyFunction energyFunction;
-    public ProteinConformation(EnergyFunction e)
+    public ProteinConformation()
     {
         super();
     }
