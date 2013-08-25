@@ -293,25 +293,6 @@ class PrunedRotIterator<T> implements Iterator<RotInfo<T>> {
 	}
 }
 
-class RotInfo<T>{
-	int curPos;
-	int curAA;
-	int curRot;
-	T state;
-	
-	public RotInfo(int curPos, int curAA, int curRot, T s) {
-		this.curPos = curPos;
-		this.curAA = curAA;
-		this.curRot = curRot;
-		this.state = s;
-	}
-	
-	public String printCoord(){
-		return "("+curPos+","+curAA+","+curRot+")";
-	}
-	
-}
-
 class Index3 implements Comparable<Index3> {
 	int pos;
 	int aa;
