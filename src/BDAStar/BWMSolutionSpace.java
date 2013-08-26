@@ -2,20 +2,21 @@ package BDAStar;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 
 import kstar.PrunedRotamers;
 import kstar.RotInfo;
 
 public class BWMSolutionSpace implements SolutionSpace {
+	private EnergyFunction energyFunction;
     private Map<Position, Collection<ProteinChoice>> choices;
     public Collection<ProteinChoice> getChoices (Position p){
         return choices.get(p);
     }
     
-    public BWMSolutionSpace(PrunedRotamers<Boolean> library)
+    public BWMSolutionSpace(PrunedRotamers<Boolean> library, EnergyFunction e)
     {
+    	energyFunction = e;
         /* We have to port over the rotamer library here, I think it's the RotamerSearch class. */
         /* TODO: 
          * 1. Convert library's contents into <Position, Collection<Choice>> Mapping.
