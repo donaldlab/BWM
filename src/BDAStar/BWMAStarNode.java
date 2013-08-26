@@ -1,11 +1,13 @@
 package BDAStar;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+
 import kstar.TreeNode;
 
 /*
@@ -257,6 +259,9 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             children.add(node);
         else
         {
+        	HashSet<Position> nextSet = new HashSet<Position>();
+        	nextSet.addAll(MSet);
+        	MSet.removeAll(partialConformation.getPositions());
             if(shareElements(leftSubtree.partialConformation.getPositions(), MSet))
             {
                 leftSubtree.insertChild(MSet, node);
