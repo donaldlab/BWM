@@ -8,8 +8,8 @@ import kstar.PrunedRotamers;
 import kstar.RotInfo;
 
 public class BWMSolutionSpace implements SolutionSpace {
-    private Map<Position, Collection<Choice>> choices;
-    public Collection<Choice> getChoices (Position p){
+    private Map<Position, Collection<ProteinChoice>> choices;
+    public Collection<ProteinChoice> getChoices (Position p){
         return choices.get(p);
     }
     
@@ -30,7 +30,7 @@ public class BWMSolutionSpace implements SolutionSpace {
     			continue;
     		Position p = new Position(r.curPos);
     		if(!choices.containsKey(p))
-    			choices.put(p, new ArrayList<Choice>());
+    			choices.put(p, new ArrayList<ProteinChoice>());
     		choices.get(p).add(new ProteinChoice(r.curAA, r.curRot));
     	}
     }

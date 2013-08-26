@@ -40,8 +40,7 @@ public class BDAStarTest {
         rchild.setCofEdge(edge3);
         root.setLc(lchild);
         root.setRc(rchild);
-        PrunedRotamers<Boolean> temp = null;
-        SolutionSpace space = new BWMSolutionSpace(temp);
+        SolutionSpace space = new TestSolutionSpace(2);
         //BDAStarNode rootNode = BDAStarNode.CreateTree(root, new TestConformation(), space);
         BWMAStarNode rootNode = BWMAStarNode.CreateTree(root, space.getEmptyConformation(), space);
         
