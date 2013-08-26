@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 import kstar.TreeNode;
 
 /*
@@ -45,7 +46,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         partialConformation = conf;
     }
 
-    public void insertChild(Conformation conf)
+    public void addChild(Conformation conf)
     {
         children.add(new BWMAStarNode(conf));
     }
@@ -250,12 +251,35 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return 0;
     }
     
+    public void insertChild(Set<Position> MSet, BWMAStarNode node)
+    {
+        if(partialConformation.getPositions().containsAll(MSet) || MSet.isEmpty())
+            children.add(node);
+        else
+        {
+            if(shareElements(leftSubtree.partialConformation.getPositions(), MSet))
+            {
+                leftSubtree.insertChild(MSet, node);
+            }
+            else 
+                rightSubtree.insertChild(MSet, node);
+        }
+    }
+    
+    private boolean shareElements(Iterable<Position> set1, Set<Position> set2)
+    {
+        for(Position p1: set1)
+            if(set2.contains(p1))
+                return true;
+        return false;   
+    }
+    
 
     public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s)
     {
         List<Position> lambda = root.getCofEdge().getPositionList();
         BWMAStarNode AStarRoot = new BWMAStarNode(previous);
-        AStarRoot.populateHeap(AStarRoot.children, lambda, 0, previous, s);
+        populateHeap(AStarRoot.children, lambda, 0, previous, s);
         if(!root.getIsLeaf())
         {
             for(BWMAStarNode child : AStarRoot.children)
@@ -275,7 +299,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return AStarRoot;
     }
     
-    public void populateHeap(PriorityQueue<BWMAStarNode> heap, List<Position> positions, int index, Conformation currentConf, SolutionSpace s)
+    public static void populateHeap(PriorityQueue<BWMAStarNode> heap, List<Position> positions, int index, Conformation currentConf, SolutionSpace s)
     {
         for(Choice c : s.getChoices(positions.get(index)))
         {
