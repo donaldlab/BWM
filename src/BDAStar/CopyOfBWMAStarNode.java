@@ -1,13 +1,10 @@
 package BDAStar;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
-import java.util.Set;
-
 import kstar.TreeNode;
 
 /*
@@ -19,9 +16,6 @@ level but it never exceeds 3kq, I think
 3. A* tree node: expands everything, just does it smarter because
 everything is precomputed.
 
-TODO:
-Compress leftSubtree into leftChildren, rightSubtree into rightChildren
-
 GetNextConformation function is different.
 
 AbstractBDAStarNode
@@ -29,13 +23,12 @@ ListingBDAStarNode
 TopKBDAStarNode
 ExpandingBDAStarNode
  */
-public class BWMAStarNode implements Comparable<BWMAStarNode> {
+public class CopyOfBWMAStarNode implements Comparable<CopyOfBWMAStarNode> {
 
-    private PriorityQueue<BWMAStarNode> children;
-    private PriorityQueue<BWMAStarNode> leftChildren;
-    private PriorityQueue<BWMAStarNode> rightChildren;
+    private PriorityQueue<CopyOfBWMAStarNode> children;
+    private CopyOfBWMAStarNode leftSubtree;
+    private CopyOfBWMAStarNode rightSubtree;
     private LinkedList<Conformation> solutionList;
-    private Map<String, BWMAStarNode> childrenMap;
     private Map<String, Integer> solutions;
     private Conformation partialConformation;
     boolean isSubtreeRoot = false;
@@ -44,50 +37,39 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     private Conformation rightSideConformation;
 
-    public BWMAStarNode(Conformation conf) 
+    public CopyOfBWMAStarNode(Conformation conf) 
     {
-    	childrenMap = new HashMap<String, BWMAStarNode>();
-        children = new PriorityQueue<BWMAStarNode>();
+        children = new PriorityQueue<CopyOfBWMAStarNode>();
         solutionList = new LinkedList<Conformation>();
         solutions = new HashMap<String, Integer>();
         partialConformation = conf;
     }
 
-    public void addChild(Conformation conf)
+    public void insertChild(Conformation conf)
     {
-        children.add(new BWMAStarNode(conf));
+        children.add(new CopyOfBWMAStarNode(conf));
     }
 
     public void resort()
     {
-        for(BWMAStarNode b : children)
+        for(CopyOfBWMAStarNode b : children)
         {
             b.resort();
         }
         if(branching)
         {
-            for(BWMAStarNode b : leftChildren)
-            {
-                b.resort();
-            }
-            for(BWMAStarNode b : rightChildren)
-            {
-                b.resort();
-            }
-            PriorityQueue<BWMAStarNode> newLeftHeap = new PriorityQueue<BWMAStarNode>();
-            newLeftHeap.addAll(leftChildren);
-            PriorityQueue<BWMAStarNode> newRightHeap = new PriorityQueue<BWMAStarNode>();
-            newRightHeap.addAll(rightChildren);
+            leftSubtree.resort();
+            rightSubtree.resort();
         }
-        PriorityQueue<BWMAStarNode> newHeap = new PriorityQueue<BWMAStarNode>();
+        PriorityQueue<CopyOfBWMAStarNode> newHeap = new PriorityQueue<CopyOfBWMAStarNode>();
         newHeap.addAll(children);
         children = newHeap;
     }
 
-    private void addBranches(PriorityQueue<BWMAStarNode> leftChild,  PriorityQueue<BWMAStarNode> rightChild)
+    private void addBranches(CopyOfBWMAStarNode leftChild, CopyOfBWMAStarNode rightChild)
     {
-        leftChildren = leftChild;
-        rightChildren = rightChild;
+        leftSubtree = leftChild;
+        rightSubtree = rightChild;
         branching = true;
     }
 
@@ -113,11 +95,11 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
         if(branching)
         {
-            Conformation peeked = leftChildren.peek().partialConformation;
+            Conformation peeked = leftSubtree.peekPartial();
             int offset = getRightConformation(peeked);
             Conformation rightSide = null;
             if(offset >= solutionList.size()){
-                rightSide = rightChildren.peek().peekNextConformation();
+                rightSide = rightSubtree.peekNextConformation();
             }
             else rightSide = solutionList.get(offset);
 
@@ -135,7 +117,6 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
         return fullConformation(children.peek().peekNextConformation());
     }
-    
 
     private Conformation fullConformation(Conformation out)
     {
@@ -156,7 +137,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
         if(branching)
         {
-            return leftChildren.peek().peekNextConformation();
+            return leftSubtree.peekNextConformation();
         }
 
         if(children.size() < 1)
@@ -169,7 +150,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public boolean moreConformations()
     {
-        return children.size() > 0 || (branching && leftChildren.size() > 0);
+        return children.size() > 0 || (branching && leftSubtree.moreConformations());
     }
 
     public Conformation getNextConformation () 
@@ -179,7 +160,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         }
 
         if(branching){
-            Conformation leftConformation = leftChildren.peek().partialConformation;
+            Conformation leftConformation = leftSubtree.peekPartial();
             Conformation rightConformation = null;
 
             int offset = getRightConformation(leftConformation);
@@ -190,7 +171,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         }
 
 
-        BWMAStarNode next = children.poll();
+        CopyOfBWMAStarNode next = children.poll();
         Conformation nextConf = next.getNextConformation();
         if(next.moreConformations())
         {
@@ -203,15 +184,15 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     private void removeFinishedConformation (int offset) 
     {
-        if(leftChildren.size() > 0)
+        if(leftSubtree.children.size() > 0)
         {
-            BWMAStarNode leftChild = leftChildren.poll();
+            CopyOfBWMAStarNode leftChild = leftSubtree.children.poll();
             if(offset + 1 < solutionList.size())
             {
                 Conformation nextConformation = solutionList.get(offset + 1);
                 leftChild.rightSideConformation = nextConformation;
             }
-            leftChildren.add(leftChild);
+            leftSubtree.children.add(leftChild);
         }
     }
 
@@ -224,12 +205,12 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
         if(solutionList.size() -1 <= offset)
         {
-            if(rightChildren.size() < 1){
-                leftChildren.poll();
+            if(rightSubtree.children.size() < 1){
+                leftSubtree.getNextConformation();
             }
-            if(rightChildren.size() > 0)
+            if(rightSubtree.children.size() > 0)
             {
-                solutionList.add(rightChildren.poll().getNextConformation());
+                solutionList.add(rightSubtree.getNextConformation());
             }
             rightConformation = solutionList.get(offset);
         }
@@ -245,14 +226,14 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         String output = prefix+joined+", "+peekNextConformation().score()+" leaf? "+isSubtreeRoot;
 
         System.out.println(output);
-        for(BWMAStarNode child: children)
+        for(CopyOfBWMAStarNode child: children)
         {
             child.printTree(prefix+"+--",joined);
         }
         if(branching)
         {
-            leftChildren.peek().printTree(prefix+"L--",joined);
-            rightChildren.peek().printTree(prefix+"R--",joined);
+            leftSubtree.printTree(prefix+"L--",joined);
+            rightSubtree.printTree(prefix+"R--",joined);
         }
     }
 
@@ -262,57 +243,27 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         printTree(prefix, partialConformation);
     }
 
-    public int compareTo(BWMAStarNode node)
+    public int compareTo(CopyOfBWMAStarNode node)
     {
         if(nextBestScore() - node.nextBestScore() < 0) return -1;
         if(nextBestScore() - node.nextBestScore() > 0) return 1;
         return 0;
     }
     
-    public void insertChild(Set<Position> MSet, BWMAStarNode node)
-    {
-        if(partialConformation.getPositions().containsAll(MSet) || MSet.isEmpty())
-            children.add(node);
-        else
-        {
-        	HashSet<Position> nextSet = new HashSet<Position>();
-        	nextSet.addAll(MSet);
-        	nextSet.removeAll(partialConformation.getPositions());
-            childrenMap.get(MSet).insertChild(nextSet, node);
-        }
-    }
-    
-    private boolean shareElements(Iterable<Position> set1, Set<Position> set2)
-    {
-        for(Position p1: set1)
-            if(set2.contains(p1))
-                return true;
-        return false;   
-    }
-    
-    private void addChildMap(BWMAStarNode child)
-    {
-    	childrenMap.put(child.partialConformation.toString(), child);
-    }
-    
-    
 
-    public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s)
+    public static CopyOfBWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s)
     {
         List<Position> lambda = root.getCofEdge().getPositionList();
-        BWMAStarNode AStarRoot = new BWMAStarNode(previous);
-        populateHeap(root, AStarRoot, AStarRoot.children, lambda, 0, previous, s);
+        CopyOfBWMAStarNode AStarRoot = new CopyOfBWMAStarNode(previous);
+        AStarRoot.populateHeap(AStarRoot.children, lambda, 0, previous, s);
         if(!root.getIsLeaf())
         {
-            for(BWMAStarNode child : AStarRoot.children)
+            for(CopyOfBWMAStarNode child : AStarRoot.children)
             {
-            	child.leftChildren = new  PriorityQueue<BWMAStarNode>();
-            	child.rightChildren = new  PriorityQueue<BWMAStarNode>();
-                populateHeap(root.getlc(), child, child.leftChildren, root.getlc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
-                populateHeap(root.getrc(), child, child.rightChildren, root.getlc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
-            	Conformation rightHandSide = child.rightChildren.poll().partialConformation;
+                child.addBranches(CreateTree(root.getlc(), child.partialConformation, s), CreateTree(root.getrc(), child.partialConformation, s));
+                Conformation rightHandSide = child.rightSubtree.getNextConformation();
                 child.solutionList.add(rightHandSide);
-                for(BWMAStarNode leftChild : child.leftChildren)
+                for(CopyOfBWMAStarNode leftChild : child.leftSubtree.children)
                 {
                     leftChild.rightSideConformation = rightHandSide;
                 }
@@ -324,7 +275,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return AStarRoot;
     }
     
-    public static void populateHeap(TreeNode root, BWMAStarNode node, PriorityQueue<BWMAStarNode> heap, List<Position> positions, int index, Conformation currentConf, SolutionSpace s)
+    public void populateHeap(PriorityQueue<CopyOfBWMAStarNode> heap, List<Position> positions, int index, Conformation currentConf, SolutionSpace s)
     {
         for(Choice c : s.getChoices(positions.get(index)))
         {
@@ -332,12 +283,9 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             nextConf.append(positions.get(index), c);
             System.out.println("Creating conformation " + nextConf);
             if(index == positions.size() - 1)
-            {
-            	BWMAStarNode next = CreateTree(root, nextConf, s);
-            	node.addChildMap(next);
-            }
+                heap.add(new CopyOfBWMAStarNode(nextConf));
             else 
-                populateHeap(root, node, heap, positions, index+1, nextConf, s);
+                populateHeap(heap, positions, index+1, nextConf, s);
         }
     }
     
