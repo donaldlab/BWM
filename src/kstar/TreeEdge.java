@@ -6,7 +6,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import BDAStar.BWMAStarNode;
 import BDAStar.Position;
+import BDAStar.ProteinConformation;
 
 public class TreeEdge implements Serializable{
 	/**
@@ -186,6 +188,16 @@ public class TreeEdge implements Serializable{
 			computeEforState(curState,eMatrix,m,G,en); //en[0] will contain the energy to compare, en[1] will contain the energy to store
 			float total_energy=0;
 			total_energy=en[0]+energy_ll;
+			
+			/*
+			 * TODO: This is where the code to insert all solutions goes.
+
+			BWMAStarNode root = null;
+			BWMAStarNode new_node = new BWMAStarNode(ProteinConformation.createFromArray(curState)); 
+			root.insertChild(ProteinConformation.MSetFromArray(curState), new_node);
+			                      */
+			        
+			
 			if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
 				
 				bestEnergy[0] = total_energy;

@@ -174,10 +174,6 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public Conformation getNextConformation () 
     {
-    	if(isSubtreeRoot){
-            return children.poll().partialConformation;
-        }
-
         if(branching){
             Conformation leftConformation = leftChildren.peek().partialConformation;
             Conformation rightConformation = null;
@@ -187,6 +183,10 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             removeFinishedConformation(offset);
 
             return leftConformation.join(rightConformation);
+        }
+        
+        if(children.size() < 1){
+            return fullConformation(partialConformation);
         }
 
 
@@ -251,8 +251,14 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         }
         if(branching)
         {
-            leftChildren.peek().printTree(prefix+"L--",joined);
-            rightChildren.peek().printTree(prefix+"R--",joined);
+            for(BWMAStarNode leftChild : leftChildren)
+            {
+                leftChild.printTree(prefix+"L--",joined);
+            }
+            for(BWMAStarNode rightChild : rightChildren)
+            {
+                rightChild.printTree(prefix+"R--",joined);
+            }
         }
     }
 
@@ -271,7 +277,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
     
     public void insertChild(Set<Position> MSet, BWMAStarNode node)
     {
-        if(partialConformation.getPositions().containsAll(MSet) || MSet.isEmpty())
+        if(MSet.isEmpty())
             children.add(node);
         else
         {
@@ -297,11 +303,12 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
     
     
 
-    public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s)
+    public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s, int index)
     {
         List<Position> lambda = root.getCofEdge().getPositionList();
         BWMAStarNode AStarRoot = new BWMAStarNode(previous);
-        populateHeap(root, AStarRoot, AStarRoot.children, lambda, 0, previous, s);
+        if(index < lambda.size())
+            populateHeap(root, AStarRoot, AStarRoot.children, lambda, index, previous, s);
         if(!root.getIsLeaf())
         {
             for(BWMAStarNode child : AStarRoot.children)
@@ -309,17 +316,15 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             	child.leftChildren = new  PriorityQueue<BWMAStarNode>();
             	child.rightChildren = new  PriorityQueue<BWMAStarNode>();
                 populateHeap(root.getlc(), child, child.leftChildren, root.getlc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
-                populateHeap(root.getrc(), child, child.rightChildren, root.getlc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
+                populateHeap(root.getrc(), child, child.rightChildren, root.getrc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
             	Conformation rightHandSide = child.rightChildren.poll().partialConformation;
+            	child.branching = true;
                 child.solutionList.add(rightHandSide);
                 for(BWMAStarNode leftChild : child.leftChildren)
                 {
                     leftChild.rightSideConformation = rightHandSide;
                 }
             }
-        }
-        else {
-        	AStarRoot.isSubtreeRoot = true;
         }
         return AStarRoot;
     }
@@ -331,10 +336,11 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             Conformation nextConf = currentConf.copy();
             nextConf.append(positions.get(index), c);
             System.out.println("Creating conformation " + nextConf);
-            if(index == positions.size() - 1)
+            if(index >= positions.size() - 1)
             {
-            	BWMAStarNode next = CreateTree(root, nextConf, s);
+            	BWMAStarNode next = CreateTree(root, nextConf, s, index+1);
             	node.addChildMap(next);
+            	heap.add(next);
             }
             else 
                 populateHeap(root, node, heap, positions, index+1, nextConf, s);
