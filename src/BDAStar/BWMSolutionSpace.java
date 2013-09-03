@@ -48,19 +48,23 @@ public class BWMSolutionSpace implements SolutionSpace {
     
     public static Conformation createFromArray (int[] curState, RotTypeMap[][] rtm) {
         // TODO Auto-generated method stub
+        ProteinConformation conf = new ProteinConformation();
     	for(int i = 0; i < curState.length; i++)
     	{
     		RotTypeMap rotamerMap = rtm[i][curState[i]];
-			int position = rtm[j][curState[j]].pos;
-			int aminoAcid = rtm[j][curState[j]].aa;
-			int rotamer = rtm[j][curState[j]].rot;
+			int position = rotamerMap.pos;
+			int aminoAcid = rotamerMap.aa;
+			int rotamer = rotamerMap.rot;
+		ProteinPosition pos = new ProteinPosition(position);
+		ProteinChoice choice = new ProteinChoice(aminoAcid, rotamer);
+		conf.append(pos, choice);
     	}
     	/*
     	 * 1. Remap the indices to residue Positions
     	 * 2. Remap each array element (an int) into a Rotamer from rtm array
     	 * 3. Create a new Conformation, adding the Choice at each position.
     	 */
-        return null;
+        return conf;
     }
 
     public static Set<Position> MSetFromArray (LinkedHashSet<Integer> m) {
