@@ -193,11 +193,12 @@ public class TreeEdge implements Serializable{
 			
 			/*
 			 * TODO: This is where the code to insert all solutions goes.
-*/
+
 			BWMAStarNode root = null;
-			BWMAStarNode new_node = new BWMAStarNode(BWMSolutionSpace.createFromArray(curState, rtm)); 
+			BWMSolutionSpace solutionSpace = null;
+			BWMAStarNode new_node = new BWMAStarNode(solutionSpace.createFromArray(curState, rtm)); 
 			root.insertChild(BWMSolutionSpace.MSetFromArray(M), new_node);
-			                      
+			                      */
 			        
 			
 			if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment

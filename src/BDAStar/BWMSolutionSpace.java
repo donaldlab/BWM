@@ -33,11 +33,19 @@ public class BWMSolutionSpace implements SolutionSpace {
     	{
     		if(!r.state)
     			continue;
-    		Position p = new Position(r.curPos);
+    		Position p = positionFromPos(r.curPos);
     		if(!choices.containsKey(p))
     			choices.put(p, new ArrayList<ProteinChoice>());
     		choices.get(p).add(new ProteinChoice(r.curAA, r.curRot));
     	}
+    	/*
+    	 * A position is defined by strand and residue number, or by molecule residue number.
+    	 * In the code, there's a strandMutIndex which maps residues to the 0-based index used instead.
+    	 * We want the strand number and the strand-relative residue number, I think. Though we'll store all of them for now.
+    	 * 		int str = mutRes2Strand[i];
+				int strResNum = strandMut[str][mutRes2StrandMutIndex[i]];
+				int molResNum = m.strand[str].residue[strResNum].moleculeResidueNumber;
+    	 */
     }
 
     @Override
@@ -46,7 +54,7 @@ public class BWMSolutionSpace implements SolutionSpace {
         return new ProteinConformation();
     }
     
-    public static Conformation createFromArray (int[] curState, RotTypeMap[][] rtm) {
+    public Conformation createFromArray (int[] curState, RotTypeMap[][] rtm) {
         // TODO Auto-generated method stub
         ProteinConformation conf = new ProteinConformation();
     	for(int i = 0; i < curState.length; i++)
@@ -55,7 +63,8 @@ public class BWMSolutionSpace implements SolutionSpace {
 			int position = rotamerMap.pos;
 			int aminoAcid = rotamerMap.aa;
 			int rotamer = rotamerMap.rot;
-		ProteinPosition pos = new ProteinPosition(position);
+			int strand = -1;
+		ProteinPosition pos = positionFromPos(position);
 		ProteinChoice choice = new ProteinChoice(aminoAcid, rotamer);
 		conf.append(pos, choice);
     	}
@@ -67,8 +76,16 @@ public class BWMSolutionSpace implements SolutionSpace {
         return conf;
     }
 
-    public static Set<Position> MSetFromArray (LinkedHashSet<Integer> m) {
-        // TODO Auto-generated method stub
+    private ProteinPosition positionFromPos(int position) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public static Set<Position> MSetFromArray (LinkedHashSet<Integer> m) {
+       	/*
+       	 * 1. For each integer, get the strand and sequence numbers
+       	 * 2. create the corresponding ProteinPosition
+       	 */
         return null;
     }
 
