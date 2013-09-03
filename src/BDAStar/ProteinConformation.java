@@ -110,14 +110,4 @@ public class ProteinConformation extends AbstractConformation {
 		return new ProteinConformation(this);
 	}
 
-    public static Conformation createFromArray (int[] curState) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public static Set<Position> MSetFromArray (int[] curState) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
 }

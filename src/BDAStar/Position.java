@@ -17,6 +17,11 @@ public class Position implements Comparable<Position>{
     {
         return pos - p.pos;
     }
+    
+    public int hashCode()
+    {
+    	return pos;
+    }
 
 
 }

@@ -6,7 +6,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+
 import BDAStar.BWMAStarNode;
+import BDAStar.BWMSolutionSpace;
 import BDAStar.Position;
 import BDAStar.ProteinConformation;
 
@@ -191,11 +193,11 @@ public class TreeEdge implements Serializable{
 			
 			/*
 			 * TODO: This is where the code to insert all solutions goes.
-
+*/
 			BWMAStarNode root = null;
-			BWMAStarNode new_node = new BWMAStarNode(ProteinConformation.createFromArray(curState)); 
-			root.insertChild(ProteinConformation.MSetFromArray(curState), new_node);
-			                      */
+			BWMAStarNode new_node = new BWMAStarNode(BWMSolutionSpace.createFromArray(curState, rtm)); 
+			root.insertChild(BWMSolutionSpace.MSetFromArray(M), new_node);
+			                      
 			        
 			
 			if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -467,18 +469,6 @@ public class TreeEdge implements Serializable{
 		}
 		
 		return index;
-	}
-	
-	//Maps state indices to residue/aa/rot tuples
-	private class RotTypeMap {
-		int pos = -1;
-		int aa = -1;
-		int rot = -1;
-		RotTypeMap(int p, int a, int r){
-			pos = p;
-			aa = a;
-			rot = r;
-		}
 	}
 	
 	public RotTypeMap[][] getrtm(){

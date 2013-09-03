@@ -53,7 +53,8 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         partialConformation = conf;
     }
 
-    public void addChild(Conformation conf)
+
+	public void addChild(Conformation conf)
     {
         children.add(new BWMAStarNode(conf));
     }

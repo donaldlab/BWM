@@ -2,10 +2,13 @@ package BDAStar;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import kstar.PrunedRotamers;
 import kstar.RotInfo;
+import kstar.RotTypeMap;
 
 public class BWMSolutionSpace implements SolutionSpace {
 	private EnergyFunction energyFunction;
@@ -41,6 +44,28 @@ public class BWMSolutionSpace implements SolutionSpace {
     public Conformation getEmptyConformation () {
         // TODO Auto-generated method stub
         return new ProteinConformation();
+    }
+    
+    public static Conformation createFromArray (int[] curState, RotTypeMap[][] rtm) {
+        // TODO Auto-generated method stub
+    	for(int i = 0; i < curState.length; i++)
+    	{
+    		RotTypeMap rotamerMap = rtm[i][curState[i]];
+			int position = rtm[j][curState[j]].pos;
+			int aminoAcid = rtm[j][curState[j]].aa;
+			int rotamer = rtm[j][curState[j]].rot;
+    	}
+    	/*
+    	 * 1. Remap the indices to residue Positions
+    	 * 2. Remap each array element (an int) into a Rotamer from rtm array
+    	 * 3. Create a new Conformation, adding the Choice at each position.
+    	 */
+        return null;
+    }
+
+    public static Set<Position> MSetFromArray (LinkedHashSet<Integer> m) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }
