@@ -9,6 +9,11 @@ public class EnergyFunction
 
     private PairwiseEnergyMatrix eMatrix;
     private InteractionGraph G;
+    
+    public EnergyFunction (PairwiseEnergyMatrix m, InteractionGraph g)
+    {
+    	
+    }
 
     public double score(Conformation c)
     {
