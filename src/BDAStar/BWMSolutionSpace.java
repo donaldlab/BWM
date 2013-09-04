@@ -13,11 +13,14 @@ import kstar.RotTypeMap;
 public class BWMSolutionSpace implements SolutionSpace {
 	private EnergyFunction energyFunction;
     private Map<Position, Collection<ProteinChoice>> choices;
+    private int[] designIndexToStrandIndex;
+    private int[][] strandDesignIndeces;
+    private int[] designIndexToStrandResidueIndex;
     public Collection<ProteinChoice> getChoices (Position p){
         return choices.get(p);
     }
     
-    public BWMSolutionSpace(PrunedRotamers<Boolean> library, EnergyFunction e)
+    public BWMSolutionSpace(PrunedRotamers<Boolean> library, EnergyFunction e, int[] mutRes2Strand, int[][] strandMut, int[] mutRes2StrandMutIndex)
     {
     	energyFunction = e;
         /* We have to port over the rotamer library here, I think it's the RotamerSearch class. */
@@ -63,7 +66,6 @@ public class BWMSolutionSpace implements SolutionSpace {
 			int position = rotamerMap.pos;
 			int aminoAcid = rotamerMap.aa;
 			int rotamer = rotamerMap.rot;
-			int strand = -1;
 		ProteinPosition pos = positionFromPos(position);
 		ProteinChoice choice = new ProteinChoice(aminoAcid, rotamer);
 		conf.append(pos, choice);
@@ -78,7 +80,9 @@ public class BWMSolutionSpace implements SolutionSpace {
 
     private ProteinPosition positionFromPos(int position) {
 		// TODO Auto-generated method stub
-		return null;
+                int str = designIndexToStrandIndex[position];
+                int strResNum = strandDesignIndeces[str][designIndexToStrandResidueIndex[position]];
+                return new ProteinPosition(str, strResNum);
 	}
 
 	public static Set<Position> MSetFromArray (LinkedHashSet<Integer> m) {
