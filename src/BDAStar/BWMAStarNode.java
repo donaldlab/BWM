@@ -276,13 +276,13 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return 0;
     }
     
-    public void insertChild(Set<Position> MSet, BWMAStarNode node)
+    public void insertChild(Set<ProteinPosition> MSet, BWMAStarNode node)
     {
         if(MSet.isEmpty())
             children.add(node);
         else
         {
-        	HashSet<Position> nextSet = new HashSet<Position>();
+        	HashSet<ProteinPosition> nextSet = new HashSet<ProteinPosition>();
         	nextSet.addAll(MSet);
         	nextSet.removeAll(partialConformation.getPositions());
             childrenMap.get(MSet).insertChild(nextSet, node);
@@ -306,7 +306,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s, int index)
     {
-        List<Position> lambda = root.getCofEdge().getPositionList();
+        List<? extends Position> lambda = root.getCofEdge().getPositionList();
         BWMAStarNode AStarRoot = new BWMAStarNode(previous);
         if(index < lambda.size())
             populateHeap(root, AStarRoot, AStarRoot.children, lambda, index, previous, s);
@@ -330,8 +330,9 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return AStarRoot;
     }
     
-    public static void populateHeap(TreeNode root, BWMAStarNode node, PriorityQueue<BWMAStarNode> heap, List<Position> positions, int index, Conformation currentConf, SolutionSpace s)
+    public static void populateHeap(TreeNode root, BWMAStarNode node, PriorityQueue<BWMAStarNode> heap, List<? extends Position> positions, int index, Conformation currentConf, SolutionSpace s)
     {
+    	if(index == 0 && positions.size() < 1) return;
         for(Choice c : s.getChoices(positions.get(index)))
         {
             Conformation nextConf = currentConf.copy();

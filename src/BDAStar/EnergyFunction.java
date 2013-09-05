@@ -12,15 +12,16 @@ public class EnergyFunction
     
     public EnergyFunction (PairwiseEnergyMatrix m, InteractionGraph g)
     {
-    	
+    	eMatrix = m;
+    	G = g;
     }
 
-    public double score(Conformation c)
+    public double score(ProteinConformation c)
     {
         return computeEforState(c);
     }
 
-    private double computeEforState(Conformation c)
+    private double computeEforState(ProteinConformation c)
     {
 
         int pi=0,ai=0,ri=0,pj=0,aj=0,rj=0;
@@ -33,7 +34,8 @@ public class EnergyFunction
         {
 
             ProteinChoice choice = (ProteinChoice)c.getChoiceAt(p);
-            pi=p.pos;
+            ProteinPosition position = (ProteinPosition) p;
+            pi=position.designIndex;
             ai=choice.aminoAcid;
             ri=choice.rotamer;
 
@@ -46,7 +48,9 @@ public class EnergyFunction
             for(Position p2 : c.getPositions())
             {
                 ProteinChoice choice2 = (ProteinChoice) c.getChoiceAt(p2);
-                pj=p.pos;
+                ProteinPosition position2 = (ProteinPosition) p2;
+                
+                pj=position2.designIndex;
                 aj=choice2.aminoAcid;
                 rj=choice2.rotamer;
 

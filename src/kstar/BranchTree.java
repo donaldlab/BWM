@@ -7,11 +7,18 @@ import java.io.Serializable;
 import java.util.LinkedHashSet;
 import java.util.StringTokenizer;
 
+import BDAStar.BWMAStarNode;
+import BDAStar.BWMSolutionSpace;
+
 public class BranchTree implements Serializable {
 
 	private TreeNode root = null; //the root of the tree
 	
 	private InteractionGraph G = null; //the residue interaction graph
+	
+	/* Enumeration objects */
+	private static BWMAStarNode AStarRoot;
+	private static BWMSolutionSpace solutionSpace;
 	
 	public BranchTree(String fName, Molecule m, int numUnprunedRot[], int molResidueMap[], int invResidueMap[], int sysStrandNum, int numResInAS, boolean ligPresent){
 		
@@ -76,6 +83,28 @@ public class BranchTree implements Serializable {
 				}
 			}
 		}
+	}
+	
+	public void computeLambdaSets(TreeNode node)
+	{
+		TreeNode lc = node.getlc();
+		if (lc!=null) //traverse left subtree first
+			computeLambdaSets(lc);
+		
+		TreeNode rc = node.getrc();
+		if (rc!=null) //then traverse right subtree
+			computeLambdaSets(rc);
+		
+		if(node.getCofEdge() != null)
+			node.getCofEdge().compLlambda();
+	}
+	
+	public void outputBestStateE(Molecule m, StrandRotamers ligRot, RotamerLibrary rl, RotamerLibrary grl)
+	{
+		String ligType = null;
+		if (ligRot!=null)
+			ligType = grl.getAAName(ligRot.getIndexOfNthAllowable(0,0));
+		root.getCofEdge().outputBestStateE(m, rl, ligType);
 	}
 	
 	//Read the branch decomposition from file fName
@@ -307,4 +336,19 @@ public class BranchTree implements Serializable {
 		return(new String(""));
 
 	} // end getToken
+
+	public void setEnumerationObjects(BWMAStarNode asroot,
+			BWMSolutionSpace space) {
+		AStarRoot = asroot;
+		solutionSpace = space;
+		root.setEnumerationObjects(asroot,space);
+	}
+
+	public TreeNode getRoot() {
+		return root;
+	}
+
+	public InteractionGraph getGraph() {
+		return G;
+	}
 }

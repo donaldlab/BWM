@@ -68,8 +68,10 @@ import java.lang.Runtime;
 import java.util.*;
 import java.lang.Integer;
 import java.math.*;
-// import com.neva.*;   // Not compatible with linux
 
+import BDAStar.BWMAStarNode;
+import BDAStar.BWMSolutionSpace;
+import BDAStar.EnergyFunction;
 import mpi.MPI;
 import mpi.MPIException;
 import mpi.Status;
@@ -6679,7 +6681,16 @@ public class KSParser
 		}*/
 		
 		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,ligPresent);
-		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
+		bt.computeLambdaSets(bt.getRoot());
+		bt.getRoot().printTree("");
+		
+		/* New BWM Enumeration section 
+		BWMSolutionSpace space = new BWMSolutionSpace(prunedRotAtResObject, new EnergyFunction(rs.getMinMatrix(), bt.getGraph()), mp.mutRes2Strand, mp.strandMut, mp.mutRes2StrandMutIndex);
+		bt.setEnumerationObjects(null, space);
+		BWMAStarNode AStarRoot = BWMAStarNode.CreateTree(bt.getRoot().getlc(), space.getEmptyConformation(), space, 0);
+		bt.setEnumerationObjects(AStarRoot, space);
+		*/
+		//bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
 		
 	}
 	

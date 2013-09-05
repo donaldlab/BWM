@@ -9,8 +9,10 @@ import java.io.Serializable;
 
 import BDAStar.BWMAStarNode;
 import BDAStar.BWMSolutionSpace;
+import BDAStar.Conformation;
 import BDAStar.Position;
 import BDAStar.ProteinConformation;
+import BDAStar.ProteinPosition;
 
 public class TreeEdge implements Serializable{
 	/**
@@ -46,8 +48,13 @@ public class TreeEdge implements Serializable{
 	
 	private boolean isRootEdge = false; //determines if this is the root edge
 	
+	/* Enumeration objects */
+	private static BWMAStarNode root;
+	private static BWMSolutionSpace solutionSpace;
+	
 	public TreeEdge(int eNodeName1, int eNodeName2, LinkedHashSet<Integer> teM,
 			int numUnprunedRot[], int molResidueMap[], int invResidueMap[], int sysStrandNum, boolean rootEdge){
+	
 		
 		nodeName1 = eNodeName1;
 		nodeName2 = eNodeName2;
@@ -60,6 +67,12 @@ public class TreeEdge implements Serializable{
 		sysStrNum = sysStrandNum;
 		
 		isRootEdge = rootEdge;
+	}
+	
+	public void setBWMAStarObjects( BWMAStarNode node, BWMSolutionSpace space)
+	{
+		root = node;
+		solutionSpace = space;
 	}
 	
 	//Computes the L and lambda sets for this edge; must be called only after p and c have been assigned for all edges
@@ -160,7 +173,7 @@ public class TreeEdge implements Serializable{
 		Object arrayLambda[] = lambda.toArray();
 		
 		int curState[] = new int[maxDepth];
-		int bestState[] = new int[maxDepth];
+		int bestState[] = new int[maxDepth]; //This becomes a heap if we port directly.
 		for (int i=0; i<maxDepth; i++){
 			curState[i] = -1;
 			bestState[i] = -1;
@@ -196,9 +209,10 @@ public class TreeEdge implements Serializable{
 
 			BWMAStarNode root = null;
 			BWMSolutionSpace solutionSpace = null;
+			*/
 			BWMAStarNode new_node = new BWMAStarNode(solutionSpace.createFromArray(curState, rtm)); 
-			root.insertChild(BWMSolutionSpace.MSetFromArray(M), new_node);
-			                      */
+			root.insertChild(solutionSpace.MSetFromArray(M), new_node);
+			                      
 			        
 			
 			if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -610,19 +624,14 @@ public class TreeEdge implements Serializable{
 	    }
 	    return out;
 	}
+	
 
-	public List<Position> getPositionList () {
-	    LinkedList<Position> out = new LinkedList<Position>();
-	    if(lambda == null)
-	    {
-	        //lambda = new LinkedHashSet<Integer>();
-	        for(int i = 0; i < 1; i ++)
-	            lambda.add(i);
-	    }
 
+	public List<? extends Position> getPositionList () {
+	    LinkedList<ProteinPosition> out = new LinkedList<ProteinPosition>();
 	    for(Integer i : lambda)
 	    {
-	        out.add(new Position(i));
+	        out.add(solutionSpace.positionFromPos(invResMap[i]));
 	    }
 	    return out;
 	}

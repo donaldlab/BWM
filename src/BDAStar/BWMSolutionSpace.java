@@ -2,6 +2,8 @@ package BDAStar;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -14,7 +16,7 @@ public class BWMSolutionSpace implements SolutionSpace {
 	private EnergyFunction energyFunction;
     private Map<Position, Collection<ProteinChoice>> choices;
     private int[] designIndexToStrandIndex;
-    private int[][] strandDesignIndeces;
+    private int[][] strandDesignIndices;
     private int[] designIndexToStrandResidueIndex;
     public Collection<ProteinChoice> getChoices (Position p){
         return choices.get(p);
@@ -22,7 +24,12 @@ public class BWMSolutionSpace implements SolutionSpace {
     
     public BWMSolutionSpace(PrunedRotamers<Boolean> library, EnergyFunction e, int[] mutRes2Strand, int[][] strandMut, int[] mutRes2StrandMutIndex)
     {
+    	super();
     	energyFunction = e;
+    	designIndexToStrandIndex = mutRes2Strand;
+    	strandDesignIndices = strandMut;
+    	designIndexToStrandResidueIndex = mutRes2StrandMutIndex;
+    	choices = new HashMap<Position, Collection<ProteinChoice>>();
         /* We have to port over the rotamer library here, I think it's the RotamerSearch class. */
         /* TODO: 
          * 1. Convert library's contents into <Position, Collection<Choice>> Mapping.
@@ -52,14 +59,14 @@ public class BWMSolutionSpace implements SolutionSpace {
     }
 
     @Override
-    public Conformation getEmptyConformation () {
+    public ProteinConformation getEmptyConformation () {
         // TODO Auto-generated method stub
-        return new ProteinConformation();
+        return new ProteinConformation(energyFunction);
     }
     
     public Conformation createFromArray (int[] curState, RotTypeMap[][] rtm) {
         // TODO Auto-generated method stub
-        ProteinConformation conf = new ProteinConformation();
+        ProteinConformation conf = getEmptyConformation();
     	for(int i = 0; i < curState.length; i++)
     	{
     		RotTypeMap rotamerMap = rtm[i][curState[i]];
@@ -78,19 +85,23 @@ public class BWMSolutionSpace implements SolutionSpace {
         return conf;
     }
 
-    private ProteinPosition positionFromPos(int position) {
-		// TODO Auto-generated method stub
+    public ProteinPosition positionFromPos(int position) {
                 int str = designIndexToStrandIndex[position];
-                int strResNum = strandDesignIndeces[str][designIndexToStrandResidueIndex[position]];
-                return new ProteinPosition(str, strResNum);
+                int strResNum = strandDesignIndices[str][designIndexToStrandResidueIndex[position]];
+                return new ProteinPosition(str, strResNum, position);
 	}
 
-	public static Set<Position> MSetFromArray (LinkedHashSet<Integer> m) {
+	public Set<ProteinPosition> MSetFromArray (LinkedHashSet<Integer> m) {
        	/*
        	 * 1. For each integer, get the strand and sequence numbers
        	 * 2. create the corresponding ProteinPosition
        	 */
-        return null;
+		HashSet<ProteinPosition> MSet = new HashSet<ProteinPosition>();
+		for(int position: m)
+		{
+			MSet.add(positionFromPos(position));
+		}
+        return MSet;
     }
 
 }

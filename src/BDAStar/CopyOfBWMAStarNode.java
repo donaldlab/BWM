@@ -253,7 +253,7 @@ public class CopyOfBWMAStarNode implements Comparable<CopyOfBWMAStarNode> {
 
     public static CopyOfBWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s)
     {
-        List<Position> lambda = root.getCofEdge().getPositionList();
+        List<? extends Position> lambda = root.getCofEdge().getPositionList();
         CopyOfBWMAStarNode AStarRoot = new CopyOfBWMAStarNode(previous);
         AStarRoot.populateHeap(AStarRoot.children, lambda, 0, previous, s);
         if(!root.getIsLeaf())
@@ -275,7 +275,7 @@ public class CopyOfBWMAStarNode implements Comparable<CopyOfBWMAStarNode> {
         return AStarRoot;
     }
     
-    public void populateHeap(PriorityQueue<CopyOfBWMAStarNode> heap, List<Position> positions, int index, Conformation currentConf, SolutionSpace s)
+    public void populateHeap(PriorityQueue<CopyOfBWMAStarNode> heap, List<? extends Position> positions, int index, Conformation currentConf, SolutionSpace s)
     {
         for(Choice c : s.getChoices(positions.get(index)))
         {

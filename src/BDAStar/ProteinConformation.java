@@ -12,15 +12,18 @@ import kstar.PairwiseEnergyMatrix;
 
 public class ProteinConformation extends AbstractConformation {
  
-    private EnergyFunction energyFunction;
-    public ProteinConformation()
-    {
-        super();
-    }
+    private static EnergyFunction energyFunction;
     
-    public ProteinConformation(Conformation t)
+    public ProteinConformation(EnergyFunction e)
     {
     	super();
+    	energyFunction = e;
+    }
+    
+    public ProteinConformation(Conformation t, EnergyFunction e)
+    {
+    	super();
+    	energyFunction = e;
         for(Position p : t.getPositions())
         {
             if(getChoiceAt(p) != null && t.getChoiceAt(p) != getChoiceAt(p))
@@ -107,7 +110,7 @@ public class ProteinConformation extends AbstractConformation {
 	@Override
 	public Conformation copy() {
 		// TODO Auto-generated method stub
-		return new ProteinConformation(this);
+		return new ProteinConformation(this, energyFunction);
 	}
 
 }

@@ -2,6 +2,10 @@ package kstar;
 
 import java.io.Serializable;
 
+import BDAStar.BWMAStarNode;
+import BDAStar.BWMSolutionSpace;
+import BDAStar.Conformation;
+
 public class TreeNode implements Serializable {
 	
 	private int name = -1; //the name of this node
@@ -76,5 +80,55 @@ public class TreeNode implements Serializable {
 	
 	public boolean getIsLeaf(){
 		return isLeaf;
+	}
+
+	public String toString()
+	{
+		String out = "[";
+		if(cOfEdge != null)
+		{			
+			for(int i : cOfEdge.getLambda())
+				out+=i+", ";
+		}
+		out+="]";
+		
+		out += " - L Set:[";
+		if(cOfEdge != null)
+		{			
+			for(int i : cOfEdge.getL())
+				out+=i+", ";
+		}
+		out+="]";
+		
+		out += " - M Set:[";
+		if(cOfEdge != null)
+		{			
+			for(int i : cOfEdge.getM())
+				out+=i+", ";
+		}
+		out+="]";
+		return out;
+	}
+	
+    public void printTree(String prefix)
+    {
+        String output = prefix+this;
+
+        System.out.println(output);
+        if(lc != null)
+        lc.printTree(prefix+"L--");
+        if(rc!=null)
+        rc.printTree(prefix+"R--");
+    }
+	
+	public void setEnumerationObjects(BWMAStarNode asroot,
+			BWMSolutionSpace space) {
+		if(cOfEdge != null)
+			cOfEdge.setBWMAStarObjects(asroot, space);
+		if(lc != null)
+			lc.setEnumerationObjects(asroot, space);
+		if(rc != null)
+			rc.setEnumerationObjects(asroot, space);
+		
 	}
 }
