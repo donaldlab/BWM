@@ -315,8 +315,8 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             for(BWMAStarNode child : AStarRoot.children)
             {
             	child.leftChildren = new  PriorityQueue<BWMAStarNode>();
+            	populateHeap(root.getlc(), child, child.leftChildren, root.getlc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
             	child.rightChildren = new  PriorityQueue<BWMAStarNode>();
-                populateHeap(root.getlc(), child, child.leftChildren, root.getlc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
                 populateHeap(root.getrc(), child, child.rightChildren, root.getrc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
             	Conformation rightHandSide = child.rightChildren.poll().partialConformation;
             	child.branching = true;
