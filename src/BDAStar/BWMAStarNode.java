@@ -118,6 +118,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             int offset = getRightConformation(peeked);
             Conformation rightSide = null;
             if(offset >= solutionList.size()){
+                if(rightChildren.size() > 0)
                 rightSide = rightChildren.peek().peekNextConformation();
             }
             else rightSide = solutionList.get(offset);
@@ -289,6 +290,11 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         }
     }
     
+    private String conformationStringFromMSet(Set<ProteinPosition> MSet)
+    {
+        return "";
+    }
+    
     private boolean shareElements(Iterable<Position> set1, Set<Position> set2)
     {
         for(Position p1: set1)
@@ -306,36 +312,80 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s, int index)
     {
+        /*
+        System.out.println("PRINTING TREE");
+        root.printTree("");
+        System.out.println("END PRINT TREE");
+        */
         List<? extends Position> lambda = root.getCofEdge().getPositionList();
-        BWMAStarNode AStarRoot = new BWMAStarNode(previous);
+        System.out.println(root+", Index "+index+", "+previous+", "+lambda.size());
+        BWMAStarNode AStarRoot = new BWMAStarNode(s.getEmptyConformation());//previous);
         if(index < lambda.size())
             populateHeap(root, AStarRoot, AStarRoot.children, lambda, index, previous, s);
+        System.out.println("Population of "+root+" complete. Resulting heap size: "+AStarRoot.children.size());
         if(!root.getIsLeaf())
         {
+            System.out.println("Processing left and right subtrees...."+AStarRoot.children.size());
+            if(AStarRoot.children.size() < 1)
+                AStarRoot.children.add(new BWMAStarNode(previous));
             for(BWMAStarNode child : AStarRoot.children)
             {
-            	child.leftChildren = new  PriorityQueue<BWMAStarNode>();
-            	populateHeap(root.getlc(), child, child.leftChildren, root.getlc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
-            	child.rightChildren = new  PriorityQueue<BWMAStarNode>();
-                populateHeap(root.getrc(), child, child.rightChildren, root.getrc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
-            	Conformation rightHandSide = child.rightChildren.poll().partialConformation;
-            	child.branching = true;
-                child.solutionList.add(rightHandSide);
-                for(BWMAStarNode leftChild : child.leftChildren)
+                
+                //TODO: Update algorithm to account for missing left or right subtrees.
+                if(root.getlc() != null)
                 {
-                    leftChild.rightSideConformation = rightHandSide;
+                    System.out.println("Left Child of "+root);
+                    TreeNode leftTreeNode = root.getlc();
+                    System.out.println("is: "+leftTreeNode);
+                    child.leftChildren = new  PriorityQueue<BWMAStarNode>();
+                    populateHeap(leftTreeNode, child, child.leftChildren, leftTreeNode.getCofEdge().getPositionList(), 0, child.partialConformation, s);
+
+                }
+                if(root.getrc() != null)
+                {
+                    System.out.println("Right Child of "+root);
+                    System.out.println(root.getrc());
+                    child.rightChildren = new  PriorityQueue<BWMAStarNode>();
+                    populateHeap(root.getrc(), child, child.rightChildren, root.getrc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
+                    if(child.rightChildren.size() > 0)
+                    {
+                        Conformation rightHandSide = child.rightChildren.poll().partialConformation;
+                        child.branching = true;
+                        child.solutionList.add(rightHandSide);
+                        for(BWMAStarNode leftChild : child.leftChildren)
+                        {
+                            leftChild.rightSideConformation = rightHandSide;
+                        }
+                    }
                 }
             }
         }
+        else System.out.println(root+" has no children.");
+        AStarRoot.printTree("");
         return AStarRoot;
     }
     
     public static void populateHeap(TreeNode root, BWMAStarNode node, PriorityQueue<BWMAStarNode> heap, List<? extends Position> positions, int index, Conformation currentConf, SolutionSpace s)
     {
-    	if(index == 0 && positions.size() < 1) return;
+        System.out.println("Populating "+root+", index: "+index +", number of positions: "+positions.size());
+    	if(index == 0 && positions.size() < 1)
+    	{
+    	    System.out.println("Emptynode: "+index+" "+positions.size()+" leaf: "+root.getIsLeaf());
+    	    System.out.println("Parent: "+root.getp());
+            System.out.println("Current: "+root);
+            //root.getp().printTree("");
+    	    System.out.println("BLANK");
+        
+            BWMAStarNode next = CreateTree(root, currentConf, s, index + 1);
+            node.addChildMap(next);
+            heap.add(next);
+            return;
+    	}
+    	System.out.println("Creating new conformation... number of choices: "+s.getChoices(positions.get(index)).size());
+           
         for(Choice c : s.getChoices(positions.get(index)))
         {
-            Conformation nextConf = currentConf.copy();
+             Conformation nextConf = currentConf.copy();
             nextConf.append(positions.get(index), c);
             System.out.println("Creating conformation " + nextConf);
             if(index >= positions.size() - 1)
@@ -343,6 +393,11 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             	BWMAStarNode next = CreateTree(root, nextConf, s, index+1);
             	node.addChildMap(next);
             	heap.add(next);
+            	System.out.println("Heap is now: "+heap.size());
+            	if(heap.size() == 3)
+               	{
+            	    System.out.println("Catch!");
+            	}
             }
             else 
                 populateHeap(root, node, heap, positions, index+1, nextConf, s);

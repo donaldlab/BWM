@@ -13,6 +13,7 @@ import BDAStar.Conformation;
 import BDAStar.Position;
 import BDAStar.ProteinConformation;
 import BDAStar.ProteinPosition;
+import BDAStar.SolutionSpace;
 
 public class TreeEdge implements Serializable{
 	/**
@@ -211,7 +212,7 @@ public class TreeEdge implements Serializable{
 			BWMSolutionSpace solutionSpace = null;
 			*/
 			BWMAStarNode new_node = new BWMAStarNode(solutionSpace.createFromArray(curState, rtm)); 
-			root.insertChild(solutionSpace.MSetFromArray(M), new_node);
+			root.insertChild(solutionSpace.MSetFromArray(M, invResMap), new_node);
 			                      
 			        
 			

@@ -6684,12 +6684,14 @@ public class KSParser
 		bt.computeLambdaSets(bt.getRoot());
 		bt.getRoot().printTree("");
 		
-		/* New BWM Enumeration section 
+		/* New BWM Enumeration section */
 		BWMSolutionSpace space = new BWMSolutionSpace(prunedRotAtResObject, new EnergyFunction(rs.getMinMatrix(), bt.getGraph()), mp.mutRes2Strand, mp.strandMut, mp.mutRes2StrandMutIndex);
 		bt.setEnumerationObjects(null, space);
 		BWMAStarNode AStarRoot = BWMAStarNode.CreateTree(bt.getRoot().getlc(), space.getEmptyConformation(), space, 0);
 		bt.setEnumerationObjects(AStarRoot, space);
-		*/
+		AStarRoot.printTree("");
+		System.out.println("Result: "+AStarRoot.getNextConformation());
+		
 		//bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
 		
 	}
