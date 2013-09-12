@@ -210,9 +210,11 @@ public class TreeEdge implements Serializable{
 
 			BWMAStarNode root = null;
 			BWMSolutionSpace solutionSpace = null;
-			*/
+			
 			BWMAStarNode new_node = new BWMAStarNode(solutionSpace.createFromArray(curState, rtm)); 
 			root.insertChild(solutionSpace.MSetFromArray(M, invResMap), new_node);
+			
+			*/
 			                      
 			        
 			
