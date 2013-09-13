@@ -43,7 +43,9 @@ public class BDAStarTest {
         SolutionSpace space = new TestSolutionSpace(2);
         //BDAStarNode rootNode = BDAStarNode.CreateTree(root, new TestConformation(), space);
         //root.setEnumerationObjects(null, space);
-        BWMAStarNode rootNode = BWMAStarNode.CreateTree(root, space.getEmptyConformation(), space, 0);
+        //BWMAStarNode rootNode = BWMAStarNode.CreateTree(root, space.getEmptyConformation(), space, 0);
+        BWMAStarNode rootNode = new BWMAStarNode(space.getEmptyConformation());
+        BWMAStarNode.CreateTree2(root, rootNode, space.getEmptyConformation(), rootNode.getChildren(), space, 0, root.getCofEdge().getPositionList());
         
         rootNode.resort();
         System.out.println("Done!");
@@ -59,7 +61,7 @@ public class BDAStarTest {
             if(solutions.contains(c.toString()))
             	System.out.println("DUPLICATE!!!");
             solutions.add(c.toString());
-            //rootNode.printTree("");
+            rootNode.printTree("");
             
 
         }

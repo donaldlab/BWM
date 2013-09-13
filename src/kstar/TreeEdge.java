@@ -610,6 +610,8 @@ public class TreeEdge implements Serializable{
 	public void setPositions(LinkedHashSet<Integer> set)
 	{
 	    lambda = set;
+	    if(lambda.size() > 0)
+	        isLambdaEdge = true;
 	}
 
 	public Set<Position> getPositionSet () {
@@ -627,14 +629,33 @@ public class TreeEdge implements Serializable{
 	    }
 	    return out;
 	}
-	
+
+	public List<Position> getDummyPositionList () {
+	    LinkedList<Position> out = new LinkedList<Position>();
+	    if(lambda == null)
+	    {
+	        //lambda = new LinkedHashSet<Integer>();
+	        for(int i = 0; i < 2; i ++)
+	            lambda.add(i);
+	    }
+
+	    for(Integer i : lambda)
+	    {
+	        out.add(new Position(i));
+	    }
+	    return out;
+	}
+
 
 
 	public List<? extends Position> getPositionList () {
-	    LinkedList<ProteinPosition> out = new LinkedList<ProteinPosition>();
+	    LinkedList<Position> out = new LinkedList<Position>();
 	    for(Integer i : lambda)
 	    {
-	        out.add(solutionSpace.positionFromPos(invResMap[i]));
+	        int store = i;
+	        if(solutionSpace != null)
+	            out.add(solutionSpace.positionFromPos(invResMap[i]));
+	        else out.add(new Position(store));
 	    }
 	    return out;
 	}

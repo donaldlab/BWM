@@ -68,9 +68,9 @@ import java.lang.Runtime;
 import java.util.*;
 import java.lang.Integer;
 import java.math.*;
-
 import BDAStar.BWMAStarNode;
 import BDAStar.BWMSolutionSpace;
+import BDAStar.Conformation;
 import BDAStar.EnergyFunction;
 import mpi.MPI;
 import mpi.MPIException;
@@ -6687,10 +6687,18 @@ public class KSParser
 		/* New BWM Enumeration section */
 		BWMSolutionSpace space = new BWMSolutionSpace(prunedRotAtResObject, new EnergyFunction(rs.getMinMatrix(), bt.getGraph()), mp.mutRes2Strand, mp.strandMut, mp.mutRes2StrandMutIndex);
 		bt.setEnumerationObjects(null, space);
-		BWMAStarNode AStarRoot = BWMAStarNode.CreateTree(bt.getRoot().getlc(), space.getEmptyConformation(), space, 0);
+		TreeNode start = bt.getRoot().getlc();
+		BWMAStarNode AStarRoot = new BWMAStarNode(space.getEmptyConformation());
+		BWMAStarNode.CreateTree2(start, AStarRoot, space.getEmptyConformation(), AStarRoot.getChildren(), space, 0, start.getCofEdge().getPositionList());
 		bt.setEnumerationObjects(AStarRoot, space);
 		AStarRoot.printTree("");
-		System.out.println("Result: "+AStarRoot.getNextConformation());
+		int rank = 0;
+		while(AStarRoot.moreConformations()){
+		    rank++;
+		    Conformation out = AStarRoot.getNextConformation();
+		    System.out.println("Result "+rank+": "+ out + ", "+out.score());
+		    //AStarRoot.printTree("");
+		}
 		
 		//bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
 		
