@@ -319,9 +319,39 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
     {
     	/*
     	 * 1. If not complete lambda set, recurse, incrementing index and appending to the conformation.
-    	 * 2. (tree compacting section) If:
-    	 *      a) the current node has one leaf child with no lambda set, merge it into the current node and don't recurse.
-    	 *      b) the current node (now) has no lambda set and has only one child, merge it into its parent and delete it from the structure.
+    	 */
+    	List<? extends Position> lambda = root.getCofEdge().getPositionList();
+        if(index < lambda.size() - 1)
+        	CreateTree2(root, previous, s, index + 1, heap, positions);
+        BWMAStarNode newNode = new BWMAStarNode(previous);
+        TreeNode nextLeftEdge = searchSubtree(root.getlc());
+        TreeNode nextRightEdge = searchSubtree(root.getrc());
+        if(nextLeftEdge != null)
+        {
+        	CreateTree2(nextLeftEdge, previous, s, 0, newNode.children, positions);
+        }
+        if(nextRightEdge != null)
+        {
+        	PriorityQueue<BWMAStarNode> nextHeap = newNode.children;
+        	if(nextLeftEdge != null)
+        		nextHeap = newNode.rightChildren;
+        	CreateTree2(nextRightEdge, previous, s, 0, nextHeap, positions);
+        	if(nextLeftEdge != null)
+        	{
+        		/* assign partial conformation */
+        		System.out.println("Placeholder.");
+                Conformation rightHandSide = newNode.rightChildren.peek().partialConformation;
+                newNode.branching = true;
+                newNode.solutionList.add(rightHandSide);
+                for(BWMAStarNode leftChild : newNode.children)
+                {
+                    leftChild.rightSideConformation = rightHandSide;
+                }
+        	}
+        }
+        
+        heap.add(newNode);
+        /*
     	 * 3. Create new tree node with the current conformation.
     	 * 4. Add it to the provided heap.
     	 * 5. find next treenode by applying recursive compacting algorithm on whatever tree exists, preferentially left
@@ -331,11 +361,31 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
     	 * 8. if only one exist, recurse on that child.
     	 * 
     	 */
-    	return null;
+    	return newNode;
     }
     
 
-    public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s, int index)
+    private static TreeNode searchSubtree(TreeNode node) {
+    	boolean isLeaf = node.getIsLeaf();
+    	boolean isLambdaEdge = node.getCofEdge().getIsLambdaEdge();
+    	if(isLambdaEdge)
+    	{
+    		return node;
+    	}
+    	if(isLeaf) 
+    		return null;
+    	TreeNode leftChild = node.getlc();
+    	TreeNode rightChild = node.getrc();
+    	if(leftChild.getIsLeaf() && !leftChild.getCofEdge().getIsLambdaEdge())
+    		return searchSubtree(rightChild);
+    	if(rightChild.getIsLeaf() && !rightChild.getCofEdge().getIsLambdaEdge())
+    		return searchSubtree(leftChild);
+    	/* TODO:  incomplete algorithm */
+		return null;
+	}
+
+
+	public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s, int index)
     {
         /*
         System.out.println("PRINTING TREE");
