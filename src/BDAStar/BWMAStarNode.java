@@ -352,7 +352,6 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                     newNode.rightChildren = new PriorityQueue<BWMAStarNode>();
                     nextHeap = newNode.rightChildren;
                     newNode.branching = true;
-                    newNode.children = newNode.children;
                 }
                 CreateTree2(nextRightEdge, newNode, newNode.partialConformation, nextHeap, s, 0, nextRightEdge.getCofEdge().getPositionList());
                 if(nextLeftEdge != null)
