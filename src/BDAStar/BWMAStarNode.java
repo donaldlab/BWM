@@ -224,7 +224,12 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         if(solutionList.size() -1 <= offset)
         {
             if(rightChildren.size() < 1){
-                children.poll();
+                BWMAStarNode nextChild = children.poll();
+                nextChild.getNextConformation();
+                if(nextChild.moreConformations())
+                {
+                	children.add(nextChild);
+                }
             }
             if(rightChildren.size() > 0)
             {
@@ -235,6 +240,34 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return rightConformation;
     }
 
+    public String printTreeToString(String prefix, Conformation c, String soFar)
+    {
+       Conformation joined = partialConformation;
+        if(rightSideConformation != null)
+            joined = joined.join(rightSideConformation);
+        String output = prefix+joined+", "+peekNextConformation().score()+
+        		" children: "+children+children.hashCode();
+        if(branching)
+        	output+= ", left : "+children+children.hashCode()+", right "+
+        		rightChildren+rightChildren.hashCode()+"\n";
+        if(branching)
+        {
+            for(BWMAStarNode leftChild : children)
+            {
+                leftChild.printTreeToString(prefix+"L--",joined, soFar);
+            }
+            for(BWMAStarNode rightChild : rightChildren)
+            {
+                rightChild.printTreeToString(prefix+"R--",joined, soFar);
+            }
+        }
+        else
+        for(BWMAStarNode child: children)
+        {
+            child.printTreeToString(prefix+"+--",joined, soFar);
+        }
+        return soFar + output;
+    }
 
     public void printTree(String prefix, Conformation c)
     {

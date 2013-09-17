@@ -46,7 +46,7 @@ public class BWMSolutionSpace implements SolutionSpace {
             Position p = positionFromPos(r.curPos);
             if(!choices.containsKey(p))
                 choices.put(p, new ArrayList<ProteinChoice>());
-            if(choices.get(p).size() < 2)
+            if(choices.get(p).size() < 3)
                 choices.get(p).add(new ProteinChoice(r.curAA, r.curRot));
         }
         /*
