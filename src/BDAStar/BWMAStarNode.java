@@ -166,25 +166,24 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public boolean moreConformations()
     {
-        return children.size() > 0 || (branching && children.size() > 0);
+        return children.size() > 0;
     }
 
     public Conformation getNextConformation () 
     {
-        fullConformation(partialConformation).toString();
         if(branching){
-            Conformation leftConformation = children.peek().partialConformation;
+            Conformation leftConformation = children.peek().peekPartial();
             Conformation rightConformation = null;
             if(rightChildren != null)
             {
-	            int offset = getRightConformation(leftConformation);
-	            rightConformation = updateConformationList(leftConformation, offset);
-	            removeFinishedConformation(offset);
-	        }
+                int offset = getRightConformation(leftConformation);
+                rightConformation = updateConformationList(leftConformation, offset);
+                removeFinishedConformation(offset);
+            }
 
             return leftConformation.join(rightConformation);
         }
-        
+
         if(children.size() < 1){
             return fullConformation(partialConformation);
         }
@@ -196,7 +195,6 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         {
             children.add(next);
         }
-        nextConf.toString();
         return nextConf;
     }
 
@@ -239,6 +237,8 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public void printTree(String prefix, Conformation c)
     {
+        if(prefix.length() < 1)
+            System.out.println("BEGIN PRINT TREE==================================================");
         Conformation joined = partialConformation;
         if(rightSideConformation != null)
             joined = joined.join(rightSideConformation);

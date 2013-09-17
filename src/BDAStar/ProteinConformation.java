@@ -101,10 +101,6 @@ public class ProteinConformation extends AbstractConformation {
     	Arrays.sort(c);
         for(int i = 0; i < c.length; i++)
         {
-            if(c[i].pos == 1)
-            {
-                System.out.println("Cacth!");
-            }
             out+="("+c[i].pos+": "+getChoiceAt(c[i]).choice+"), ";
         }
         out+="]";

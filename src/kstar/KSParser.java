@@ -6693,11 +6693,16 @@ public class KSParser
 		bt.setEnumerationObjects(AStarRoot, space);
 		AStarRoot.printTree("");
 		int rank = 0;
+		double lastScore = -500;
 		while(AStarRoot.moreConformations()){
 		    rank++;
 		    Conformation out = AStarRoot.getNextConformation();
+		    if(lastScore > out.score())
+		    {
+		        System.out.println("WRONG ORDER");
+		    }
+		    lastScore = out.score();
 		    System.out.println("Result "+rank+": "+ out + ", "+out.score());
-		    //AStarRoot.printTree("");
 		}
 		
 		//bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
