@@ -114,7 +114,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
         if(branching)
         {
-            Conformation peeked = children.peek().partialConformation;
+            Conformation peeked = children.peek().peekPartial();
             int offset = getRightConformation(peeked);
             Conformation rightSide = null;
             if(offset >= solutionList.size()){
@@ -146,7 +146,13 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public Conformation peekPartial()
     {
-        if(isSubtreeRoot) 
+    	
+        if(children.size() < 1)
+        {
+            return partialConformation;
+        }
+        
+        if(rightChildren == null) 
         {
             return children.peek().peekPartial();
         }
@@ -154,11 +160,6 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         if(branching)
         {
             return children.peek().peekNextConformation();
-        }
-
-        if(children.size() < 1)
-        {
-            return partialConformation;
         }
 
         return children.peek().peekNextConformation();

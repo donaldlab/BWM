@@ -6696,6 +6696,10 @@ public class KSParser
 		double lastScore = -500;
 		while(AStarRoot.moreConformations()){
 		    rank++;
+		    if(rank == 371 || rank == 372){
+		    	System.out.println("Catch!");
+		    	AStarRoot.printTree("");
+		    }
 		    Conformation out = AStarRoot.getNextConformation();
 		    if(lastScore > out.score())
 		    {
