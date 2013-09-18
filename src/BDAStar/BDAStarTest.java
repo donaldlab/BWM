@@ -20,7 +20,7 @@ public class BDAStarTest {
     	LinkedHashSet<Integer> lambda = new LinkedHashSet<Integer>();
     	LinkedHashSet<Integer> lambda2 = new LinkedHashSet<Integer>();
     	LinkedHashSet<Integer> lambda3 = new LinkedHashSet<Integer>();
-    	int choices = 5;
+    	int choices = 2;
         for(int i = 0; i < choices; i ++)
         {
             lambda.add(i);
@@ -53,6 +53,7 @@ public class BDAStarTest {
         int rank = 0;
         HashSet<String> solutions = new HashSet<String>();
         double lastScore = -1000;
+        System.out.println("Total solutions: "+rootNode.totalPossibleCombinations());
         while(rootNode.moreConformations() && rank < 500)
         {
             rank++;
@@ -61,12 +62,21 @@ public class BDAStarTest {
             	System.out.println("WRONG ORDER");
             System.out.println("RESULT "+rank+": "+c+", SCORE: "+c.score());
             lastScore = c.score();
+            
+            if(rank == 57)
+            {
+                System.out.println("");
+            }
 
             if(solutions.contains(c.toString()))
             	System.out.println("DUPLICATE!!!");
             solutions.add(c.toString());
-            //rootNode.printTree("");
-            
+            rootNode.printTree("");
+            if(rank + rootNode.remainingConformations() != 64)
+            {
+                System.out.println("Dur?");
+            }
+            System.out.println("Remaining conformations: "+rootNode.remainingConformations());
 
         }
         
@@ -80,7 +90,7 @@ public class BDAStarTest {
         }
         
         HashSet<String> fullSpace = new HashSet<String>(); 
-        buildAllSolutions(fullSpace, new TestConformation(), 0, 5, 5);
+        buildAllSolutions(fullSpace, new TestConformation(), 0, 5, 2);
         System.out.println("Total possible solutions: "+fullSpace.size());
         fullSpace.removeAll(solutions);
         System.out.println("Missing solutions: "+fullSpace.size());

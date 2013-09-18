@@ -6691,23 +6691,29 @@ public class KSParser
 		BWMAStarNode AStarRoot = new BWMAStarNode(space.getEmptyConformation());
 		BWMAStarNode.CreateTree2(start, AStarRoot, space.getEmptyConformation(), AStarRoot.getChildren(), space, 0, start.getCofEdge().getPositionList());
 		bt.setEnumerationObjects(AStarRoot, space);
+		//AStarRoot.remainingConformations();
 		AStarRoot.printTree("");
 		int rank = 0;
 		double lastScore = -500;
+		
+		int lastRemaining = AStarRoot.totalPossibleCombinations();
 		while(AStarRoot.moreConformations()){
 		    rank++;
-		    if(rank > 26240){
-		    	System.out.println("Catch!");
-		    	AStarRoot.printTree("");
-		    }
+		    if(rank > 1018 && rank < 1023)
+		        AStarRoot.printTree("");
 		    Conformation out = AStarRoot.getNextConformation();
+                    
 		    if(lastScore > out.score())
-		    {
-		        System.out.println("WRONG ORDER");
-		    }
+                    {
+                        System.out.println("WRONG ORDER");
+                    }
+                   
 		    lastScore = out.score();
 		    System.out.println("Result "+rank+": "+ out + ", "+out.score());
+
+                    
 		}
+		
 		
 		//bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
 		

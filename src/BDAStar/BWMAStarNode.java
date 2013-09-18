@@ -41,12 +41,17 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
     boolean isSubtreeRoot = false;
     boolean branching = false;
 
+    /* TODO: REMOVE THIS */
+    private BWMAStarNode parent;
+
 
     private Conformation rightSideConformation;
+    private int totalPossible;
+    private int remaining;
 
     public BWMAStarNode(Conformation conf) 
     {
-    	childrenMap = new HashMap<String, BWMAStarNode>();
+        childrenMap = new HashMap<String, BWMAStarNode>();
         children = new PriorityQueue<BWMAStarNode>();
         solutionList = new LinkedList<Conformation>();
         solutions = new HashMap<String, Integer>();
@@ -54,9 +59,14 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
     }
 
 
-	public void addChild(Conformation conf)
+    public void addChild(Conformation conf)
     {
         children.add(new BWMAStarNode(conf));
+    }
+    
+    public void setParent(BWMAStarNode p)
+    {
+        parent = p;
     }
 
     public void resort()
@@ -106,9 +116,10 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     private Conformation peekNextConformation () 
     {
-        
+
         if(children.size() < 1)
         {
+            //System.out.println("Returning on "+partialConformation+", my right side is "+rightSideConformation);
             return fullConformation(partialConformation);
         }
 
@@ -117,22 +128,25 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             Conformation peeked = children.peek().peekPartial();
             int offset = getRightConformation(peeked);
             Conformation rightSide = null;
+            System.out.println("PEEK "+peeked + " offset is "+offset+", should append "+solutionList.get(offset));
             if(offset >= solutionList.size()){
                 if(rightChildren.size() > 0)
-                rightSide = rightChildren.peek().peekNextConformation();
+                    rightSide = rightChildren.peek().peekNextConformation();
             }
             else rightSide = solutionList.get(offset);
+            System.out.println("Solution list for "+peeked+" : "+solutionList);
+            children.peek().rightSideConformation = rightSide;
 
             if(rightSide == null){
                 return fullConformation(partialConformation);
             }
-            return peeked.join(rightSide);
+            return fullConformation(peeked.join(rightSide));
         }
 
 
         return fullConformation(children.peek().peekNextConformation());
     }
-    
+
 
     private Conformation fullConformation(Conformation out)
     {
@@ -146,22 +160,11 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public Conformation peekPartial()
     {
-    	
+
         if(children.size() < 1)
         {
             return partialConformation;
         }
-        
-        if(rightChildren == null) 
-        {
-            return children.peek().peekPartial();
-        }
-
-        if(branching)
-        {
-            return children.peek().peekNextConformation();
-        }
-
         return children.peek().peekNextConformation();
     }
 
@@ -172,6 +175,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public Conformation getNextConformation () 
     {
+        remaining --;
         if(branching){
             Conformation leftConformation = children.peek().peekPartial();
             Conformation rightConformation = null;
@@ -228,60 +232,112 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                 nextChild.getNextConformation();
                 if(nextChild.moreConformations())
                 {
-                	children.add(nextChild);
+                    children.add(nextChild);
                 }
             }
             if(rightChildren.size() > 0)
             {
-                solutionList.add(rightChildren.poll().getNextConformation());
+                BWMAStarNode rightChild = rightChildren.poll();
+                solutionList.add(rightChild.getNextConformation());
+                if(rightChild.moreConformations())
+                    rightChildren.add(rightChild);
             }
             rightConformation = solutionList.get(offset);
         }
         return rightConformation;
     }
 
-    public String printTreeToString(String prefix, Conformation c, String soFar)
+    public int remainingConformations()
     {
-       Conformation joined = partialConformation;
-        if(rightSideConformation != null)
-            joined = joined.join(rightSideConformation);
-        String output = prefix+joined+", "+peekNextConformation().score()+
-        		" children: "+children+children.hashCode();
-        if(branching)
-        	output+= ", left : "+children+children.hashCode()+", right "+
-        		rightChildren+rightChildren.hashCode()+"\n";
+        if(children.size() < 1)
+        {
+            return remainingRightConformations(partialConformation);
+        }
+        int sum = 0;
         if(branching)
         {
-            for(BWMAStarNode leftChild : children)
+            for(BWMAStarNode leftChild: children)
             {
-                leftChild.printTreeToString(prefix+"L--",joined, soFar);
-            }
-            for(BWMAStarNode rightChild : rightChildren)
-            {
-                rightChild.printTreeToString(prefix+"R--",joined, soFar);
+                int add = leftChild.remainingConformations();
+                sum += add;
             }
         }
         else
         for(BWMAStarNode child: children)
         {
-            child.printTreeToString(prefix+"+--",joined, soFar);
+            int add = child.remainingConformations();
+            sum += add;
         }
-        return soFar + output;
+        //printTree("");
+        return sum;
+    }
+    
+    public int remainingRightConformations(Conformation c)
+    {
+        if(!solutions.isEmpty() && !solutions.containsKey(c.toString()))
+        {
+            if(c.getPositions().containsAll(children.peek().peekPartial().getPositions()))
+                getRightConformation(c);
+        }
+        if(solutions != null && solutions.containsKey(c.toString()))
+        {
+            return totalRightCombinations() - solutions.get(c.toString());
+        }
+        if(parent == null)
+        {
+            return 0;
+        }
+        return parent.remainingRightConformations(c);
+
     }
 
+    
+    public int totalPossibleCombinations()
+    {
+        if(children.size() < 1)
+        {
+            return 1;
+        }
+        int sum = 0;
+        for(BWMAStarNode child : children)
+        {
+            sum += child.totalPossibleCombinations();
+        }
+        totalPossible = sum;
+        return sum*totalRightCombinations();
+    }
+    
+    private int totalRightCombinations()
+    {
+        int rightCombinations = 1;
+        
+        if(branching)
+        {
+            rightCombinations = 0;           
+            for(BWMAStarNode rightChild : rightChildren)
+            {
+                rightCombinations += rightChild.totalPossibleCombinations();
+            }
+        }
+        return rightCombinations + solutionList.size();
+    }
+    
     public void printTree(String prefix, Conformation c)
     {
         if(prefix.length() < 1)
             System.out.println("BEGIN PRINT TREE==================================================");
         Conformation joined = partialConformation;
+        Conformation peeked = peekNextConformation();
+        joined = joined.join(peeked);
         if(rightSideConformation != null)
             joined = joined.join(rightSideConformation);
-        String output = prefix+joined+", "+peekNextConformation().score()+
-        		" children: "+children+children.hashCode();
-        if(branching)
-        	output+= ", left : "+children+children.hashCode()+", right "+
-        		rightChildren+rightChildren.hashCode();
+        String output = prefix+joined+", "+peeked.score()+
+                " totalConformations: "+totalPossibleCombinations()+", rightConformations : "+totalRightCombinations();
+        if(parent!= null)
+            output += " remaining right conformations "+remainingRightConformations(peekPartial());
 
+        if(parent != null)
+            output += ", parent solution list size "+parent.solutionList.size();
         System.out.println(output);
         if(branching)
         {
@@ -295,11 +351,11 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             }
         }
         else
-        for(BWMAStarNode child: children)
-        {
-            child.printTree(prefix+"+--",joined);
-        }
-        
+            for(BWMAStarNode child: children)
+            {
+                child.printTree(prefix+"+--",joined);
+            }
+
     }
 
 
@@ -314,64 +370,41 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         if(nextBestScore() - node.nextBestScore() > 0) return 1;
         return 0;
     }
-    
+
     public void insertChild(Set<ProteinPosition> MSet, BWMAStarNode node)
     {
         if(MSet.isEmpty())
             children.add(node);
         else
         {
-        	HashSet<ProteinPosition> nextSet = new HashSet<ProteinPosition>();
-        	nextSet.addAll(MSet);
-        	nextSet.removeAll(partialConformation.getPositions());
+            HashSet<ProteinPosition> nextSet = new HashSet<ProteinPosition>();
+            nextSet.addAll(MSet);
+            nextSet.removeAll(partialConformation.getPositions());
             childrenMap.get(MSet).insertChild(nextSet, node);
         }
     }
-    
-    private String conformationStringFromMSet(Set<ProteinPosition> MSet)
-    {
-        return "";
-    }
-    
-    private boolean shareElements(Iterable<Position> set1, Set<Position> set2)
-    {
-        for(Position p1: set1)
-            if(set2.contains(p1))
-                return true;
-        return false;   
-    }
-    
-    private void addChildMap(BWMAStarNode child)
-    {
-    	childrenMap.put(child.partialConformation.toString(), child);
-    }
-    
+
     public PriorityQueue<BWMAStarNode> getChildren()
     {
         return children;
     }
-    
+
     public static void CreateTree2(TreeNode root, BWMAStarNode parent, Conformation previous, PriorityQueue<BWMAStarNode> heap, SolutionSpace s, int index, List<? extends Position> positions)
     {
-        /*
-         * 1. If not complete lambda set, recurse, incrementing index and appending to the conformation.
-         */
-        
-        System.out.println("Recurse: "+parent.partialConformation+", "+index);
-        if(index < positions.size())
+        //System.out.println("Recurse: parent is "+parent.partialConformation+", previous is "+previous+", index "+index);
+         if(index < positions.size())
         {
             for(Choice c : s.getChoices(positions.get(index)))
             {
                 Conformation nextConf = previous.copy();
                 nextConf.append(positions.get(index), c);
-                System.out.println("Created conformation "+nextConf);
                 CreateTree2(root, parent, nextConf, heap, s, index + 1, positions);
             }
         }
         else
         {
-            System.out.println("Creating new node...");
             BWMAStarNode newNode = new BWMAStarNode(previous);
+            newNode.setParent(parent);
             TreeNode nextLeftEdge = searchSubtree(root.getlc());
             TreeNode nextRightEdge = searchSubtree(root.getrc());
             if(nextLeftEdge != null)
@@ -380,6 +413,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             }
             if(nextRightEdge != null)
             {
+                
                 PriorityQueue<BWMAStarNode> nextHeap = newNode.children;
                 if(nextLeftEdge != null)
                 {
@@ -391,153 +425,44 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                 if(nextLeftEdge != null)
                 {
                     /* assign partial conformation */
-                    System.out.println("Placeholder.");
                     BWMAStarNode rightChild = newNode.rightChildren.poll();
                     Conformation rightHandSide = rightChild.getNextConformation();
                     if(rightChild.moreConformations())
                         newNode.rightChildren.add(rightChild);
-                    newNode.branching = true;
                     newNode.solutionList.add(rightHandSide);
                     for(BWMAStarNode leftChild : newNode.children)
                     {
                         leftChild.rightSideConformation = rightHandSide;
+                        newNode.getRightConformation(leftChild.peekPartial());
                     }
-                    
                 }
             }
+
+            newNode.remaining = newNode.totalPossibleCombinations();
             if(heap != null)
                 heap.add(newNode);
-            /*
-             * 3. Create new tree node with the current conformation.
-             * 4. Add it to the provided heap.
-             * 5. find next treenode by applying recursive compacting algorithm on whatever tree exists, preferentially left
-             * 6. run the compacting search on the right treenode
-             * 7. if both left and right exist, recurse on the left, passing in the first heap, and then recurse on the right, passing in the right heap,
-             *     then assign the partial conformation for the right subtree to the left subtree.
-             * 8. if only one exist, recurse on that child.
-             * 
-             */
         }
     }
-    
+   
 
     private static TreeNode searchSubtree(TreeNode node) {
         if(node == null) return null;
-    	boolean isLeaf = node.getIsLeaf();
-    	boolean isLambdaEdge = node.getCofEdge().getIsLambdaEdge();
-    	if(isLambdaEdge)
-    	{
-    		return node;
-    	}
-    	if(isLeaf) 
-    		return null;
-    	TreeNode leftChild = node.getlc();
-    	TreeNode rightChild = node.getrc();
-    	if(leftChild.getIsLeaf() && !leftChild.getCofEdge().getIsLambdaEdge())
-    		return searchSubtree(rightChild);
-    	if(rightChild.getIsLeaf() && !rightChild.getCofEdge().getIsLambdaEdge())
-    		return searchSubtree(leftChild);
-    	/* TODO:  incomplete algorithm */
-		return null;
-	}
-
-
-	public static BWMAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s, int index)
-    {
-        /*
-        System.out.println("PRINTING TREE");
-        root.printTree("");
-        System.out.println("END PRINT TREE");
-        */
-        List<? extends Position> lambda = root.getCofEdge().getPositionList();
-        System.out.println(root+", Index "+index+", "+previous+", "+lambda.size());
-        BWMAStarNode AStarRoot = new BWMAStarNode(previous);
-        if(index < lambda.size())
-            populateHeap(root, AStarRoot, AStarRoot.children, lambda, index, previous, s);
-        System.out.println("Population of "+root+" complete. Resulting heap size: "+AStarRoot.children.size());
-        if(!root.getIsLeaf())
+        boolean isLeaf = node.getIsLeaf();
+        boolean isLambdaEdge = node.getCofEdge().getIsLambdaEdge();
+        if(isLambdaEdge)
         {
-            System.out.println("Processing left and right subtrees...."+AStarRoot.children.size());
-            if(AStarRoot.children.size() < 1)
-                AStarRoot.children.add(new BWMAStarNode(previous));
-            for(BWMAStarNode child : AStarRoot.children)
-            {
-                
-                //TODO: Update algorithm to account for missing left or right subtrees.
-            	child.branching = true;
-                if(root.getlc() != null)
-                {
-                    System.out.println("Left Child of "+root);
-                    TreeNode leftTreeNode = root.getlc();
-                    System.out.println("is: "+leftTreeNode);
-                    populateHeap(leftTreeNode, child, child.children, leftTreeNode.getCofEdge().getPositionList(), 0, child.partialConformation, s);
-
-                }
-                if(root.getrc() != null)
-                {
-                    System.out.println("Right Child of "+root);
-                    System.out.println(root.getrc());
-                    child.rightChildren = new  PriorityQueue<BWMAStarNode>();
-                    populateHeap(root.getrc(), child, child.rightChildren, root.getrc().getCofEdge().getPositionList(), 0, child.partialConformation, s);
-                    
-                    if(child.rightChildren.size() > 0)
-                    {
-                        Conformation rightHandSide = child.rightChildren.peek().partialConformation;
-                        child.branching = true;
-                        child.solutionList.add(rightHandSide);
-                        for(BWMAStarNode leftChild : child.leftChildren)
-                        {
-                            leftChild.rightSideConformation = rightHandSide;
-                        }
-                    }
-                    
-                }
-            }
+            return node;
         }
-        else System.out.println(root+" has no children.");
-        return AStarRoot;
+        if(isLeaf) 
+            return null;
+        TreeNode leftChild = node.getlc();
+        TreeNode rightChild = node.getrc();
+        if(leftChild.getIsLeaf() && !leftChild.getCofEdge().getIsLambdaEdge())
+            return searchSubtree(rightChild);
+        if(rightChild.getIsLeaf() && !rightChild.getCofEdge().getIsLambdaEdge())
+            return searchSubtree(leftChild);
+        /* TODO:  incomplete algorithm */
+        return null;
     }
-    
-    public static void populateHeap(TreeNode root, BWMAStarNode node, PriorityQueue<BWMAStarNode> heap, List<? extends Position> positions, int index, Conformation currentConf, SolutionSpace s)
-    {
-        System.out.println("Populating "+root+", index: "+index +", number of positions: "+positions.size());
-    	if(index == 0 && positions.size() < 1)
-    	{
-    	    System.out.println("Emptynode: "+index+" "+positions.size()+" leaf: "+root.getIsLeaf());
-    	    System.out.println("Parent: "+root.getp());
-            System.out.println("Current: "+root);
-            //root.getp().printTree("");
-    	    System.out.println("BLANK");
-        
-            BWMAStarNode next = CreateTree(root, currentConf, s, index + 1);
-            System.out.println("Adding "+next+" to "+heap+heap.hashCode());
-            node.addChildMap(next);
-            heap.add(next);
-            return;
-    	}
-    	System.out.println("Creating new conformation... number of choices: "+s.getChoices(positions.get(index)).size());
-           
-        for(Choice c : s.getChoices(positions.get(index)))
-        {
-             Conformation nextConf = currentConf.copy();
-            nextConf.append(positions.get(index), c);
-            System.out.println("Creating conformation " + nextConf);
-            if(index >= positions.size() - 1)
-            {
-            	BWMAStarNode next = CreateTree(root, nextConf, s, index+1);
-            	node.addChildMap(next);
 
-                System.out.println("Adding "+next+" to "+heap+heap.hashCode());
-            	heap.add(next);
-            	System.out.println("Heap is now: "+heap.size());
-            	if(heap.size() == 3)
-               	{
-            	    System.out.println("Catch!");
-            	}
-            }
-            else 
-                populateHeap(root, node, heap, positions, index+1, nextConf, s);
-        }
-    }
-    
 }
