@@ -114,8 +114,24 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return solutions.get(leftConformation.toString());
     }
 
+    /* TODO: DELETE catch function */
+    private boolean allZeros(Conformation c)
+    {
+    	for(Position p : c.getPositions())
+    	{
+    		//System.out.println(c.getChoiceAt(p).choice);
+    		if(c.getChoiceAt(p).choice != 0)
+    			return false;
+    	}
+    	return true;
+    }
+    
     private Conformation peekNextConformation () 
     {
+        if(allZeros(partialConformation))
+        {
+        	System.out.println("Catch!");
+        }
 
         if(children.size() < 1)
         {
@@ -128,18 +144,19 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             Conformation peeked = children.peek().peekPartial();
             int offset = getRightConformation(peeked);
             Conformation rightSide = null;
-            System.out.println("PEEK "+peeked + " offset is "+offset+", should append "+solutionList.get(offset));
+            //System.out.println("PEEK "+peeked + " offset is "+offset+", should append "+solutionList.get(offset));
             if(offset >= solutionList.size()){
                 if(rightChildren.size() > 0)
                     rightSide = rightChildren.peek().peekNextConformation();
             }
             else rightSide = solutionList.get(offset);
-            System.out.println("Solution list for "+peeked+" : "+solutionList);
+            //System.out.println("Solution list for "+peeked+" : "+solutionList);
             children.peek().rightSideConformation = rightSide;
 
             if(rightSide == null){
                 return fullConformation(partialConformation);
             }
+           //System.out.println("Returning "+peeked.join(rightSide));
             return fullConformation(peeked.join(rightSide));
         }
 
@@ -177,15 +194,17 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
     {
         remaining --;
         if(branching){
-            Conformation leftConformation = children.peek().peekPartial();
+        	BWMAStarNode leftChild = children.peek();
+            Conformation leftConformation = leftChild.peekPartial();
             Conformation rightConformation = null;
             if(rightChildren != null)
             {
                 int offset = getRightConformation(leftConformation);
                 rightConformation = updateConformationList(leftConformation, offset);
                 removeFinishedConformation(offset);
+                /* TODO: Recalculation of node position is necessary here. */
             }
-
+            children.add(leftChild);
             return leftConformation.join(rightConformation);
         }
 
@@ -322,16 +341,16 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return rightCombinations + solutionList.size();
     }
     
+    
     public void printTree(String prefix, Conformation c)
     {
         if(prefix.length() < 1)
             System.out.println("BEGIN PRINT TREE==================================================");
         Conformation joined = partialConformation;
         Conformation peeked = peekNextConformation();
-        joined = joined.join(peeked);
         if(rightSideConformation != null)
             joined = joined.join(rightSideConformation);
-        String output = prefix+joined+", "+peeked.score()+
+        String output = prefix+joined+", peek to "+peeked+", "+peeked.score()+
                 " totalConformations: "+totalPossibleCombinations()+", rightConformations : "+totalRightCombinations();
         if(parent!= null)
             output += " remaining right conformations "+remainingRightConformations(peekPartial());
@@ -407,10 +426,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             newNode.setParent(parent);
             TreeNode nextLeftEdge = searchSubtree(root.getlc());
             TreeNode nextRightEdge = searchSubtree(root.getrc());
-            if(nextLeftEdge != null)
-            {
-                CreateTree2(nextLeftEdge, newNode, newNode.partialConformation, newNode.children, s, 0, nextLeftEdge.getCofEdge().getPositionList());
-            }
+           
             if(nextRightEdge != null)
             {
                 
@@ -422,19 +438,25 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                     newNode.branching = true;
                 }
                 CreateTree2(nextRightEdge, newNode, newNode.partialConformation, nextHeap, s, 0, nextRightEdge.getCofEdge().getPositionList());
-                if(nextLeftEdge != null)
+            }
+            
+            if(nextLeftEdge != null)
+            {
+                CreateTree2(nextLeftEdge, newNode, newNode.partialConformation, newNode.children, s, 0, nextLeftEdge.getCofEdge().getPositionList());
+            }
+            
+            if(nextLeftEdge != null && nextRightEdge != null)
+            {
+                /* assign partial conformation */
+                BWMAStarNode rightChild = newNode.rightChildren.poll();
+                Conformation rightHandSide = rightChild.getNextConformation();
+                if(rightChild.moreConformations())
+                    newNode.rightChildren.add(rightChild);
+                newNode.solutionList.add(rightHandSide);
+                for(BWMAStarNode leftChild : newNode.children)
                 {
-                    /* assign partial conformation */
-                    BWMAStarNode rightChild = newNode.rightChildren.poll();
-                    Conformation rightHandSide = rightChild.getNextConformation();
-                    if(rightChild.moreConformations())
-                        newNode.rightChildren.add(rightChild);
-                    newNode.solutionList.add(rightHandSide);
-                    for(BWMAStarNode leftChild : newNode.children)
-                    {
-                        leftChild.rightSideConformation = rightHandSide;
-                        newNode.getRightConformation(leftChild.peekPartial());
-                    }
+                    leftChild.rightSideConformation = rightHandSide;
+                    newNode.getRightConformation(leftChild.peekPartial());
                 }
             }
 
