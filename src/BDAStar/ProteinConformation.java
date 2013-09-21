@@ -41,7 +41,8 @@ public class ProteinConformation extends AbstractConformation {
         {
             if(testConformation.getChoiceAt(p) != null && nextConformation.getChoiceAt(p) != null && nextConformation.getChoiceAt(p) != testConformation.getChoiceAt(p))
             {
-                System.out.println("OVERWRITING CHOICE at "+p.pos +": "+testConformation.getChoiceAt(p)+" with "+nextConformation.getChoiceAt(p));
+
+            	System.out.println("OVERWRITING CHOICE at "+p.pos +": "+testConformation.getChoiceAt(p)+" with "+nextConformation.getChoiceAt(p));
             }
         }
         

@@ -5,10 +5,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
+
 import kstar.TreeNode;
 
 /*
@@ -63,7 +65,7 @@ public class BDAStarNode implements Comparable<BDAStarNode> {
             //System.out.println("Remaining after poll: "+remaining.size());
             Conformation currentConf = new TestConformation(current.getConformation());
             //System.out.println("Parent conformation positions: "+currentConf.getPositions().size());
-            Set<Position> lambdaCopy = difference(lambda, currentConf.getPositions());//copy(lambda);
+            Set<Position> lambdaCopy = null;//difference(lambda, currentConf.getPositions());//copy(lambda);
             /*
             for(Position p : currentConf.getPositions())
             {

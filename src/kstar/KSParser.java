@@ -6699,7 +6699,7 @@ public class KSParser
 		int lastRemaining = AStarRoot.totalPossibleCombinations();
 		while(AStarRoot.moreConformations()){
 		    rank++;
-		    if(rank > 1018 && rank < 1023)
+		    if(rank > 1015 && rank < 1023)
 		        AStarRoot.printTree("");
 		    Conformation out = AStarRoot.getNextConformation();
                     

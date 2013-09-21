@@ -107,7 +107,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         return peekNextConformation().score();
     }
 
-    private int getRightConformation(Conformation leftConformation)
+    private int getRightConformationOffset(Conformation leftConformation)
     {
         if(!solutions.containsKey(leftConformation.toString()))
             solutions.put(leftConformation.toString(), 0);
@@ -130,7 +130,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
     {
         if(allZeros(partialConformation))
         {
-        	System.out.println("Catch!");
+        	//System.out.println("Catch!");
         }
 
         if(children.size() < 1)
@@ -142,7 +142,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         if(branching)
         {
             Conformation peeked = children.peek().peekPartial();
-            int offset = getRightConformation(peeked);
+            int offset = getRightConformationOffset(peeked);
             Conformation rightSide = null;
             //System.out.println("PEEK "+peeked + " offset is "+offset+", should append "+solutionList.get(offset));
             if(offset >= solutionList.size()){
@@ -154,14 +154,14 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             children.peek().rightSideConformation = rightSide;
 
             if(rightSide == null){
-                return fullConformation(partialConformation);
+                return fullConformation(peeked.join(partialConformation));
             }
            //System.out.println("Returning "+peeked.join(rightSide));
             return fullConformation(peeked.join(rightSide));
         }
 
 
-        return fullConformation(children.peek().peekNextConformation());
+        return children.peek().peekNextConformation();
     }
 
 
@@ -177,12 +177,21 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
 
     public Conformation peekPartial()
     {
-
+    	if(rightChildren != null && rightChildren.size() > 0)
+    		return children.peek().peekNextConformation();
         if(children.size() < 1)
         {
             return partialConformation;
         }
-        return children.peek().peekNextConformation();
+        return children.peek().peekPartial();
+    }
+    
+    public BWMAStarNode peekPartialNode()
+    {
+    	if(rightChildren != null && rightChildren.size() > 0)
+    		return this;
+    	if(children.size() < 1) return this;
+    	return children.peek().peekPartialNode();
     }
 
     public boolean moreConformations()
@@ -195,16 +204,15 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         remaining --;
         if(branching){
         	BWMAStarNode leftChild = children.peek();
+        	BWMAStarNode leftPartialNode = leftChild.peekPartialNode();
             Conformation leftConformation = leftChild.peekPartial();
             Conformation rightConformation = null;
             if(rightChildren != null)
             {
-                int offset = getRightConformation(leftConformation);
-                rightConformation = updateConformationList(leftConformation, offset);
-                removeFinishedConformation(offset);
+                rightConformation = updateConformationList(leftConformation, leftPartialNode);
+                //removeFinishedConformation(offset);
                 /* TODO: Recalculation of node position is necessary here. */
             }
-            children.add(leftChild);
             return leftConformation.join(rightConformation);
         }
 
@@ -231,18 +239,21 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             if(offset + 1 < solutionList.size())
             {
                 Conformation nextConformation = solutionList.get(offset + 1);
-                leftChild.rightSideConformation = nextConformation;
+                leftChild.assignRightConformations(nextConformation);
             }
             children.add(leftChild);
         }
     }
 
 
-    private Conformation updateConformationList (Conformation leftConformation, int offset) 
+    private Conformation updateConformationList (Conformation leftConformation, BWMAStarNode leftPartialNode) 
     {
+
+        int offset = getRightConformationOffset(leftConformation);
         Conformation rightConformation;
         rightConformation = solutionList.get(offset);
         solutions.put(leftConformation.toString(), offset+1);
+        
 
         if(solutionList.size() -1 <= offset)
         {
@@ -253,15 +264,32 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                 {
                     children.add(nextChild);
                 }
+
             }
             if(rightChildren.size() > 0)
             {
-                BWMAStarNode rightChild = rightChildren.poll();
-                solutionList.add(rightChild.getNextConformation());
+            	BWMAStarNode nextChild = children.poll();
+            	
+            	BWMAStarNode rightChild = rightChildren.poll();
+                Conformation nextRightConformation = rightChild.getNextConformation();
+                solutionList.add(nextRightConformation);
+            	leftPartialNode.rightSideConformation = nextRightConformation;
+            	children.add(nextChild);
                 if(rightChild.moreConformations())
                     rightChildren.add(rightChild);
+                //TODO: These resorts are workarounds for the bug. Fix the bug.
+                resort();
             }
-            rightConformation = solutionList.get(offset);
+        }
+        else
+        {
+        	
+        	BWMAStarNode nextChild = children.poll();
+        	Conformation nextRightConformation = solutionList.get(offset + 1);
+        	leftPartialNode.rightSideConformation = nextRightConformation;
+        	children.add(nextChild);
+        	//TODO: These resorts are workarounds for the bug. Fix the bug.
+            resort();
         }
         return rightConformation;
     }
@@ -296,7 +324,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         if(!solutions.isEmpty() && !solutions.containsKey(c.toString()))
         {
             if(c.getPositions().containsAll(children.peek().peekPartial().getPositions()))
-                getRightConformation(c);
+                getRightConformationOffset(c);
         }
         if(solutions != null && solutions.containsKey(c.toString()))
         {
@@ -350,8 +378,10 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         Conformation peeked = peekNextConformation();
         if(rightSideConformation != null)
             joined = joined.join(rightSideConformation);
-        String output = prefix+joined+", peek to "+peeked+", "+peeked.score()+
-                " totalConformations: "+totalPossibleCombinations()+", rightConformations : "+totalRightCombinations();
+        String output = prefix+joined
+        		+peeked.score()
+                +" totalConformations: "+totalPossibleCombinations()
+                +", rightConformations : "+totalRightCombinations();
         if(parent!= null)
             output += " remaining right conformations "+remainingRightConformations(peekPartial());
 
@@ -453,17 +483,30 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                 if(rightChild.moreConformations())
                     newNode.rightChildren.add(rightChild);
                 newNode.solutionList.add(rightHandSide);
+                
                 for(BWMAStarNode leftChild : newNode.children)
                 {
-                    leftChild.rightSideConformation = rightHandSide;
-                    newNode.getRightConformation(leftChild.peekPartial());
+                	leftChild.assignRightConformations(rightHandSide);
+                    newNode.getRightConformationOffset(leftChild.peekPartial());
                 }
+                
             }
 
             newNode.remaining = newNode.totalPossibleCombinations();
             if(heap != null)
                 heap.add(newNode);
         }
+    }
+    
+    private void assignRightConformations(Conformation c)
+    {
+    	if(children.size() < 1)
+    	{
+    		rightSideConformation = c;
+    		return;
+    	}
+    	for(BWMAStarNode child : children)
+    		child.assignRightConformations(c);
     }
    
 
