@@ -205,7 +205,7 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         if(branching){
         	BWMAStarNode leftChild = children.peek();
         	BWMAStarNode leftPartialNode = leftChild.peekPartialNode();
-            Conformation leftConformation = leftChild.peekPartial();
+        	Conformation leftConformation = leftChild.peekPartial();
             Conformation rightConformation = null;
             if(rightChildren != null)
             {
@@ -228,6 +228,29 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
             children.add(next);
         }
         return nextConf;
+    }
+    
+    private void reinsertChain(List<BWMAStarNode> path)
+    {
+    	for(int i = 1; i < path.size(); i++)
+    	{
+    		BWMAStarNode parent = path.get(i);
+    		parent.children.add(parent.children.poll());
+    	}
+    }
+    
+    private List<BWMAStarNode> peekPartialPath(List<BWMAStarNode> path)
+    {
+    	if(path == null)
+    		path = new LinkedList<BWMAStarNode>();
+    	if(children.size() < 1 || rightChildren != null)
+    	{
+    		path.add(this);
+    		return path;
+    	}
+    	children.peek().peekPartialPath(path);
+    	path.add(this);
+    	return path;
     }
 
 
@@ -274,11 +297,14 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                 Conformation nextRightConformation = rightChild.getNextConformation();
                 solutionList.add(nextRightConformation);
             	leftPartialNode.rightSideConformation = nextRightConformation;
-            	children.add(nextChild);
-                if(rightChild.moreConformations())
+            	if(rightChild.moreConformations())
                     rightChildren.add(rightChild);
+                List<BWMAStarNode> path = nextChild.peekPartialPath(null);
+                reinsertChain(path);
+                children.add(nextChild);
+                
                 //TODO: These resorts are workarounds for the bug. Fix the bug.
-                resort();
+                //resort();
             }
         }
         else
@@ -287,9 +313,11 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
         	BWMAStarNode nextChild = children.poll();
         	Conformation nextRightConformation = solutionList.get(offset + 1);
         	leftPartialNode.rightSideConformation = nextRightConformation;
+        	List<BWMAStarNode> path = nextChild.peekPartialPath(null);
+            reinsertChain(path);
         	children.add(nextChild);
         	//TODO: These resorts are workarounds for the bug. Fix the bug.
-            resort();
+            //resort();
         }
         return rightConformation;
     }
