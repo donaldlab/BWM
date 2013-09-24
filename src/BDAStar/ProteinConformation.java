@@ -111,7 +111,7 @@ public class ProteinConformation extends AbstractConformation {
         Arrays.sort(c);
         for(int i = 0; i < c.length; i++)
         {
-            out+="("+c[i].pos+": "+getChoiceAt(c[i]).choice+"), ";
+            out+="("+c[i].pos+": "+getChoiceAt(c[i]).toString()+"), ";
         }
         out+="]";
         return out;

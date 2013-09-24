@@ -11,6 +11,7 @@ import java.util.Set;
 import kstar.PrunedRotamers;
 import kstar.RotInfo;
 import kstar.RotTypeMap;
+import kstar.RotamerLibrary;
 
 public class BWMSolutionSpace implements SolutionSpace {
     private EnergyFunction energyFunction;
@@ -18,11 +19,14 @@ public class BWMSolutionSpace implements SolutionSpace {
     private int[] designIndexToStrandIndex;
     private int[][] strandDesignIndices;
     private int[] designIndexToStrandResidueIndex;
+    private RotamerLibrary library;
+    
     public Collection<ProteinChoice> getChoices (Position p){
         return choices.get(p);
     }
 
-    public BWMSolutionSpace(PrunedRotamers<Boolean> library, EnergyFunction e, int[] mutRes2Strand, int[][] strandMut, int[] mutRes2StrandMutIndex)
+    public BWMSolutionSpace(PrunedRotamers<Boolean> lib, EnergyFunction e, int[] mutRes2Strand, 
+    		int[][] strandMut, int[] mutRes2StrandMutIndex, RotamerLibrary rl)
     {
         super();
         energyFunction = e;
@@ -30,6 +34,7 @@ public class BWMSolutionSpace implements SolutionSpace {
         strandDesignIndices = strandMut;
         designIndexToStrandResidueIndex = mutRes2StrandMutIndex;
         choices = new HashMap<Position, Collection<ProteinChoice>>();
+        library = rl;
         /* We have to port over the rotamer library here, I think it's the RotamerSearch class. */
         /* TODO: 
          * 1. Convert library's contents into <Position, Collection<Choice>> Mapping.
@@ -39,7 +44,7 @@ public class BWMSolutionSpace implements SolutionSpace {
          * 1. Get PrunedRotAtRes
          * 2. For everything in PruntedRotAtRes, produce a collection at each residue.
          */
-        for(RotInfo<Boolean> r: library)
+        for(RotInfo<Boolean> r: lib)
         {
             if(!r.state)
                 continue;
@@ -49,6 +54,7 @@ public class BWMSolutionSpace implements SolutionSpace {
             if(choices.get(p).size() < 3)
                 choices.get(p).add(new ProteinChoice(r.curAA, r.curRot));
         }
+        
         /*
          * A position is defined by strand and residue number, or by molecule residue number.
          * In the code, there's a strandMutIndex which maps residues to the 0-based index used instead.
@@ -90,6 +96,11 @@ public class BWMSolutionSpace implements SolutionSpace {
         int str = designIndexToStrandIndex[position];
         int strResNum = strandDesignIndices[str][designIndexToStrandResidueIndex[position]];
         return new ProteinPosition(str, strResNum, position);
+    }
+    
+    public String printConformation(ProteinConformation p)
+    {
+    	return "";
     }
 
     public Set<ProteinPosition> MSetFromArray (LinkedHashSet<Integer> m, int[] inverseResidueMap) {
