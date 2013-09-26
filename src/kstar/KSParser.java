@@ -6692,12 +6692,12 @@ public class KSParser
 		BWMAStarNode.CreateTree2(start, AStarRoot, space.getEmptyConformation(), AStarRoot.getChildren(), space, 0, start.getCofEdge().getPositionList());
 		bt.setEnumerationObjects(AStarRoot, space);
 		//AStarRoot.remainingConformations();
-		AStarRoot.printTree("");
+		//AStarRoot.printTree("");
 		int rank = 0;
 		double lastScore = -500;
 		
 		int lastRemaining = AStarRoot.totalPossibleCombinations();
-		while(AStarRoot.moreConformations()){
+		while(AStarRoot.moreConformations()&& rank < 100){
 		    rank++;
 		    Conformation out = AStarRoot.getNextConformation();
                     

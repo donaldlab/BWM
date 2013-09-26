@@ -21,6 +21,8 @@ public class BWMSolutionSpace implements SolutionSpace {
     private int[] designIndexToStrandResidueIndex;
     private RotamerLibrary library;
     
+    private int numRotForAA[];
+    private int numAAAtPosition[];
     public Collection<ProteinChoice> getChoices (Position p){
         return choices.get(p);
     }
@@ -51,7 +53,7 @@ public class BWMSolutionSpace implements SolutionSpace {
             Position p = positionFromPos(r.curPos);
             if(!choices.containsKey(p))
                 choices.put(p, new ArrayList<ProteinChoice>());
-            if(choices.get(p).size() < 3)
+            if(choices.get(p).size() < 4)
                 choices.get(p).add(new ProteinChoice(r.curAA, r.curRot));
         }
         
@@ -114,6 +116,16 @@ public class BWMSolutionSpace implements SolutionSpace {
             MSet.add(positionFromPos(inverseResidueMap[position]));
         }
         return MSet;
+    }
+
+    public int getRotamersForAminoAcid (int AANum) {
+        // TODO Auto-generated method stub
+        return numRotForAA[AANum];
+    }
+
+    public Collection<Integer> getAminoAcidsAtPosition (Position p) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

@@ -1,385 +1,135 @@
 package BDAStar;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.Set;
 
-import kstar.TreeNode;
-
-/*
- * TODO:
-1. BranchingNode: Stores left subtree and right subtree, and creates a linked list of 
-values for one subtree to point down.
-2. Recalculating node: Do we want to count the top K all at once? that's kq at every
-level but it never exceeds 3kq, I think
-3. A* tree node: expands everything, just does it smarter because
-everything is precomputed.
-
-GetNextConformation function is different.
-
-AbstractBDAStarNode
-ListingBDAStarNode
-TopKBDAStarNode
-ExpandingBDAStarNode
- */
-public class BDAStarNode implements Comparable<BDAStarNode> {
-
+public class BDAStarNode implements Comparable<BDAStarNode> 
+{
+    
     private PriorityQueue<BDAStarNode> children;
-    private BDAStarNode leftSubtree;
-    private BDAStarNode rightSubtree;
-    private LinkedList<Conformation> solutionList;
-    private Map<String, Integer> solutions;
-    private Conformation partialConformation;
-    boolean isLeaf = false;
-    boolean branching = false;
+    private Map<Choice, BDAStarNode> childMap;
+    private BDAStarNode parent;
+    private Choice choice;
+    private Position position;
+    private BWMSolutionSpace space;
+    private double score;
     
-    public BDAStarNode(Conformation conf) 
+    public BDAStarNode (BDAStarNode parentNode, Choice newChoice) {
+        parent = parentNode;
+        choice = newChoice;
+    }
+
+    public void insertConformation(Conformation c)
     {
-        children = new PriorityQueue<BDAStarNode>();
-        solutionList = new LinkedList<Conformation>();
-        solutions = new HashMap<String, Integer>();
-        partialConformation = conf;
+        insertConformation(c, c.getPositions().toArray(new Position[]{}),0);
     }
     
-    public static BDAStarNode CreateTree(TreeNode root, Conformation previous, SolutionSpace s)
+    private void insertConformation(Conformation c, Position[] positions, int index)
     {
-        Set<Position> lambda = root.getCofEdge().getPositionSet();
-        BDAStarNode AStarRoot = new BDAStarNode(new TestConformation(previous));
-        System.out.println("Root conformation "+AStarRoot.partialConformation+", score "+AStarRoot.partialConformation.score());
+        Choice nextChoice = c.getChoiceAt(positions[index]);
         
-        Queue<BDAStarNode> remaining = new LinkedList<BDAStarNode>();
-        remaining.add(AStarRoot);
-        int cycles = 0;
-        while(remaining.size() > 0 && cycles <20)
+        if(!childMap.containsKey(nextChoice))
         {
-            cycles ++;
-            //System.out.println("Remaining: "+remaining.size());
-            BDAStarNode current = remaining.poll();
-            //System.out.println("Remaining after poll: "+remaining.size());
-            Conformation currentConf = new TestConformation(current.getConformation());
-            //System.out.println("Parent conformation positions: "+currentConf.getPositions().size());
-            Set<Position> lambdaCopy = null;//difference(lambda, currentConf.getPositions());//copy(lambda);
-            /*
-            for(Position p : currentConf.getPositions())
-            {
-            	//System.out.println("Position "+p+": "+p.pos);
-            }
-            lambdaCopy.removeAll(currentConf.getPositions());*/
-            boolean isLeaf = lambdaCopy.size() == 1;
-            System.out.println("Current conformation "+currentConf+", score "+currentConf.score());
-            //System.out.println("Lambda Size: "+lambdaCopy.size());
-           // //System.out.println("Leaf? "+isLeaf);
-            if(!lambdaCopy.iterator().hasNext()) break;
-            Position p = lambdaCopy.iterator().next();
-                //System.out.println("Processing next position: " + p.pos);
-                for (Choice c : s.getChoices(p))
-                {
-                    //System.out.println("Position "+p.pos+", choice "+c.choice);
-                    currentConf.append(p, c);
-                    ////System.out.println("New conformation positions: "+currentConf.getPositions().size());
-                    for(Position p2 : currentConf.getPositions())
-                    {
-                    	////System.out.println("Position "+p2+": "+p2.pos);
-                    }
-                    
-                    BDAStarNode newNode = new BDAStarNode(new TestConformation(currentConf));
-                    //System.out.println("New node:"+newNode.partialConformation+" score: "+newNode.partialConformation.score());
-                    if(isLeaf)
-                    {
-                        if(root.getIsLeaf())
-                        {
-                            newNode.isLeaf = true;
-                        }
-                        else 
-                        {
-                            //System.out.println("BRANCHING!! ");
-                            newNode.addBranches(CreateTree(root.getlc(), currentConf, s), CreateTree(root.getrc(), currentConf, s));
-                            //System.out.println("Branch complete.");
-                            newNode.branching = true;
-                        }
-                    }
-                    current.addChild(newNode);
-                    ////System.out.println("New Node conformation size check: "+newNode.getConformation().getPositions().size());
-                    remaining.add(newNode);
-                    ////System.out.println("Next one is "+remaining.peek()+" size: "+remaining.peek().getConformation().getPositions().size());
-                    currentConf.delete(p);
-                }
-            
+            BDAStarNode newNode = new BDAStarNode(this, nextChoice);
+            children.add(newNode);
+            childMap.put(nextChoice, newNode);
+            if(index + 1 == positions.length)
+                newNode.score = c.score();
         }
-        return AStarRoot;
+        score = children.peek().getConformation().score();
+        childMap.get(c.getChoiceAt(positions[index])).insertConformation(c, positions, index + 1);
     }
     
-    public void resort()
+    public void deleteConformation(Conformation c)
     {
-    	for(BDAStarNode b : children)
-    	{
-    		b.resort();
-    	}
-    	if(branching)
-    	{
-    		leftSubtree.resort();
-    		rightSubtree.resort();
-    	}
-    	PriorityQueue<BDAStarNode> newHeap = new PriorityQueue<BDAStarNode>();
-    	newHeap.addAll(children);
-    	children = newHeap;
+        deleteConformation(c, c.getPositions().toArray(new Position[]{}), 0);
     }
     
-    private static Set<Position> copy(Set<Position> set)
+    private void deleteConformation(Conformation c, Position[] positions, int index)
     {
-        Set<Position> newset = new LinkedHashSet<Position>();
-        for(Position p : set)
-        {
-            newset.add(p);
-        }
-        return newset;
+        Choice currentChoice = c.getChoiceAt(positions[index]);
+        if(!childMap.containsKey(currentChoice))
+            return;
+        BDAStarNode toDelete = childMap.get(currentChoice);
+        deleteConformation(c, positions, index + 1);
+        children.remove(toDelete);
     }
     
-    private static Set<Position> difference(Set<Position> set, Collection<Position> removed)
-    {
-        Set<Position> newset = new LinkedHashSet<Position>();
-        for(Position p : set)
-        {
-        	boolean skip = false;
-        	//System.out.println("Should we add "+p.pos+"?");
-            for(Position p2 : removed)
-            {
-            	//System.out.println("Check against "+p2.pos);
-            	if(p.equals(p2)){ skip = true;
-            	//System.out.println("Skip is true");
-            	}
-            }
-            if(!skip){
-            	//System.out.println("Adding "+p.pos);
-            	newset.add(p);
-            }
-        }
-
-        return newset;
-    }
-    
-    private Conformation getConformation () {
-        return partialConformation;
-    }
-
-    private void addChild(BDAStarNode node)
-    {
-        children.add(node);
-    }
-    
-    private void addBranches(BDAStarNode leftChild, BDAStarNode rightChild)
-    {
-        leftSubtree = leftChild;
-        rightSubtree = rightChild;
-    }
-    
-    public double nextBestScore()
-    {
-        return peekNextConformation().score();
-    }
-
-    private Conformation peekNextConformation () {
-    	//System.out.println(partialConformation+" called for heuristic...");
-        if(branching){
-        	Conformation peeked = leftSubtree.peekNextConformation().join(partialConformation);
-        	if(peeked == null){
-        		System.out.println("No left sub tree");
-        		return partialConformation;
-        	}
-        	if(!solutions.containsKey(peeked.toString())) {
-        		//System.out.println("Returning default optima"+ peeked.join(rightSubtree.peekNextConformation()));
-        		return peeked.join(rightSubtree.peekNextConformation()).join(partialConformation);
-        	}
-        	int offset = solutions.get(peeked.toString());
-        	Conformation rightSide = null;
-        	if(offset >= solutionList.size()){
-        		rightSide = rightSubtree.peekNextConformation();
-        		//System.out.println("Getting next best optima:" + partialConformation.join(peeked.join(rightSide)));
-        	}
-        	else rightSide = solutionList.get(offset);
-        	if(rightSide == null && rightSubtree.moreConformations()) 
-        		rightSide = rightSubtree.peekNextConformation();
-        	else {
-        		System.out.println("Eliminate node from left subtree");
-        		leftSubtree.getNextConformation();
-        		return peekNextConformation();
-        	}
-        	if(rightSide == null){
-        		System.out.println("No right subtree");
-        		return partialConformation;
-        	}
-            return partialConformation.join(peeked.join(rightSide));
-        }
-        if(isLeaf) 
-        	return partialConformation;
-        if(children.size() < 1)
-        {
-        	return partialConformation;
-        }
-        BDAStarNode peek = children.peek();
-        //System.out.println("Return child score: "+children.peek().peekNextConformation().join(partialConformation));
-        return children.peek().peekNextConformation().join(partialConformation);
-    }
-    
-    public boolean moreConformations()
-    {
-    	if(isLeaf) return true;
-    	if(branching) return rightSubtree.moreConformations() || 
-    			(solutionList.size() > solutions.get(leftSubtree.peekNextConformation().toString()));
-    	boolean more = false;
-    	for(BDAStarNode b : children)
-    	{
-    		if(b.moreConformations())
-    			more = true;
-    	}
-    	return more;
-    }
-    
-    public boolean branchHasNext()
-    {
-        return leftSubtree.children.size() > 1;
-    }
-     
     public Conformation getNextConformation()
     {
-        return getNextConformation(false);
+        Conformation out = null;
+        if(children.size() < 1)
+        {
+            out = space.getEmptyConformation();
+            ProteinConformation conf = (ProteinConformation) out;
+            out.append(position, choice);
+            conf.assignScore(score);
+            return out;
+        }
+        out = children.poll().getNextConformation();
+        out.append(position, choice);
+        return out;
     }
     
-    public Conformation getNextConformation (boolean reinsert) 
+    public Conformation peekNextConformation()
     {
-        System.out.println("PROCESS NODE: "+partialConformation+", score: "+partialConformation.score()+", heuristic: "+peekNextConformation()+" = "+nextBestScore());
-        //System.out.println("Children size: "+children.size());
-        
+        Conformation out = null;
+        if(children.size() < 1)
+        {
+            out = space.getEmptyConformation();
+            out.append(position, choice);
+            return out;
+        }
+        out = children.peek().getNextConformation();
+        out.append(position, choice);
+        return out;
+    }
+    
+    public Conformation getConformation()
+    {
+        Conformation out = null;
+        if(parent == null)
+        {
+            out = space.getEmptyConformation();
+        }
+        else 
+            out = parent.getConformation();
+        out.append(position, choice);
+        return out;
+    }
+    
+    public void reinsertChain(List<BDAStarNode> path)
+    {
+        for(int i = 1; i < path.size(); i++)
+        {
+                BDAStarNode previous = path.get(i);
+                previous.children.add(previous.children.poll());
+        }
+    }
+    
+    private List<BDAStarNode> peekPartialPath(List<BDAStarNode> path)
+    {
+        if(path == null)
+                path = new LinkedList<BDAStarNode>();
+        if(children.size() > 1)
+            children.peek().peekPartialPath(path);
+        path.add(this);
+        return path;
+    }
 
-    	if(branching){
-            //System.out.println("Process branching.");
-            /*
-             * We need to keep track of children and not remove them until they are all had....
-             */
-            BDAStarNode leftChild = leftSubtree;
-            if(leftChild == null)
-            {
-                //System.out.println("...wha?");
-            }
-            Conformation leftConformation = leftChild.getNextConformation(true);
-            if(solutions.get(leftConformation.toString())==null){
-                //System.out.println("Initialize "+leftConformation);
-                solutions.put(leftConformation.toString(), 0);
-            }
-            //System.out.println("Starting "+leftConformation+" at "+solutions.get(leftConformation.toString()));
-            Iterator<Conformation> pointer = solutionList.listIterator(solutions.get(leftConformation.toString()));
-            //System.out.println ("Branch!");
-            
-            
-            
-            Conformation rightChild = null;
-            if(pointer.hasNext()){
-                rightChild = pointer.next();
-                //leftSubtree.children.add(leftChild);
-            }
-            if(rightChild == null)
-            {
-                //System.out.println("polling for new right conformation...");
-                rightChild = rightSubtree.getNextConformation(false);
-                if(rightChild != null){ 
-                    //put child back in, it has more to go!
-                    //System.out.println("Reinsert "+leftChild.partialConformation);
-                    solutionList.add(rightChild);
-                }
-                else // no more conformations
-                {
-                    //System.out.println("Right subtree is depleted, removing "+leftConformation);
-                    branching = leftSubtree.children.size()>0;
-                    leftSubtree.getNextConformation();
-                    solutions.put(leftConformation.toString(), (solutions.get(leftConformation.toString())+1));
-                    
-                    return getNextConformation(reinsert);
-                }
-            }
-            solutions.put(leftConformation.toString(), (solutions.get(leftConformation.toString())+1));
-            
-            return partialConformation.join(leftConformation.join(rightChild));
-        }
-        if(isLeaf){
-            //System.out.println("Process leaf!.");
-            return partialConformation;
-        }
-        if(children.size()<1) {
-            //System.out.println("ITS THE END OF THE WORLD!!!");
-            return null;
-        }
-        //System.out.println("Process intermediate node...");
-        BDAStarNode next = children.poll();
-        if(next.children.size() <= 1 && !next.branching && !next.isLeaf)
-        {
-            //System.out.println("HOLY WHAT BALLS??!?!?!===");
-        }
-        //System.out.println("Polled: "+next.partialConformation);
-        ////System.out.println("Next conformation is: "+next.partialConformation+", score "+next.partialConformation.score());
-        //update next conformation
-
-        Conformation nextConf = next.getNextConformation(reinsert).join(partialConformation);
-        if(reinsert || next.children.size() > 0 || (next.branching && next.branchHasNext()))
-        {
-            //System.out.println("Reinsert"+next.partialConformation+": "+next.children.size()+" children, branching is "+next.branching);
-            if(next.children.size()<=1 && !next.isLeaf && !next.branching)
-            {
-                //System.out.println("EMPTY CHILD INSERTION");
-            }
-            children.add(next);
-        }
-        //else System.out.println("Not reinserting "+next.partialConformation+", "+children.size()+" children remaining.");
-        //System.out.println("intermediate node complete");
-        
-        return nextConf;
-    }
-    
-    public void printTree(String prefix, Conformation c)
-    {
-        Conformation joined = partialConformation.join(c);
-        System.out.println(prefix+joined);
-        for(BDAStarNode child: children)
-        {
-                child.printTree(prefix+"+--",joined);
-        }
-        if(branching)
-        {
-                leftSubtree.printTree(prefix+"L--",joined);
-                rightSubtree.printTree(prefix+"R--",joined);
-        }
-    }
-    
-    public int remainingConformations()
-    {
-        if(isLeaf)
-            return children.size();
-        if(branching)
-            return leftSubtree.children.size()*rightSubtree.children.size();
-        int sum = 0;
-        for(BDAStarNode b: children)
-        {
-            sum += b.remainingConformations();
-        }
-        return sum;
-    }
-    
-    public void printTree(String prefix)
-    {
-        printTree(prefix, partialConformation);
-    }
-    
-    public int compareTo(BDAStarNode node)
-    {
-        if(nextBestScore() - node.nextBestScore() < 0) return -1;
-        if(nextBestScore() - node.nextBestScore() > 0) return 1;
+    @Override
+    public int compareTo (BDAStarNode arg0) {
+        double diff = getConformation().score() - arg0.getConformation().score();
+        if(diff < 0) return -1;
+        if(diff > 0) return 1;
         return 0;
     }
-   
+
+    public boolean moreConformations () {
+        return children.size() > 0;
+    }
+
+
 }
