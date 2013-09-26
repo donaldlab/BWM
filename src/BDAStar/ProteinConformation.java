@@ -13,6 +13,8 @@ import kstar.PairwiseEnergyMatrix;
 public class ProteinConformation extends AbstractConformation {
 
     private static EnergyFunction energyFunction;
+    public static final double MAX_ENERGY = Double.MAX_VALUE;
+    private double score = MAX_ENERGY;
 
     public ProteinConformation(EnergyFunction e)
     {
@@ -73,7 +75,14 @@ public class ProteinConformation extends AbstractConformation {
 
 
     public double score () {
-        return energyFunction.score(this);
+        if(score == MAX_ENERGY)
+            return energyFunction.score(this);
+        return score;
+    }
+    
+    public void assignScore(double s)
+    {
+        score = s;
     }
 
     public boolean equals(Object o)

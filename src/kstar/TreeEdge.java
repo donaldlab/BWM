@@ -52,6 +52,7 @@ public class TreeEdge implements Serializable{
 	/* Enumeration objects */
 	private static BWMAStarNode root;
 	private static BWMSolutionSpace solutionSpace;
+	private ConformationTrie lambdaConformations; 
 	
 	public TreeEdge(int eNodeName1, int eNodeName2, LinkedHashSet<Integer> teM,
 			int numUnprunedRot[], int molResidueMap[], int invResidueMap[], int sysStrandNum, boolean rootEdge){
@@ -606,6 +607,16 @@ public class TreeEdge implements Serializable{
 	
 		return;
 	}
+	
+	public RotTypeMap[] backTrack(RotTypeMap[] partialConformation)
+	{
+	    return null;
+	}
+	
+	public double nextBestEnergy(RotTypeMap[] partialConformation)
+	{
+	    return 0;
+	}
 
 	public void setPositions(LinkedHashSet<Integer> set)
 	{
@@ -658,6 +669,117 @@ public class TreeEdge implements Serializable{
 	        else out.add(new Position(store));
 	    }
 	    return out;
+	}
+	
+	/**
+	 * Algorithm:
+	 * 1. RootEdge gets node at the top of heap
+	 * 2. Pass root's partial conformation to children
+	 * 3. Children use TreeNode to get the next heap, to extend the partial conformation
+	 * 4. Children pass the extended partial conformation to their children.
+	 * 5. Poll the next best energy, and modify the conformation.
+	 * 6. From the bottom up, children reinsert conformations into their heaps using the next best subconformation energy.
+	 * @author Jon
+	 *
+	 */
+	
+	private class ConformationTrie
+	{
+	    ConformationTrieNode root;
+	    
+	    public void ConformationTrie()
+	    {
+	        
+	    }
+	    
+	    public PriorityQueue<RotTypeMap[]> getConformationHeap(RotTypeMap[] M)
+	    {
+	        return null;
+	    }
+	    
+	    public void insertConformation(RotTypeMap[] M, RotTypeMap[] lambda)
+	    {
+	        root.insert(M, 0, lambda, 0);
+	    }
+	}
+	
+	private class ConformationTrieNode
+	{
+	    private PriorityQueue<Conf>  conformations;
+	    private int position;
+	    private ConformationTrieNode[][] children;
+	    public ConformationTrieNode()
+	    {
+	        conformations = new PriorityQueue<Conf>(0,new ConformationComparator());
+	    }
+	    
+	    public void insert(RotTypeMap[] M, int index, RotTypeMap[] lambda, double energy)
+	    {
+	        insert(M, index, new Conf(lambda, energy));
+	    }
+
+	    public void insert(RotTypeMap[] M, int index, Conf c)
+	    {
+	        if(index - 1 == M.length)
+	        {
+	            conformations.add(c);
+	            return;
+	        }
+	        while(M[index].pos != position)
+	            index++;
+	        RotTypeMap rot = M[index];
+	        children[rot.aa][rot.rot].insert(M, index+1, c);
+	    }
+	    
+	    public RotTypeMap[] pollConformation(RotTypeMap[] partial, int index)
+	    {
+	        RotTypeMap rot = partial[index];
+                if(index - 1 < partial.length)
+	        {
+                    return children[rot.aa][rot.rot].pollConformation(partial, index +1);
+	        }
+                Conf conformation = conformations.poll();
+                if(conformations.size() < 1)
+                {
+                    /*leaf processing*/
+                }
+	        return conformations.poll().conformation;
+	    }
+	    
+	    public double nextBestEnergy(RotTypeMap[] partial, int index)
+	    {
+	        RotTypeMap rot = partial[index];
+	        if(index - 1 < partial.length)
+	        {
+	            return children[rot.aa][rot.rot].nextBestEnergy(partial, index +1);
+	        }
+	        return conformations.peek().energy;
+	    }
+	}
+	
+	private class Conf
+	{
+	    RotTypeMap[] conformation;
+	    double energy;
+	    public Conf(RotTypeMap[] c, double e)
+	    {
+	        conformation = c;
+	        energy = e;
+	    }
+	}
+	
+	private class ConformationComparator implements Comparator<Conf>
+	{
+
+            @Override
+            public int compare (Conf arg0, Conf arg1) {
+                if(arg0.energy - arg1.energy < 0) 
+                    return -1;
+                if(arg0.energy - arg1.energy > 0)
+                    return 1;
+                return 0;
+            }
+	    
 	}
 
 }

@@ -12,5 +12,18 @@ public class ProteinChoice extends Choice {
         aminoAcid = AA;
         rotamer = r;
     }
+    
+    public boolean equals(Object o)
+    {
+        if(o.getClass() != this.getClass())
+            return false;
+        ProteinChoice c = (ProteinChoice) o;
+        return (c.aminoAcid == aminoAcid && c.rotamer == rotamer);
+    }
+    
+    public int hashCode()
+    {
+        return choice;
+    }
 
 }
