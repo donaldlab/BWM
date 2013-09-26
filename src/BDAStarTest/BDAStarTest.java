@@ -1,9 +1,14 @@
-package BDAStar;
+package BDAStarTest;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 
+import BDAStar.BWMAStarNode;
+import BDAStar.Choice;
+import BDAStar.Conformation;
+import BDAStar.Position;
+import BDAStar.SolutionSpace;
 import kstar.PrunedRotamers;
 import kstar.RotamerLibrary;
 import kstar.TreeEdge;

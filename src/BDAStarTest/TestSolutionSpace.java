@@ -1,9 +1,14 @@
-package BDAStar;
+package BDAStarTest;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 
+import BDAStar.Choice;
+import BDAStar.Conformation;
+import BDAStar.Position;
+import BDAStar.ProteinChoice;
+import BDAStar.SolutionSpace;
 import kstar.PrunedRotamers;
 import kstar.RotInfo;
 

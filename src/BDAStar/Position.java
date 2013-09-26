@@ -1,7 +1,7 @@
 package BDAStar;
 
 public class Position implements Comparable<Position>{
-    int pos = -1;
+    public int pos = -1;
     
     public Position(int i)
     {
