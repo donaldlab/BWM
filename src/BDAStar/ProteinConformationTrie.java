@@ -1,20 +1,23 @@
 package BDAStar;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.PriorityQueue;
 
 public class ProteinConformationTrie {
     
     private BDAStarNode subroot;
-    private ProteinConformationTrie[][] children;
+    private ConformationMap children;
     
     public ProteinConformationTrie(BWMSolutionSpace space, Position p)
     {
-        children = new ProteinConformationTrie[space.getAminoAcidsAtPosition(p).size()][];
-        for(int aminoAcidIndex : space.getAminoAcidsAtPosition(p))
-        {
-            children[aminoAcidIndex] = new ProteinConformationTrie[space.getRotamersForAminoAcid(aminoAcidIndex)];
-        }
+        children.initialize(space, p); 
+    }
+    
+    public ProteinConformationTrie(int numAA, int[] numRotForAA, Position p)
+    {
+    	//if p is null, we're the root.
+
     }
     
     public BDAStarNode getAStarRoot (Conformation partial, int index)
@@ -24,12 +27,13 @@ public class ProteinConformationTrie {
         return getAStarRoot(partial, positionArray, index);
     }
 
-    private BDAStarNode getAStarRoot (Conformation partial, Position[] positionArray,
+    private BDAStarNode getAStarRoot (Conformation partial, Position[] positions,
             int index) {
-        if(index < positionArray.length - 1)
+        if(index < positions.length - 1)
         {
-            ProteinChoice choice = (ProteinChoice)partial.getChoiceAt(positionArray[index]);
-            return children[choice.aminoAcid][choice.rotamer].getAStarRoot(partial, positionArray, index+1);
+        	Choice currentChoice = partial.getChoiceAt(positions[index]);
+            ProteinChoice choice = (ProteinChoice)currentChoice;
+            return children.get(currentChoice).getAStarRoot(partial, positions, index+1);
         }
         return subroot;
     }
@@ -44,8 +48,9 @@ public class ProteinConformationTrie {
             Position[] positions, int index) {
         if(index < positions.length - 1)
         {
+        	Choice currentChoice = partial.getChoiceAt(positions[index]);
             ProteinChoice choice = (ProteinChoice)partial.getChoiceAt(positions[index]);
-            children[choice.aminoAcid][choice.rotamer].insertConformation(partial, positions, index+1);            
+            children.get(currentChoice).insertConformation(partial, positions, index+1);            
         }
         
     }
@@ -60,7 +65,7 @@ public class ProteinConformationTrie {
         for(Choice c : space.getChoices(currentPosition))
         {
             ProteinChoice pc = (ProteinChoice) c;
-            root.children[pc.aminoAcid][pc.rotamer] = createTrie(space, MSet, index + 1);
+            root.children.put(c,createTrie(space, MSet, index + 1));
         }
         return root;
     }

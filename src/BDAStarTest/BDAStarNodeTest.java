@@ -19,14 +19,15 @@ public class BDAStarNodeTest {
     public static void main (String[] args)
     {
         System.out.println("Start!");
-        TestSolutionSpace space = new TestSolutionSpace(2);
+        TestSolutionSpace space = new TestSolutionSpace(3);
         BDAStarNode root = new BDAStarNode(null, null, space.getEmptyConformation());
         insertConformations(root, new TestConformation(), space, 0);
-        
+        int rank = 0;
         while(root.moreConformations())
-        {
+        {	
+        	rank++;
             Conformation next = root.getNextConformation();
-            System.out.println("Result: "+next);
+            System.out.println("Result "+rank+": "+next+" "+next.score());
         }
     }
 
@@ -34,7 +35,7 @@ public class BDAStarNodeTest {
     {
         if(index == numPositions)
         {
-            System.out.println("Inserting "+current);
+            //System.out.println("Inserting "+current);
             root.insertConformation(current);
             return;
         }

@@ -45,7 +45,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         }
         if(index < positions.length - 1)
             childMap.get(nextChoice).insertConformation(c, positions, index + 1);
-        score = children.peek().getConformation().score();
+        score = children.peek().score;
         
     }
     
@@ -69,7 +69,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         Conformation out = null;
         if(children.size() < 1)
         {
-            out = emptyConformation;
+            out = emptyConformation.copy();
             if(position!= null)
             out.append(position, choice);
             out.assignScore(score);
@@ -89,7 +89,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         Conformation out = null;
         if(children.size() < 1)
         {
-            out = emptyConformation;
+            out = emptyConformation.copy();
             if(position != null)
             out.append(position, choice);
             return out;
@@ -105,12 +105,14 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         Conformation out = null;
         if(parent == null)
         {
-            out = emptyConformation;
+            out = emptyConformation.copy();
         }
         else 
             out = parent.getConformation();
         if(position != null)
-        out.append(position, choice);
+        {
+        	out.append(position, choice);
+        }
         return out;
     }
     
