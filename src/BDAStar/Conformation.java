@@ -20,4 +20,6 @@ public interface Conformation {
 
 	public Conformation copy();
 
+    public void assignScore (double score);
+
 }

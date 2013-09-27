@@ -1,5 +1,6 @@
 package BDAStar;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -13,12 +14,15 @@ public class BDAStarNode implements Comparable<BDAStarNode>
     private BDAStarNode parent;
     private Choice choice;
     private Position position;
-    private BWMSolutionSpace space;
+    private Conformation emptyConformation;
     private double score;
     
-    public BDAStarNode (BDAStarNode parentNode, Choice newChoice) {
+    public BDAStarNode (BDAStarNode parentNode, Choice newChoice, Conformation empty) {
         parent = parentNode;
         choice = newChoice;
+        childMap = new HashMap<Choice, BDAStarNode>();
+        children = new PriorityQueue<BDAStarNode>();
+        emptyConformation = empty;
     }
 
     public void insertConformation(Conformation c)
@@ -32,14 +36,16 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         
         if(!childMap.containsKey(nextChoice))
         {
-            BDAStarNode newNode = new BDAStarNode(this, nextChoice);
+            BDAStarNode newNode = new BDAStarNode(this, nextChoice, emptyConformation);
             children.add(newNode);
             childMap.put(nextChoice, newNode);
             if(index + 1 == positions.length)
                 newNode.score = c.score();
         }
+        if(index < positions.length - 1)
+            childMap.get(nextChoice).insertConformation(c, positions, index + 1);
         score = children.peek().getConformation().score();
-        childMap.get(c.getChoiceAt(positions[index])).insertConformation(c, positions, index + 1);
+        
     }
     
     public void deleteConformation(Conformation c)
@@ -62,13 +68,14 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         Conformation out = null;
         if(children.size() < 1)
         {
-            out = space.getEmptyConformation();
-            ProteinConformation conf = (ProteinConformation) out;
+            out = emptyConformation;
+            if(position!= null)
             out.append(position, choice);
-            conf.assignScore(score);
+            out.assignScore(score);
             return out;
         }
         out = children.poll().getNextConformation();
+        if(position != null)
         out.append(position, choice);
         return out;
     }
@@ -78,11 +85,13 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         Conformation out = null;
         if(children.size() < 1)
         {
-            out = space.getEmptyConformation();
+            out = emptyConformation;
+            if(position != null)
             out.append(position, choice);
             return out;
         }
-        out = children.peek().getNextConformation();
+        out = children.peek().peekNextConformation();
+        if(position != null)
         out.append(position, choice);
         return out;
     }
@@ -92,10 +101,11 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         Conformation out = null;
         if(parent == null)
         {
-            out = space.getEmptyConformation();
+            out = emptyConformation;
         }
         else 
             out = parent.getConformation();
+        if(position != null)
         out.append(position, choice);
         return out;
     }

@@ -110,4 +110,10 @@ public class TestConformation extends AbstractConformation {
 		return new TestConformation(this);
 	}
 
+    @Override
+    public void assignScore (double score) {
+        // TODO Auto-generated method stub
+        
+    }
+
 }
