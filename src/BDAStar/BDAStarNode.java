@@ -38,6 +38,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         {
             BDAStarNode newNode = new BDAStarNode(this, nextChoice, emptyConformation);
             children.add(newNode);
+            newNode.position = positions[index];
             childMap.put(nextChoice, newNode);
             if(index + 1 == positions.length)
                 newNode.score = c.score();
@@ -74,9 +75,12 @@ public class BDAStarNode implements Comparable<BDAStarNode>
             out.assignScore(score);
             return out;
         }
-        out = children.poll().getNextConformation();
+        BDAStarNode nextChild = children.poll();
+        out = nextChild.getNextConformation();
         if(position != null)
         out.append(position, choice);
+        if(nextChild.moreConformations())
+        	children.add(nextChild);
         return out;
     }
     
