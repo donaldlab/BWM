@@ -12,6 +12,7 @@ import kstar.PrunedRotamers;
 import kstar.RotInfo;
 import kstar.RotTypeMap;
 import kstar.RotamerLibrary;
+import kstar.RotamerSearch;
 
 public class BWMSolutionSpace implements SolutionSpace {
     private EnergyFunction energyFunction;
@@ -19,6 +20,7 @@ public class BWMSolutionSpace implements SolutionSpace {
     private int[] designIndexToStrandIndex;
     private int[][] strandDesignIndices;
     private int[] designIndexToStrandResidueIndex;
+    private int[] inverseResidueMap;
     private RotamerLibrary library;
     
     private int numRotForAA[];
@@ -28,7 +30,7 @@ public class BWMSolutionSpace implements SolutionSpace {
     }
 
     public BWMSolutionSpace(PrunedRotamers<Boolean> lib, EnergyFunction e, int[] mutRes2Strand, 
-    		int[][] strandMut, int[] mutRes2StrandMutIndex, RotamerLibrary rl)
+    		int[][] strandMut, int[] mutRes2StrandMutIndex, int[] invResMap, RotamerLibrary rl)
     {
         super();
         energyFunction = e;
@@ -36,7 +38,12 @@ public class BWMSolutionSpace implements SolutionSpace {
         strandDesignIndices = strandMut;
         designIndexToStrandResidueIndex = mutRes2StrandMutIndex;
         choices = new HashMap<Position, Collection<ProteinChoice>>();
+        inverseResidueMap = invResMap;
         library = rl;
+        
+        
+        numAAAtPosition = new int[designIndexToStrandIndex.length];
+        numRotForAA = new int[rl.getNumAAallowed()];
         /* We have to port over the rotamer library here, I think it's the RotamerSearch class. */
         /* TODO: 
          * 1. Convert library's contents into <Position, Collection<Choice>> Mapping.
@@ -55,6 +62,8 @@ public class BWMSolutionSpace implements SolutionSpace {
                 choices.put(p, new ArrayList<ProteinChoice>());
             if(choices.get(p).size() < 4)
                 choices.get(p).add(new ProteinChoice(r.curAA, r.curRot));
+            numRotForAA[r.curAA]++;
+            numAAAtPosition[p.pos]++;
         }
         
         /*
@@ -105,7 +114,7 @@ public class BWMSolutionSpace implements SolutionSpace {
     	return "";
     }
 
-    public Set<ProteinPosition> MSetFromArray (LinkedHashSet<Integer> m, int[] inverseResidueMap) {
+    public Set<ProteinPosition> MSetFromArray (LinkedHashSet<Integer> m) {
         /*
          * 1. For each integer, get the strand and sequence numbers
          * 2. create the corresponding ProteinPosition
@@ -123,9 +132,20 @@ public class BWMSolutionSpace implements SolutionSpace {
         return numRotForAA[AANum];
     }
 
-    public Collection<Integer> getAminoAcidsAtPosition (Position p) {
+    public int getAminoAcidsAtPosition (Position p) {
         // TODO Auto-generated method stub
-        return null;
+        return numAAAtPosition[p.pos];
     }
+
+	@Override
+	public Collection<? extends Position> getPositions() {
+		// TODO Auto-generated method stub
+		return choices.keySet();
+	}
+
+	@Override
+	public ConformationMap createConformationMap(Position p) {
+		return new ProteinConformationMap(this, p);
+	}
 
 }

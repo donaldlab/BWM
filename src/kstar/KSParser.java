@@ -6687,7 +6687,7 @@ public class KSParser
 		/* New BWM Enumeration section */
 		BWMSolutionSpace space = new BWMSolutionSpace(prunedRotAtResObject, 
 				new EnergyFunction(rs.getMinMatrix(), bt.getGraph()), mp.mutRes2Strand, 
-				mp.strandMut, mp.mutRes2StrandMutIndex, grl[sysStrNum]);
+				mp.strandMut, mp.mutRes2StrandMutIndex, bt.getRoot().getCofEdge().getInvResMap(), grl[sysStrNum]);
 		bt.setEnumerationObjects(null, space);
 		TreeNode start = bt.getRoot().getlc();
 		BWMAStarNode AStarRoot = new BWMAStarNode(space.getEmptyConformation());

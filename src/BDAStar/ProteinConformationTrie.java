@@ -8,9 +8,12 @@ public class ProteinConformationTrie {
     
     private BDAStarNode subroot;
     private ConformationMap children;
+    private SolutionSpace space;
     
-    public ProteinConformationTrie(BWMSolutionSpace space, Position p)
+    public ProteinConformationTrie(SolutionSpace newSpace, ConformationMap map, Position p)
     {
+    	space = newSpace;
+    	children = map;
         children.initialize(space, p); 
     }
     
@@ -32,36 +35,42 @@ public class ProteinConformationTrie {
         if(index < positions.length - 1)
         {
         	Choice currentChoice = partial.getChoiceAt(positions[index]);
-            ProteinChoice choice = (ProteinChoice)currentChoice;
             return children.get(currentChoice).getAStarRoot(partial, positions, index+1);
         }
         return subroot;
     }
     
-    public void insertConformation(Conformation partial)
+    public void insertConformation(Conformation partial, Conformation tree)
     {
        Position[] positions = partial.getPositions().toArray(new Position[]{});
-       insertConformation(partial, positions, 0);
+       insertConformation(partial, tree, positions, 0);
     }
 
-    private void insertConformation (Conformation partial,
+    private void insertConformation (Conformation partial, Conformation tree,
             Position[] positions, int index) {
         if(index < positions.length - 1)
         {
+        	Position p = positions[index];
         	Choice currentChoice = partial.getChoiceAt(positions[index]);
-            ProteinChoice choice = (ProteinChoice)partial.getChoiceAt(positions[index]);
-            children.get(currentChoice).insertConformation(partial, positions, index+1);            
+        	if(children.get(currentChoice) == null)
+        		children.put(currentChoice, new ProteinConformationTrie(space, 
+        				space.createConformationMap(p), p));
+            children.get(currentChoice).insertConformation(partial, tree, positions, index+1);            
         }
+        if(subroot==null)
+        	subroot = new BDAStarNode(null, null, space.getEmptyConformation());
+        else
+        	subroot.insertConformation(tree);
         
     }
 
     public void resort () {
     }
     
-    public static ProteinConformationTrie createTrie(BWMSolutionSpace space, Position[] MSet, int index)
+    public static ProteinConformationTrie createTrie(SolutionSpace space, Position[] MSet, int index)
     {
         Position currentPosition = MSet[index];
-        ProteinConformationTrie root = new ProteinConformationTrie(space, currentPosition);
+        ProteinConformationTrie root = new ProteinConformationTrie(space, space.createConformationMap(currentPosition), currentPosition);
         for(Choice c : space.getChoices(currentPosition))
         {
             ProteinChoice pc = (ProteinChoice) c;

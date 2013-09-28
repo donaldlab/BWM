@@ -12,6 +12,11 @@ public abstract class ConformationMap implements Map<Choice, ProteinConformation
 
 	}
 	
+	public void initialize(int numAA, int[] numRotamers)
+	{
+		
+	}
+	
 	public void initialize(SolutionSpace space, Position p)
 	{
 		
@@ -53,11 +58,6 @@ public abstract class ConformationMap implements Map<Choice, ProteinConformation
 		return null;
 	}
 
-	@Override
-	public ProteinConformationTrie put(Choice key, ProteinConformationTrie value) {
-		// TODO Auto-generated method stub
-		return null;
-	}
 
 	@Override
 	public void putAll(

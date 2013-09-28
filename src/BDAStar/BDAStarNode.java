@@ -36,7 +36,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         
         if(!childMap.containsKey(nextChoice))
         {
-            BDAStarNode newNode = new BDAStarNode(this, nextChoice, emptyConformation);
+            BDAStarNode newNode = new BDAStarNode(this, nextChoice, emptyConformation.copy());
             children.add(newNode);
             newNode.position = positions[index];
             childMap.put(nextChoice, newNode);

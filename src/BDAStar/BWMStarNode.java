@@ -40,15 +40,20 @@ public class BWMStarNode
     private Map<String, Integer> solutions;
     private BWMStarNode child;
     private BWMStarNode rightChild;
+    
+    private Set<? extends Position> MSet;
+    private Set<? extends Position> lambdaSet;
 
     private Conformation rightSideConformation;
     private int totalPossible;
     private int remaining;
 
-    public BWMStarNode() 
+    public BWMStarNode(Set<? extends Position> M, Set<? extends Position> lambda) 
     {
         solutionList = new LinkedList<Conformation>();
         solutions = new HashMap<String, Integer>();
+        MSet = M;
+        lambdaSet = lambda;
     }
 
 
@@ -144,8 +149,10 @@ public class BWMStarNode
 
     private void insertConformation (Conformation c) {
         //remove this node's lambda set
+    	Conformation MConformation = c.extract(MSet);
+    	Conformation lambdaConformation = c.extract(lambdaSet);
         //insert the part that applies to this trie
-        conformationTrees.insertConformation(c);
+        conformationTrees.insertConformation(MConformation, lambdaConformation);
         //pass on the rest
         if(child != null)
             child.insertConformation(c);
@@ -176,7 +183,9 @@ public class BWMStarNode
 
     public static BWMStarNode CreateTree(TreeNode node, BWMSolutionSpace space)
     {
-        BWMStarNode root = new BWMStarNode();;
+    	Set<? extends Position> MSet = space.MSetFromArray(node.getCofEdge().getM());
+    	Set<? extends Position> lambdaSet = space.MSetFromArray(node.getCofEdge().getLambda());
+        BWMStarNode root = new BWMStarNode(MSet, lambdaSet);
         if(node.getCofEdge().getIsLambdaEdge())
         {
             createConformationTrie(node, root, space);
@@ -204,26 +213,28 @@ public class BWMStarNode
         LinkedHashSet<Integer> MSet = node.getCofEdge().getM();
         LinkedHashSet<Integer> lambda = node.getCofEdge().getLambda();
         Integer[] dummy = new Integer[]{};
-        Position[] MArray = space.MSetFromArray(MSet, null).toArray(new Position[]{});
+        Position[] MArray = space.MSetFromArray(MSet).toArray(new Position[]{});
         root.conformationTrees = ProteinConformationTrie.createTrie(space, MArray, 0);
-        root.generateConformations(MSet.toArray(dummy), lambda.toArray(dummy), 0, space, space.getEmptyConformation());
+        root.generateConformations(MSet.toArray(dummy), lambda.toArray(dummy), 0, space, 
+        		space.getEmptyConformation(), space.getEmptyConformation());
         
     }
     
-    private void generateConformations(Integer[] MSet, Integer[] lambda, int index, BWMSolutionSpace space, Conformation current)
+    private void generateConformations(Integer[] MSet, Integer[] lambda, int index, BWMSolutionSpace space,
+    		Conformation current, Conformation tree)
     {
         if(index == MSet.length + lambda.length - 2)
         {
-            conformationTrees.insertConformation(current);
+            conformationTrees.insertConformation(current, tree);
         }
         if(index >= MSet.length)
         {
             Position p = space.positionFromPos(lambda[index]);
             for(Choice c : space.getChoices(p))
             {
-                Conformation nextConf = current.copy();
+                Conformation nextConf = tree.copy();
                 nextConf.append(p, c);
-                generateConformations(MSet, lambda, index + 1, space, nextConf);
+                generateConformations(MSet, lambda, index + 1, space, current, nextConf);
             }
             
         }
@@ -234,7 +245,7 @@ public class BWMStarNode
             {
                 Conformation nextConf = current.copy();
                 nextConf.append(p, c);
-                generateConformations(MSet, lambda, index + 1, space, nextConf);
+                generateConformations(MSet, lambda, index + 1, space, nextConf, tree);
             }
         }
     }

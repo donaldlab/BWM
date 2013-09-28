@@ -768,6 +768,11 @@ public class TreeEdge implements Serializable{
 	    }
 	}
 	
+	public int[] getInvResMap()
+	{
+		return invResMap;
+	}
+	
 	private class ConformationComparator implements Comparator<Conf>
 	{
 

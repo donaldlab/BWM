@@ -45,7 +45,7 @@ public class BDAStarTest {
         rchild.setCofEdge(edge3);
         root.setLc(lchild);
         root.setRc(rchild);
-        SolutionSpace space = new TestSolutionSpace(2);
+        SolutionSpace space = new TestSolutionSpace(2, 10);
         //BDAStarNode rootNode = BDAStarNode.CreateTree(root, new TestConformation(), space);
         //root.setEnumerationObjects(null, space);
         //BWMAStarNode rootNode = BWMAStarNode.CreateTree(root, space.getEmptyConformation(), space, 0);

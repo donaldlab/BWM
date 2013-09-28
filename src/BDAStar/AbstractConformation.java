@@ -3,6 +3,7 @@ package BDAStar;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Set;
 
 public abstract class AbstractConformation implements Conformation{
 
@@ -35,6 +36,23 @@ public abstract class AbstractConformation implements Conformation{
 
     @Override
     public abstract Conformation join (Conformation nextConformation);
+    
+    public Conformation deletePositions(Collection<Position> toDelete)
+    {
+    	Conformation out = copy();
+    	for(Position p: toDelete)
+    		out.delete(p);
+    	return out;
+    }
+    
+    @Override
+    public Conformation extract(Set<? extends Position> target)
+    {
+    	Collection<Position> toDelete = getPositions();
+    	toDelete.removeAll(target);
+    	Conformation out = deletePositions(toDelete);
+    	return out;
+    }
 
     @Override
     public void deleteLast () {

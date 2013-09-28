@@ -19,7 +19,7 @@ public class BDAStarNodeTest {
     public static void main (String[] args)
     {
         System.out.println("Start!");
-        TestSolutionSpace space = new TestSolutionSpace(3);
+        TestSolutionSpace space = new TestSolutionSpace(10, 2);
         BDAStarNode root = new BDAStarNode(null, null, space.getEmptyConformation());
         insertConformations(root, new TestConformation(), space, 0);
         int rank = 0;

@@ -4,27 +4,23 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
-public class ProteinConformationMap implements Map<ProteinChoice, ProteinConformationTrie> {
+public class ProteinConformationMap extends ConformationMap {
 	ProteinConformationTrie[][] values;
+	
+	public ProteinConformationMap(BWMSolutionSpace space, Position p)
+	{
+		initialize(space, p);
+	}
 	
 
 	public void initialize(BWMSolutionSpace space, Position p) {
-		// TODO Auto-generated method stub
-		values = new ProteinConformationTrie[space.getAminoAcidsAtPosition(p).size()][];
-        for(int aminoAcidIndex : space.getAminoAcidsAtPosition(p))
+		values = new ProteinConformationTrie[space.getAminoAcidsAtPosition(p)][];
+        for(int i = 0; i < space.getAminoAcidsAtPosition(p); i++)
         {
-            values[aminoAcidIndex] = new ProteinConformationTrie[space.getRotamersForAminoAcid(aminoAcidIndex)];
+            values[i] = new ProteinConformationTrie[space.getRotamersForAminoAcid(i)];
         }
 	}
 	
-	public void initialize(int numAA, int[] numRotamers)
-	{
-    	values = new ProteinConformationTrie[numAA][];
-    	for(int i = 0; i < numAA; i++)
-    	{
-    		values[numAA] = new ProteinConformationTrie[numRotamers[i]];
-    	}
-	}
 
 	@Override
 	public void clear() {
@@ -45,12 +41,6 @@ public class ProteinConformationMap implements Map<ProteinChoice, ProteinConform
 	}
 
 	@Override
-	public Set<java.util.Map.Entry<ProteinChoice, ProteinConformationTrie>> entrySet() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public ProteinConformationTrie get(Object key) {
 		ProteinChoice choice = (ProteinChoice) key;
 		return values[choice.aminoAcid][choice.rotamer];
@@ -63,23 +53,10 @@ public class ProteinConformationMap implements Map<ProteinChoice, ProteinConform
 	}
 
 	@Override
-	public Set<ProteinChoice> keySet() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public ProteinConformationTrie put(ProteinChoice key,
+	public ProteinConformationTrie put(Choice key,
 			ProteinConformationTrie value) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public void putAll(
-			Map<? extends ProteinChoice, ? extends ProteinConformationTrie> m) {
-		// TODO Auto-generated method stub
-		
+		ProteinChoice choice = (ProteinChoice)key;
+		return values[choice.aminoAcid][choice.rotamer];
 	}
 
 	@Override

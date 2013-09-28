@@ -1,6 +1,7 @@
 package BDAStar;
 
 import java.util.Collection;
+import java.util.Set;
 
 public interface Conformation {
     public void append (Position p, Choice c);
@@ -21,5 +22,8 @@ public interface Conformation {
 	public Conformation copy();
 
     public void assignScore (double score);
+    
+    public Conformation extract(Set<? extends Position> target);
 
+	public Conformation deletePositions(Collection<Position> toDelete);
 }
