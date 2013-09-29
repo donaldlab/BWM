@@ -60,6 +60,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
     
     private void deleteConformation(Conformation c, Position[] positions, int index)
     {
+        if(index >= positions.length) return;
         Choice currentChoice = c.getChoiceAt(positions[index]);
         if(!childMap.containsKey(currentChoice))
             return;
