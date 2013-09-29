@@ -137,7 +137,7 @@ public class BWMStarNode
         if(child.moreConformations(childMConformation))
         {
             System.out.println("Reinserting "+childMConformation);
-            AStarRoot.insertConformation(lambdaConformation, parentConformation);
+            AStarRoot.insertConformation(lambdaConformation, parentConformation, childNextConformation);
         }
         Conformation out = childMConformation.join(childNextConformation);
         if(rightChild == null)
@@ -146,6 +146,28 @@ public class BWMStarNode
         Conformation rightConformation = getRightConformation(out);
         //updateRightConformations(parentConformation, lambdaConformation, out);
         return out.join(rightConformation);
+    }
+    
+    public Conformation getNextConformation2(Conformation MAndLambdaConf)
+    {
+    	//Get and keep track of the next conformation to return;
+    	Conformation MConformation = MAndLambdaConf.extract(MSet);
+    	BDAStarNode root = conformationTrees.getAStarRoot(MConformation);
+    	Conformation lambdaConformation = root.getPartialConformation();
+    	Conformation nextConformation = root.getNextConformation();
+    	//Update the conformation in tree we just pulled it from.
+    	Conformation MPlusLamba = MConformation.join(lambdaConformation);
+    	Conformation leftSuffix = child.getNextConformation(MPlusLamba);
+    	//If we have a right child, do fancy work to get the next right conformation.
+    	Conformation rightSuffix = rightChild.getNextConformation(MPlusLamba);
+    	root.insertConformation(lambdaConformation, MConformation, leftSuffix.join(rightSuffix));
+    	return nextConformation;
+    }
+    
+    public Conformation getRightConformation2(Conformation leftSide)
+    {
+    	
+    	return null;
     }
 
 
@@ -161,7 +183,7 @@ public class BWMStarNode
         Conformation MConformation = c.extract(MSet);
         Conformation lambdaConformation = c.extract(lambdaSet);
         //insert the part that applies to this trie
-        conformationTrees.insertConformation(MConformation, lambdaConformation);
+        conformationTrees.insertConformation(MConformation, lambdaConformation, emptyConformation);
         //pass on the rest
         if(child != null)
             child.insertConformation(c);
@@ -267,7 +289,7 @@ public class BWMStarNode
         if(index >= MSet.length + lambda.length)
         {
             System.out.println("Inserting "+tree+" to "+current);
-            conformationTrees.insertConformation(current, tree);
+            conformationTrees.insertConformation(current, tree, space.getEmptyConformation());
             return;
         }
         if(index >= MSet.length)

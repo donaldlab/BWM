@@ -39,26 +39,26 @@ public class ProteinConformationTrie {
         return subroot;
     }
     
-    public void insertConformation(Conformation partial, Conformation tree)
+    public void insertConformation(Conformation MConf, Conformation lambdaConf, Conformation suffix)
     {
-       Position[] positions = partial.getPositions().toArray(new Position[]{});
-       insertConformation(partial, tree, positions, 0);
+       Position[] positions = MConf.getPositions().toArray(new Position[]{});
+       insertConformation(MConf, lambdaConf, suffix, positions, 0);
     }
 
-    private void insertConformation (Conformation partial, Conformation tree,
+    private void insertConformation (Conformation MConf, Conformation lambdaConf, Conformation suffix,
             Position[] positions, int index) {
         if(index < positions.length)
         {
         	Position p = positions[index];
-        	Choice currentChoice = partial.getChoiceAt(positions[index]);
+        	Choice currentChoice = MConf.getChoiceAt(positions[index]);
         	if(children.get(currentChoice) == null)
         		children.put(currentChoice, new ProteinConformationTrie(space, 
         				space.createConformationMap(p), p));
-            children.get(currentChoice).insertConformation(partial, tree, positions, index+1);            
+            children.get(currentChoice).insertConformation(MConf, lambdaConf, suffix, positions, index+1);            
         }
         if(subroot==null)
         	subroot = new BDAStarNode(null, null, space.getEmptyConformation());
-        	subroot.insertConformation(tree, partial);
+        	subroot.insertConformation(lambdaConf, MConf, suffix);
         
     }
 

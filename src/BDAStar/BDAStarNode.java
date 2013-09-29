@@ -17,6 +17,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
     private Conformation emptyConformation;
     private double score = Double.MAX_VALUE;
     private Conformation prefix;
+    private Conformation suffix;
     
     public BDAStarNode (BDAStarNode parentNode, Choice newChoice, Conformation empty) {
         parent = parentNode;
@@ -27,12 +28,12 @@ public class BDAStarNode implements Comparable<BDAStarNode>
     }
    
 
-    public void insertConformation(Conformation c, Conformation prefix)
+    public void insertConformation(Conformation c, Conformation prefix, Conformation suffix)
     {
-        insertConformation(c, prefix, c.getPositions().toArray(new Position[]{}),0);
+        insertConformation(c, prefix, suffix, c.getPositions().toArray(new Position[]{}),0);
     }
     
-    private void insertConformation(Conformation c, Conformation prefix, Position[] positions, int index)
+    private void insertConformation(Conformation c, Conformation prefix, Conformation suffix, Position[] positions, int index)
     {
         Choice nextChoice = c.getChoiceAt(positions[index]);
         
@@ -40,16 +41,22 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         {
             BDAStarNode newNode = new BDAStarNode(this, nextChoice, emptyConformation);
             newNode.position = positions[index];
-            newNode.prefix = prefix;
-            newNode.score = c.join(prefix).score();
+
             childMap.put(nextChoice, newNode);
             children.add(newNode);
             
         	if(index == positions.length -1)
         		heapCheck();
         }
+        if(index == positions.length - 1)
+        {
+        	BDAStarNode newNode = childMap.get(nextChoice);
+            newNode.prefix = prefix;
+            newNode.suffix = suffix;
+            newNode.score = c.join(prefix).join(suffix).score();
+        }
         if(index < positions.length - 1)
-            childMap.get(nextChoice).insertConformation(c, prefix, positions, index + 1);
+            childMap.get(nextChoice).insertConformation(c, prefix, suffix, positions, index + 1);
         
     }
     
@@ -101,8 +108,8 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         return out;
     }
     
-    public Conformation getConformation()
-    {
+
+	public Conformation getPartialConformation() {
         Conformation out = null;
         if(parent == null)
         {
@@ -114,8 +121,14 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         {
         	out.append(position, choice);
         }
-        if(false && children.size() < 1 && prefix != null)
-        	out = out.join(prefix);
+        return out;
+	}
+    
+    public Conformation getConformation()
+    {
+    	Conformation out = getPartialConformation();
+        if(children.size() < 1 && prefix != null)
+        	out = out.join(prefix).join(suffix);
         return out;
     }
     
@@ -204,6 +217,8 @@ public class BDAStarNode implements Comparable<BDAStarNode>
     public boolean moreConformations () {
         return children.size() > 0;
     }
+
+
 
 
 }

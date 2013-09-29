@@ -85,7 +85,7 @@ public class ProteinConformationTrieTest {
         {
             System.out.println("Inserting "+lambda+" into "+current);
 
-            root.insertConformation(current, lambda);
+            root.insertConformation(current, lambda, space.getEmptyConformation());
 
         	//System.out.println("Trie is "+root.getAStarRoot(current, 0));
         	//root.getAStarRoot(current, 0).printTree();

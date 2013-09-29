@@ -205,19 +205,9 @@ public class TreeEdge implements Serializable{
 			computeEforState(curState,eMatrix,m,G,en); //en[0] will contain the energy to compare, en[1] will contain the energy to store
 			float total_energy=0;
 			total_energy=en[0]+energy_ll;
-			
-			/*
-			 * TODO: This is where the code to insert all solutions goes.
-
-			BWMAStarNode root = null;
-			BWMSolutionSpace solutionSpace = null;
-			
-			BWMAStarNode new_node = new BWMAStarNode(solutionSpace.createFromArray(curState, rtm)); 
-			root.insertChild(solutionSpace.MSetFromArray(M, invResMap), new_node);
-			
-			*/
-			                      
-			        
+                      
+			PriorityQueue<Conf> conformationHeap = null;
+			conformationHeap.add(new Conf(curState, en[0]));
 			
 			if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
 				
@@ -641,24 +631,6 @@ public class TreeEdge implements Serializable{
 	    return out;
 	}
 
-	public List<Position> getDummyPositionList () {
-	    LinkedList<Position> out = new LinkedList<Position>();
-	    if(lambda == null)
-	    {
-	        //lambda = new LinkedHashSet<Integer>();
-	        for(int i = 0; i < 2; i ++)
-	            lambda.add(i);
-	    }
-
-	    for(Integer i : lambda)
-	    {
-	        out.add(new Position(i));
-	    }
-	    return out;
-	}
-
-
-
 	public List<? extends Position> getPositionList () {
 	    LinkedList<Position> out = new LinkedList<Position>();
 	    for(Integer i : lambda)
@@ -683,85 +655,12 @@ public class TreeEdge implements Serializable{
 	 *
 	 */
 	
-	private class ConformationTrie
-	{
-	    ConformationTrieNode root;
-	    
-	    public void ConformationTrie()
-	    {
-	        
-	    }
-	    
-	    public PriorityQueue<RotTypeMap[]> getConformationHeap(RotTypeMap[] M)
-	    {
-	        return null;
-	    }
-	    
-	    public void insertConformation(RotTypeMap[] M, RotTypeMap[] lambda)
-	    {
-	        root.insert(M, 0, lambda, 0);
-	    }
-	}
-	
-	private class ConformationTrieNode
-	{
-	    private PriorityQueue<Conf>  conformations;
-	    private int position;
-	    private ConformationTrieNode[][] children;
-	    public ConformationTrieNode()
-	    {
-	        conformations = new PriorityQueue<Conf>(0,new ConformationComparator());
-	    }
-	    
-	    public void insert(RotTypeMap[] M, int index, RotTypeMap[] lambda, double energy)
-	    {
-	        insert(M, index, new Conf(lambda, energy));
-	    }
-
-	    public void insert(RotTypeMap[] M, int index, Conf c)
-	    {
-	        if(index - 1 == M.length)
-	        {
-	            conformations.add(c);
-	            return;
-	        }
-	        while(M[index].pos != position)
-	            index++;
-	        RotTypeMap rot = M[index];
-	        children[rot.aa][rot.rot].insert(M, index+1, c);
-	    }
-	    
-	    public RotTypeMap[] pollConformation(RotTypeMap[] partial, int index)
-	    {
-	        RotTypeMap rot = partial[index];
-                if(index - 1 < partial.length)
-	        {
-                    return children[rot.aa][rot.rot].pollConformation(partial, index +1);
-	        }
-                Conf conformation = conformations.poll();
-                if(conformations.size() < 1)
-                {
-                    /*leaf processing*/
-                }
-	        return conformations.poll().conformation;
-	    }
-	    
-	    public double nextBestEnergy(RotTypeMap[] partial, int index)
-	    {
-	        RotTypeMap rot = partial[index];
-	        if(index - 1 < partial.length)
-	        {
-	            return children[rot.aa][rot.rot].nextBestEnergy(partial, index +1);
-	        }
-	        return conformations.peek().energy;
-	    }
-	}
 	
 	private class Conf
 	{
-	    RotTypeMap[] conformation;
+	    int[] conformation;
 	    double energy;
-	    public Conf(RotTypeMap[] c, double e)
+	    public Conf(int[] c, double e)
 	    {
 	        conformation = c;
 	        energy = e;
