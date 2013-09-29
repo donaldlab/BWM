@@ -17,11 +17,6 @@ public class ProteinConformationTrie {
         children.initialize(space, p); 
     }
     
-    public ProteinConformationTrie(int numAA, int[] numRotForAA, Position p)
-    {
-    	//if p is null, we're the root.
-
-    }
     
     public BDAStarNode getAStarRoot (Conformation partial, int index)
     {
@@ -32,7 +27,7 @@ public class ProteinConformationTrie {
 
     private BDAStarNode getAStarRoot (Conformation partial, Position[] positions,
             int index) {
-        if(index < positions.length - 1)
+        if(index < positions.length)
         {
         	Choice currentChoice = partial.getChoiceAt(positions[index]);
             return children.get(currentChoice).getAStarRoot(partial, positions, index+1);
@@ -48,7 +43,7 @@ public class ProteinConformationTrie {
 
     private void insertConformation (Conformation partial, Conformation tree,
             Position[] positions, int index) {
-        if(index < positions.length - 1)
+        if(index < positions.length)
         {
         	Position p = positions[index];
         	Choice currentChoice = partial.getChoiceAt(positions[index]);
@@ -59,8 +54,7 @@ public class ProteinConformationTrie {
         }
         if(subroot==null)
         	subroot = new BDAStarNode(null, null, space.getEmptyConformation());
-        else
-        	subroot.insertConformation(tree);
+        	subroot.insertConformation(tree, partial);
         
     }
 
@@ -69,11 +63,15 @@ public class ProteinConformationTrie {
     
     public static ProteinConformationTrie createTrie(SolutionSpace space, Position[] MSet, int index)
     {
-        Position currentPosition = MSet[index];
+        Position currentPosition = Position.NULL_POSITION;
+        if(index < MSet.length)
+        {
+        	currentPosition = MSet[index];
+        }
         ProteinConformationTrie root = new ProteinConformationTrie(space, space.createConformationMap(currentPosition), currentPosition);
+        if(index < MSet.length)
         for(Choice c : space.getChoices(currentPosition))
         {
-            ProteinChoice pc = (ProteinChoice) c;
             root.children.put(c,createTrie(space, MSet, index + 1));
         }
         return root;

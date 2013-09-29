@@ -787,4 +787,9 @@ public class TreeEdge implements Serializable{
 	    
 	}
 
+	public void setM(LinkedHashSet<Integer> lambda2) 
+	{
+		M = lambda2;
+	}
+
 }

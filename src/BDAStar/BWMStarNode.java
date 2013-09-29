@@ -45,15 +45,18 @@ public class BWMStarNode
     private Set<? extends Position> lambdaSet;
 
     private Conformation rightSideConformation;
+    private Conformation emptyConformation;
     private int totalPossible;
     private int remaining;
 
-    public BWMStarNode(Set<? extends Position> M, Set<? extends Position> lambda) 
+    public BWMStarNode(Set<? extends Position> M, Set<? extends Position> lambda, 
+    		Conformation empty)
     {
         solutionList = new LinkedList<Conformation>();
         solutions = new HashMap<String, Integer>();
         MSet = M;
         lambdaSet = lambda;
+        emptyConformation = empty;
     }
 
 
@@ -65,7 +68,9 @@ public class BWMStarNode
 
     public void resort()
     {
+    	if(child != null)
         child.resort();
+    	if(rightChild != null)
         rightChild.resort();
         conformationTrees.resort();
         
@@ -98,11 +103,15 @@ public class BWMStarNode
     }
     
     private Conformation getRightConformation (Conformation conformation) {
-        if(!solutions.containsKey(conformation.toString()))
-        {
-            solutions.put(conformation.toString(), 0);
-        }
-        return solutionList.get(solutions.get(conformation.toString()));
+    	int offset = getRightConformationOffset(conformation);
+    	solutions.put(conformation.toString(), offset+1);
+    	
+    	if(offset < solutionList.size())
+    		return solutionList.get(offset);
+    	Conformation MConf = conformation.extract(MSet);
+    	Conformation lambdaConf = conformation.extract(lambdaSet);
+    	updateRightConformations(MConf, lambdaConf, conformation);
+    	return solutionList.get(offset);
     }
 
 
@@ -111,11 +120,14 @@ public class BWMStarNode
     {
         return conformationTrees.getAStarRoot(null, 0).peekNextConformation().score();
     }
+    
+    public Conformation getNextConformation ()
+    {
+    	return getNextConformation(emptyConformation);
+    }
 
     public Conformation getNextConformation (Conformation partial) 
     {
-        //If we don't actually have a lambda set, recurse
-        
         BDAStarNode AStarRoot = conformationTrees.getAStarRoot(partial, 0);
         Conformation rootPartial = AStarRoot.getNextConformation();
         // If we're a leaf, return whatever partialConformation fits.
@@ -128,14 +140,14 @@ public class BWMStarNode
         Conformation childPartial = child.getNextConformation(jointPartial);
         if(child.moreConformations(rootPartial) && rightChild != null)
         {
-            AStarRoot.insertConformation(rootPartial);
+            AStarRoot.insertConformation(rootPartial, partial);
         }
         Conformation out = jointPartial.join(childPartial);
         if(rightChild == null)
             return out;
         //If we have a right child as well, get the right conformation and join it.
         Conformation rightConformation = getRightConformation(out);
-        updateRightConformations(partial, rootPartial, out, AStarRoot);
+        updateRightConformations(partial, rootPartial, out);
         return out.join(rightConformation);
     }
     
@@ -162,9 +174,9 @@ public class BWMStarNode
 
 
 
-    private void updateRightConformations (Conformation MSet, Conformation lambda, Conformation lastUsed, BDAStarNode lastNode) {
+    private void updateRightConformations (Conformation MSet, Conformation lambda, Conformation lastUsed) {
         int offset = getRightConformationOffset(lastUsed);
-        if(offset + 1 == solutionList.size())
+        if(offset == solutionList.size())
         {
             BDAStarNode rightTree = rightChild.conformationTrees.getAStarRoot(MSet, 0);
             if(rightTree.moreConformations())
@@ -181,11 +193,11 @@ public class BWMStarNode
 
 
 
-    public static BWMStarNode CreateTree(TreeNode node, BWMSolutionSpace space)
+    public static BWMStarNode CreateTree(TreeNode node, SolutionSpace space)
     {
     	Set<? extends Position> MSet = space.MSetFromArray(node.getCofEdge().getM());
     	Set<? extends Position> lambdaSet = space.MSetFromArray(node.getCofEdge().getLambda());
-        BWMStarNode root = new BWMStarNode(MSet, lambdaSet);
+        BWMStarNode root = new BWMStarNode(MSet, lambdaSet, space.getEmptyConformation());
         if(node.getCofEdge().getIsLambdaEdge())
         {
             createConformationTrie(node, root, space);
@@ -202,13 +214,14 @@ public class BWMStarNode
             if(leftChild != null)
             {
                 root.rightChild = newChild;
+                /* TODO: handle right conformation lists */;
             }
             else root.child = newChild;
         }
         return root;
     }
     
-    private static void createConformationTrie(TreeNode node, BWMStarNode root, BWMSolutionSpace space)
+    private static void createConformationTrie(TreeNode node, BWMStarNode root, SolutionSpace space)
     {
         LinkedHashSet<Integer> MSet = node.getCofEdge().getM();
         LinkedHashSet<Integer> lambda = node.getCofEdge().getLambda();
@@ -220,16 +233,19 @@ public class BWMStarNode
         
     }
     
-    private void generateConformations(Integer[] MSet, Integer[] lambda, int index, BWMSolutionSpace space,
+    private void generateConformations(Integer[] MSet, Integer[] lambda, int index, SolutionSpace space,
     		Conformation current, Conformation tree)
     {
-        if(index == MSet.length + lambda.length - 2)
+    	System.out.println("Recurse! "+current+", "+tree+", "+index);
+        if(index >= MSet.length + lambda.length)
         {
+        	System.out.println("Inserting "+tree+" to "+current);
             conformationTrees.insertConformation(current, tree);
+            return;
         }
         if(index >= MSet.length)
         {
-            Position p = space.positionFromPos(lambda[index]);
+            Position p = space.positionFromPos(lambda[index - MSet.length]);
             for(Choice c : space.getChoices(p))
             {
                 Conformation nextConf = tree.copy();
@@ -269,5 +285,13 @@ public class BWMStarNode
         /* TODO:  incomplete algorithm, there are other cases */
         return null;
     }
+
+
+
+	public boolean moreConformations() {
+		if(MSet.size() < 1)
+			return conformationTrees.getAStarRoot(emptyConformation, 0).moreConformations();
+		return false;
+	}
 
 }

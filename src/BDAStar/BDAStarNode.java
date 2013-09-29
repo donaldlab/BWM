@@ -15,7 +15,8 @@ public class BDAStarNode implements Comparable<BDAStarNode>
     private Choice choice;
     private Position position;
     private Conformation emptyConformation;
-    private double score;
+    private double score = Double.MAX_VALUE;
+    private Conformation prefix;
     
     public BDAStarNode (BDAStarNode parentNode, Choice newChoice, Conformation empty) {
         parent = parentNode;
@@ -24,28 +25,31 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         children = new PriorityQueue<BDAStarNode>();
         emptyConformation = empty;
     }
+   
 
-    public void insertConformation(Conformation c)
+    public void insertConformation(Conformation c, Conformation prefix)
     {
-        insertConformation(c, c.getPositions().toArray(new Position[]{}),0);
+        insertConformation(c, prefix, c.getPositions().toArray(new Position[]{}),0);
     }
     
-    private void insertConformation(Conformation c, Position[] positions, int index)
+    private void insertConformation(Conformation c, Conformation prefix, Position[] positions, int index)
     {
         Choice nextChoice = c.getChoiceAt(positions[index]);
         
         if(!childMap.containsKey(nextChoice))
         {
-            BDAStarNode newNode = new BDAStarNode(this, nextChoice, emptyConformation.copy());
-            children.add(newNode);
+            BDAStarNode newNode = new BDAStarNode(this, nextChoice, emptyConformation);
             newNode.position = positions[index];
+            newNode.prefix = prefix;
+            newNode.score = c.join(prefix).score();
             childMap.put(nextChoice, newNode);
-            if(index + 1 == positions.length)
-                newNode.score = c.score();
+            children.add(newNode);
+            
+        	if(index == positions.length -1)
+        		heapCheck();
         }
         if(index < positions.length - 1)
-            childMap.get(nextChoice).insertConformation(c, positions, index + 1);
-        score = children.peek().score;
+            childMap.get(nextChoice).insertConformation(c, prefix, positions, index + 1);
         
     }
     
@@ -64,21 +68,21 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         children.remove(toDelete);
     }
     
+    public String toString()
+    {
+    	return super.toString() + " - " + getConformation().toString()+ ":"+getConformation().score();
+    }
+    
     public Conformation getNextConformation()
     {
         Conformation out = null;
         if(children.size() < 1)
         {
-            out = emptyConformation.copy();
-            if(position!= null)
-            out.append(position, choice);
-            out.assignScore(score);
+            out = getConformation();
             return out;
         }
         BDAStarNode nextChild = children.poll();
         out = nextChild.getNextConformation();
-        if(position != null)
-        out.append(position, choice);
         if(nextChild.moreConformations())
         	children.add(nextChild);
         return out;
@@ -89,14 +93,9 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         Conformation out = null;
         if(children.size() < 1)
         {
-            out = emptyConformation.copy();
-            if(position != null)
-            out.append(position, choice);
-            return out;
+        	return getConformation();
         }
         out = children.peek().peekNextConformation();
-        if(position != null)
-        out.append(position, choice);
         return out;
     }
     
@@ -113,7 +112,48 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         {
         	out.append(position, choice);
         }
+        if(children.size() < 1 && prefix != null)
+        	out = out.join(prefix);
         return out;
+    }
+    
+    public void heapCheck()
+    {
+    	if(children.size() < 1) return;
+    	for(BDAStarNode child: children)
+    	{
+    		child.heapCheck();
+    	}
+    	double lastScore = children.peek().peekNextConformation().score();
+    	for(BDAStarNode child: children)
+    	{
+    		double score = child.nextBestScore();
+    		if(score < lastScore)
+    		{
+    			System.out.println("HEAP OUT OF ORDER: " + score +"," +lastScore);
+    			parent.printTree();
+    			resort();
+    		}
+    		lastScore = score;
+    	}
+    }
+    
+    public double nextBestScore()
+    {
+    	//if(children.size() < 1)
+    		//return score;
+    	return peekNextConformation().score();
+    }
+    
+    public void resort()
+    {
+    	for(BDAStarNode child: children)
+    	{
+    		child.resort();
+    	}
+    	PriorityQueue<BDAStarNode> newChildren = new PriorityQueue<BDAStarNode>();
+    	newChildren.addAll(children);
+    	children = newChildren;
     }
     
     public void reinsertChain(List<BDAStarNode> path)
@@ -134,10 +174,26 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         path.add(this);
         return path;
     }
+    
+    public void printTree()
+    {
+    	printTree("");
+    }
+    
+    public void printTree(String prefix)
+    {
+    	Conformation peeked = peekNextConformation();
+    	String out = prefix + peeked +" : "+peeked.score();
+    	System.out.println(out);
+    	for(BDAStarNode child : children)
+    	{
+    		child.printTree(prefix + "+--");
+    	}
+    }
 
     @Override
     public int compareTo (BDAStarNode arg0) {
-        double diff = getConformation().score() - arg0.getConformation().score();
+        double diff = nextBestScore() - arg0.nextBestScore();
         if(diff < 0) return -1;
         if(diff > 0) return 1;
         return 0;

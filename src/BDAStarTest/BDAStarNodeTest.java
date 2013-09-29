@@ -36,7 +36,7 @@ public class BDAStarNodeTest {
         if(index == numPositions)
         {
             //System.out.println("Inserting "+current);
-            root.insertConformation(current);
+            root.insertConformation(current, space.getEmptyConformation());
             return;
         }
         Position p = new Position(index);

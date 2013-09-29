@@ -91,7 +91,7 @@ public class BWMSolutionSpace implements SolutionSpace {
             int position = rotamerMap.pos;
             int aminoAcid = rotamerMap.aa;
             int rotamer = rotamerMap.rot;
-            ProteinPosition pos = positionFromPos(position);
+            Position pos = positionFromPos(position);
             ProteinChoice choice = new ProteinChoice(aminoAcid, rotamer);
             conf.append(pos, choice);
         }
@@ -103,7 +103,8 @@ public class BWMSolutionSpace implements SolutionSpace {
         return conf;
     }
 
-    public ProteinPosition positionFromPos(int position) {
+    @Override
+    public Position positionFromPos(Integer position) {
         int str = designIndexToStrandIndex[position];
         int strResNum = strandDesignIndices[str][designIndexToStrandResidueIndex[position]];
         return new ProteinPosition(str, strResNum, position);
@@ -114,12 +115,12 @@ public class BWMSolutionSpace implements SolutionSpace {
     	return "";
     }
 
-    public Set<ProteinPosition> MSetFromArray (LinkedHashSet<Integer> m) {
+    public Set<? extends Position> MSetFromArray (LinkedHashSet<Integer> m) {
         /*
          * 1. For each integer, get the strand and sequence numbers
          * 2. create the corresponding ProteinPosition
          */
-        HashSet<ProteinPosition> MSet = new HashSet<ProteinPosition>();
+        HashSet<Position> MSet = new HashSet<Position>();
         for(int position: m)
         {
             MSet.add(positionFromPos(inverseResidueMap[position]));
@@ -147,5 +148,7 @@ public class BWMSolutionSpace implements SolutionSpace {
 	public ConformationMap createConformationMap(Position p) {
 		return new ProteinConformationMap(this, p);
 	}
+
+
 
 }

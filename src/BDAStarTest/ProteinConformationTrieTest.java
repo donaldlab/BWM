@@ -42,15 +42,21 @@ public class ProteinConformationTrieTest {
 		for(Conformation mConf : MConfs)
 		{
 			MConfCount++;
-			if(MConfCount > 2) return;
 			System.out.println("Results for "+mConf);
 			BDAStarNode lambdaConfNode = trie.getAStarRoot(mConf, 0);
 			int rank = 0;
 			while(lambdaConfNode.moreConformations() && rank < 1024)
 			{
+				//lambdaConfNode.heapCheck();
 				rank ++;
-				System.out.println("Result "+rank+": "+lambdaConfNode.getNextConformation());
+				Conformation next = lambdaConfNode.getNextConformation();
+				
+				//lambdaConfNode.printTree();
+				System.out.println("Result "+rank+": "+next+" "+next.score());
 			}
+			System.out.println(rank + " conformations");
+			if(rank < 32)
+				System.out.println("INCOMPLETE SUBTREE");
 		}
 	}
 	
@@ -77,20 +83,28 @@ public class ProteinConformationTrieTest {
     {
         if(index == numPositions)
         {
-            //System.out.println("Inserting "+current);
+            System.out.println("Inserting "+lambda+" into "+current);
+
             root.insertConformation(current, lambda);
+
+        	//System.out.println("Trie is "+root.getAStarRoot(current, 0));
+        	//root.getAStarRoot(current, 0).printTree();
             return;
         }
         Position p = new Position(index);
         Conformation target = current;
-        if(index > numMPositions)
+        if(index >= numMPositions)
         	target = lambda;
+        if(index== numMPositions)
+        {
+        	System.out.println("Begin Populating "+current);
+        }
         for(Choice c : space.getChoices(p))
         {
             Conformation nextConf = target.copy();
             nextConf.append(p, c);
             if(index < numMPositions)
-            	insertConformations(root, nextConf, current, space, index+1);
+            	insertConformations(root, nextConf, lambda, space, index+1);
             else
             	insertConformations(root, current, nextConf, space, index + 1);
         }
