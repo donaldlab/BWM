@@ -17,8 +17,12 @@ public class ProteinConformationTrie {
         children.initialize(space, p); 
     }
     
+    public BDAStarNode getAStarRoot(Conformation partial)
+    {
+    	return getAStarRoot(partial, 0);
+    }
     
-    public BDAStarNode getAStarRoot (Conformation partial, int index)
+    private BDAStarNode getAStarRoot (Conformation partial, int index)
     {
         Collection<Position> positions = partial.getPositions();
         Position[] positionArray = positions.toArray(new Position[]{});

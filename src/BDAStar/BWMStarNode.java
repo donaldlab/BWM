@@ -94,9 +94,9 @@ public class BWMStarNode
     {
         if(child == null)
         {
-            return conformationTrees.getAStarRoot(partial, 0).peekNextConformation();
+            return conformationTrees.getAStarRoot(partial).peekNextConformation();
         }
-        Conformation soFar = conformationTrees.getAStarRoot(partial, 0).peekNextConformation();
+        Conformation soFar = conformationTrees.getAStarRoot(partial).peekNextConformation();
         Conformation conformation = child.peekNextConformation(soFar);
         Conformation rightConformation = getRightConformation(conformation);
         return conformation.join(rightConformation);
@@ -118,7 +118,7 @@ public class BWMStarNode
 
     private double peekNextScore()
     {
-        return conformationTrees.getAStarRoot(null, 0).peekNextConformation().score();
+        return conformationTrees.getAStarRoot(null).peekNextConformation().score();
     }
     
     public Conformation getNextConformation ()
@@ -126,35 +126,47 @@ public class BWMStarNode
     	return getNextConformation(emptyConformation);
     }
 
-    public Conformation getNextConformation (Conformation partial) 
+    public Conformation getNextConformation (Conformation parentConformation) 
     {
-        BDAStarNode AStarRoot = conformationTrees.getAStarRoot(partial, 0);
-        Conformation rootPartial = AStarRoot.getNextConformation();
+    	/*
+    	 * Algorithm overview:
+    	 * 1. Get AStarRoot from MConf (can be empty conformation)
+    	 * 2. Get the partial conformation (lambdaConf) from AStarRoot
+    	 * 3. If we're a leaf, return lambdaConf.
+    	 * 4. If we have a child, add MConf to lambdaConf (childMSet) and recurse on child.
+    	 * 5. If the child believes childMSet has more conformations, reinsert lambdaConf.
+    	 */
+    	Conformation MConformation = parentConformation.extract(MSet);
+        BDAStarNode AStarRoot = conformationTrees.getAStarRoot(MConformation);
+        Conformation lambdaConformation = AStarRoot.getNextConformation();
+        System.out.println("M: "+MConformation+" Lambda : "+lambdaConformation);
         // If we're a leaf, return whatever partialConformation fits.
         if(child == null)
         {
-            return rootPartial;
+            return lambdaConformation;
         }
         //If we have one child, return the joint result.
-        Conformation jointPartial = rootPartial.join(partial);
-        Conformation childPartial = child.getNextConformation(jointPartial);
-        if(child.moreConformations(rootPartial) && rightChild != null)
+        Conformation childMConformation = lambdaConformation.join(parentConformation);
+        Conformation childNextConformation = child.getNextConformation(childMConformation);
+        System.out.println("Child returns "+childNextConformation);
+        if(child.moreConformations(childMConformation))
         {
-            AStarRoot.insertConformation(rootPartial, partial);
+        	System.out.println("Reinserting "+childMConformation);
+            AStarRoot.insertConformation(lambdaConformation, parentConformation);
         }
-        Conformation out = jointPartial.join(childPartial);
-        if(rightChild == null)
+        Conformation out = childMConformation.join(childNextConformation);
+        if(rightChild == null || true)
             return out;
         //If we have a right child as well, get the right conformation and join it.
         Conformation rightConformation = getRightConformation(out);
-        updateRightConformations(partial, rootPartial, out);
+        updateRightConformations(parentConformation, lambdaConformation, out);
         return out.join(rightConformation);
     }
     
     
     private boolean moreConformations (Conformation out) 
     {
-        return conformationTrees.getAStarRoot(out, 0).moreConformations();
+        return conformationTrees.getAStarRoot(out).moreConformations();
     }
 
 
@@ -178,7 +190,7 @@ public class BWMStarNode
         int offset = getRightConformationOffset(lastUsed);
         if(offset == solutionList.size())
         {
-            BDAStarNode rightTree = rightChild.conformationTrees.getAStarRoot(MSet, 0);
+            BDAStarNode rightTree = rightChild.conformationTrees.getAStarRoot(MSet);
             if(rightTree.moreConformations())
             {
                 Conformation nextRightConf = rightTree.getNextConformation();
@@ -186,7 +198,7 @@ public class BWMStarNode
             }
             else 
             {
-                conformationTrees.getAStarRoot(MSet, 0).deleteConformation(lastUsed);
+                conformationTrees.getAStarRoot(MSet).deleteConformation(lastUsed);
             }
         }
     }
@@ -286,12 +298,8 @@ public class BWMStarNode
         return null;
     }
 
-
-
 	public boolean moreConformations() {
-		if(MSet.size() < 1)
-			return conformationTrees.getAStarRoot(emptyConformation, 0).moreConformations();
-		return false;
+		return moreConformations(emptyConformation);
 	}
 
 }

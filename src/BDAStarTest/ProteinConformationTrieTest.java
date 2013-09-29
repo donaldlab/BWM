@@ -43,7 +43,7 @@ public class ProteinConformationTrieTest {
 		{
 			MConfCount++;
 			System.out.println("Results for "+mConf);
-			BDAStarNode lambdaConfNode = trie.getAStarRoot(mConf, 0);
+			BDAStarNode lambdaConfNode = trie.getAStarRoot(mConf);
 			int rank = 0;
 			while(lambdaConfNode.moreConformations() && rank < 1024)
 			{

@@ -94,7 +94,7 @@ public class BWMStarNodeTest {
                 whee = 4;
             test.append(new Position(i), new Choice(whee));
         }
-        
+        /*
         HashSet<String> fullSpace = new HashSet<String>(); 
         buildAllSolutions(fullSpace, new TestConformation(), 0, 5, 2);
         System.out.println("Total possible solutions: "+fullSpace.size());
@@ -104,6 +104,7 @@ public class BWMStarNodeTest {
         {
             System.out.println(s+": "+scoreString(s));
         }
+        */
         
 	
     }

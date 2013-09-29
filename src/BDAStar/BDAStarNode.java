@@ -85,6 +85,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         out = nextChild.getNextConformation();
         if(nextChild.moreConformations())
         	children.add(nextChild);
+        else childMap.remove(nextChild.choice);
         return out;
     }
     
@@ -112,7 +113,7 @@ public class BDAStarNode implements Comparable<BDAStarNode>
         {
         	out.append(position, choice);
         }
-        if(children.size() < 1 && prefix != null)
+        if(false && children.size() < 1 && prefix != null)
         	out = out.join(prefix);
         return out;
     }
