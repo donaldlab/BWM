@@ -6,7 +6,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-
 import BDAStar.BWMAStarNode;
 import BDAStar.BWMSolutionSpace;
 import BDAStar.Conformation;
@@ -52,7 +51,10 @@ public class TreeEdge implements Serializable{
 	/* Enumeration objects */
 	private static BWMAStarNode root;
 	private static BWMSolutionSpace solutionSpace;
-	private ConformationTrie lambdaConformations; 
+	private PriorityQueue<Conf>[] A2;
+	private Set<TreeEdge> rightFSet;
+	private Map<Integer[],Integer> rightSolutionOffset;
+	private List<Integer[]> rightSolutions;
 	
 	public TreeEdge(int eNodeName1, int eNodeName2, LinkedHashSet<Integer> teM,
 			int numUnprunedRot[], int molResidueMap[], int invResidueMap[], int sysStrandNum, boolean rootEdge){
@@ -206,8 +208,8 @@ public class TreeEdge implements Serializable{
 			float total_energy=0;
 			total_energy=en[0]+energy_ll;
                       
-			PriorityQueue<Conf> conformationHeap = null;
-			conformationHeap.add(new Conf(curState, en[0]));
+			PriorityQueue<Conf> conformationHeap = null;// A2[computeIndexInA(curState)];
+			conformationHeap.add(new Conf(curState, en[0], computeIndexInA(curState)));
 			
 			if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
 				
@@ -281,7 +283,7 @@ public class TreeEdge implements Serializable{
 			curState[depth] = -1;
 			
 			if ( depth==M.size() ){//done with the lambda states for the current state assignment in M, so update A[] and energy[]
-			
+			    /** The self-balancing happens automatically here so long as we work bottom-up, which is the case! */
 				if(isRootEdge) // as you will never look up the A matrix for the root, i.e it will never be in the F set of any edge, we can store the actual energy
 				{
 					storeBestStateLambda(bestState, arrayM, bestEnergy[0]); //store the best state for each vertex in lambda, for the current state assignment in M
@@ -321,6 +323,18 @@ public class TreeEdge implements Serializable{
 			int index = fk.computeIndexInA(fkMstate[i]);
 			energy_return+=fk.getEnergy()[index];
 		}
+		
+		/* Handle right side... 
+		TreeEdge[] arrayRightF = rightFSet.toArray(new TreeEdge[]{});
+		int[][] rightMState = new int[arrayRightF.length][];
+                for (int i=0; i<rightMState.length; i++)
+                    rightMState[i] = getMstateForEdgeCurState(curState,(TreeEdge)arrayF[i]);
+		for(int j = 0; j < arrayRightF.length; j++)
+		{
+		    int index = arrayRightF[j].computeIndexInA(rightMState[j]);
+		    energy_return += arrayRightF[j].getEnergy()[index];
+		}
+		*/
 		return energy_return;
 	}
 	
@@ -341,7 +355,10 @@ public class TreeEdge implements Serializable{
 		if (crc!=null){
 			TreeEdge crce = crc.getCofEdge();
 			if (crce.getIsLambdaEdge()) 
+			{
 				Fset.add(crce);
+				rightFSet.add(crce);
+			}
 			else
 				computeFset(crc);			
 		}
@@ -507,6 +524,12 @@ public class TreeEdge implements Serializable{
 	//Finds the best energy and outputs the corresponding state, using the information for this edge;
 	//	This must be called only for the root edge, since otherwise not all elements of aaRotPos[bestInd][][] are defined
 	//Modify this function and add what to do for rootedge in each and every function
+	/** This is the method you need to tweak to make things work.
+	 * To wit:
+	 * 1. Poll 
+	 * 2. Rebalance
+	 * 3. Process rightSide?
+	 * */
 	public void outputBestStateE(Molecule m, RotamerLibrary rl, String ligType){
 		
 		if (!isRootEdge) {
@@ -517,6 +540,7 @@ public class TreeEdge implements Serializable{
 		// the energy matrix and the A matrix will only have one entry 	
 		RotTypeMap bestPosAARot[] = new RotTypeMap[molResMap.length]; // creating a variable to store the best energy returned by the Btrack Procedure, molresMap
 										// length is equal to the number of residues being designed
+		/** TODO: Backtrack entry point. */
 		bTrackBestConf(bestPosAARot,A[0]);
 		System.out.print("GMEC: ");
 		
@@ -554,26 +578,35 @@ public class TreeEdge implements Serializable{
 		}
 		return c;
 	}
-
+	/**
+	 * This method recursively populates bestPosAARot[] with the values from bestState[]
+	 * @param bestPosAARot The full rotamer assignment array, I presume.
+	 * @param bestState The assignment for the MSet of the current node.
+	 */
 	public void bTrackBestConf (RotTypeMap bestPosAARot[], int bestState[])
 	{
 		int position=-1;
 		int index=0;
 		if(!isRootEdge)
 			index=M.size();
+		/* populate the outcome with this edge's assignments */
 		for(int i=index; i<index+lambda.size();i++)
 		{
 			position=rtm[i][bestState[i]].pos;
 			bestPosAARot[position]= new RotTypeMap(rtm[i][bestState[i]].pos,rtm[i][bestState[i]].aa,rtm[i][bestState[i]].rot);
 		}
+		/* If we have no further lambda children, return. */
 		if(Fset == null)
 			return;
-		
+		/* Calculate the M Set for children. 
+		 * No changes here. */
 		Object array_fset[] = Fset.toArray();
 		int fkMstate[][] = new int[array_fset.length][];
 		for (int i=0; i<fkMstate.length; i++)
 			fkMstate[i] = getMstateForEdgeCurState(bestState,(TreeEdge)array_fset[i]);
 		
+		/* Index into the child array 
+		 * No changes here?*/
 		int fkLambdaState[][] = new int[array_fset.length][];
 		for (int i=0; i<fkMstate.length; i++){
 			Object fkM[] = ((TreeEdge)array_fset[i]).getM().toArray();
@@ -581,6 +614,8 @@ public class TreeEdge implements Serializable{
 		}
 		
 		//For each edge in the set F, combine the state assignments for the M and lambda sets into a single array
+		/* Store M + lambda as "best state" for each child 
+		 * No changes here */
 		int fkMLambda[][] = new int[array_fset.length][];
 		for (int i=0; i<fkMstate.length; i++){
 			fkMLambda[i] = new int[fkMstate[i].length+fkLambdaState[i].length];
@@ -589,6 +624,11 @@ public class TreeEdge implements Serializable{
 		}
 		
 		//call the recursive procedure 
+		/* Recurse
+		 * Needs to:
+		 * 1. Recurse on left children
+		 * 2. Manage right children solution list. 
+		 * */
 		for(int i=0;i<array_fset.length;i++)
 		{
 			TreeEdge fk = (TreeEdge)array_fset[i];
@@ -598,9 +638,10 @@ public class TreeEdge implements Serializable{
 		return;
 	}
 	
-	public RotTypeMap[] backTrack(RotTypeMap[] partialConformation)
+	/* Update energies method */
+	private void updateEnergies()
 	{
-	    return null;
+	    
 	}
 	
 	public double nextBestEnergy(RotTypeMap[] partialConformation)
@@ -619,7 +660,6 @@ public class TreeEdge implements Serializable{
 	    LinkedHashSet<Position> out = new LinkedHashSet<Position>();
 	    if(lambda == null)
 	    {
-	        //lambda = new LinkedHashSet<Integer>();
 	        for(int i = 0; i < 2; i ++)
 	            lambda.add(i);
 	    }
@@ -654,16 +694,33 @@ public class TreeEdge implements Serializable{
 	 * @author Jon
 	 *
 	 */
-	
+	public RotTypeMap[] ConftoRotTypeMap(Conf c)
+	{
+	    int[] bestState = c.conformation;
+	    RotTypeMap[] bestPosAARot = new RotTypeMap[bestState.length];
+	    for(int i=0; i<bestState.length;i++)
+	    {
+	        int position=rtm[i][bestState[i]].pos;
+	        bestPosAARot[position]= new RotTypeMap(rtm[i][bestState[i]].pos,rtm[i][bestState[i]].aa,rtm[i][bestState[i]].rot);
+	    }
+	    return bestPosAARot;
+	}
 	
 	private class Conf
 	{
 	    int[] conformation;
 	    double energy;
-	    public Conf(int[] c, double e)
+	    int indexInA;
+	    public Conf(int[] c, double e, int i)
 	    {
 	        conformation = c;
 	        energy = e;
+	        indexInA = i;
+	    }
+	    
+	    public int hashCode()
+	    {
+	        return indexInA;
 	    }
 	}
 	
