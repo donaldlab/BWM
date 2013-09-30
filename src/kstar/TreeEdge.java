@@ -54,7 +54,9 @@ public class TreeEdge implements Serializable{
 	private PriorityQueue<Conf>[] A2;
 	private Set<TreeEdge> rightFSet;
 	private Map<Integer[],Integer> rightSolutionOffset;
-	private List<Integer[]> rightSolutions;
+	private List<RightConf> rightSolutions;
+	TreeNode leftChild;
+	TreeNode rightChild;
 	
 	public TreeEdge(int eNodeName1, int eNodeName2, LinkedHashSet<Integer> teM,
 			int numUnprunedRot[], int molResidueMap[], int invResidueMap[], int sysStrandNum, boolean rootEdge){
@@ -209,7 +211,7 @@ public class TreeEdge implements Serializable{
 			total_energy=en[0]+energy_ll;
                       
 			PriorityQueue<Conf> conformationHeap = null;// A2[computeIndexInA(curState)];
-			conformationHeap.add(new Conf(curState, en[0], computeIndexInA(curState)));
+			conformationHeap.add(new Conf(bestState, en[0], rtm));
 			
 			if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
 				
@@ -362,6 +364,21 @@ public class TreeEdge implements Serializable{
 			else
 				computeFset(crc);			
 		}
+	}
+	
+	//Called by bTrackHelper(.); finds the tree edges belonging to the set F starting at the sub-tree rooted at the tree node tn
+	private TreeNode searchSubtree(TreeNode tn){
+		if(isLambdaEdge)
+			return this.c;
+		TreeNode clc = searchSubtree(tn.getlc());
+		TreeNode crc = searchSubtree(tn.getrc());
+		if(clc != null && crc != null)
+			return this.c;
+		if(clc == null && crc != null)
+			return clc;
+		if(clc != null && crc == null)
+			return crc;
+		return null;
 	}
 	
 	//Computes the state of all vertices in e.M (returned in eMstate[]) corresponding to the state assignment curState[] for this edge;
@@ -589,7 +606,7 @@ public class TreeEdge implements Serializable{
 		int index=0;
 		if(!isRootEdge)
 			index=M.size();
-		/* populate the outcome with this edge's assignments */
+		
 		for(int i=index; i<index+lambda.size();i++)
 		{
 			position=rtm[i][bestState[i]].pos;
@@ -629,6 +646,7 @@ public class TreeEdge implements Serializable{
 		 * 1. Recurse on left children
 		 * 2. Manage right children solution list. 
 		 * */
+				
 		for(int i=0;i<array_fset.length;i++)
 		{
 			TreeEdge fk = (TreeEdge)array_fset[i];
@@ -638,10 +656,157 @@ public class TreeEdge implements Serializable{
 		return;
 	}
 	
+	/**
+	 * New Algorithm should:
+	 * 
+	 * 1. Take in current M conformation
+	 * 2. Populate result with best lambda conformation as a RotTypeMap[]
+	 * 3. Recurse, passing in a new RotTypeMap for the next best conformation given M + lambda
+	 * 4. Reinsert the lambda conformation into the A2 heap
+	 * 5. Populate RotTypeMap[] nextBestConf with what's on top of the heap now. 
+	 * 
+	 * @return
+	 */
+	
+
+	public double bTrackBestConfNew (RotTypeMap bestPosAARot[], int bestState[])
+	{
+		/* If we're a node with two children but no lambda set of our own, recurse! */
+		if(lambda.size() < 1)
+		{
+			TreeEdge leftEdge = leftChild.getCofEdge();
+			int[] leftM = getMstateForEdgeCurState(bestState, leftEdge);
+			Conf leftConf = leftEdge.A2[leftEdge.computeIndexInA(leftM)].poll();
+			int[] leftMLambda = leftConf.conformation;
+
+			TreeEdge rightEdge = rightChild.getCofEdge();
+			int[] rightM = getMstateForEdgeCurState(bestState, rightEdge);
+			Conf rightConf = rightEdge.A2[rightEdge.computeIndexInA(rightM)].poll();
+			int[] rightMLambda = rightConf.conformation;
+		}
+		
+		int position=-1;
+		int index=0;
+		if(!isRootEdge)
+			index=M.size();
+		/* populate the outcome with this edge's assignments 
+		 * modify to pop heap instead.
+		 * */
+		Conf nextState = A2[computeIndexInA(bestState)].poll();
+		
+		RotTypeMap[] nextConf = new RotTypeMap[bestPosAARot.length];
+		nextState.fillRotTypeMap(nextConf);
+		
+		for(int i = index; i < bestState.length; i++)
+		{
+			position=rtm[i][bestState[i]].pos;
+			bestPosAARot[position]= nextConf[position];
+		}
+		
+		for(int i=index; i<index+lambda.size();i++)
+		{
+			position=rtm[i][bestState[i]].pos;
+			bestPosAARot[position]= new RotTypeMap(rtm[i][bestState[i]].pos,rtm[i][bestState[i]].aa,rtm[i][bestState[i]].rot);
+		}
+		/* If we have no further lambda children, return. */
+		if(Fset == null)
+			return A2[computeIndexInA(bestState)].peek().energy;
+		/* Calculate the M Set for children. 
+		 * No changes here. */
+		Object array_fset[] = Fset.toArray();
+		int fkMstate[][] = new int[array_fset.length][];
+		for (int i=0; i<fkMstate.length; i++)
+			fkMstate[i] = getMstateForEdgeCurState(bestState,(TreeEdge)array_fset[i]);
+		
+		/* Index into the child array 
+		 * No changes here?*/
+		int fkLambdaState[][] = new int[array_fset.length][];
+		for (int i=0; i<fkMstate.length; i++){
+			Object fkM[] = ((TreeEdge)array_fset[i]).getM().toArray();
+			fkLambdaState[i] = ((TreeEdge)array_fset[i]).getA()[((TreeEdge)array_fset[i]).computeIndexInA(fkMstate[i])];
+		}
+		
+		//For each edge in the set F, combine the state assignments for the M and lambda sets into a single array
+		/* Store M + lambda as "best state" for each child 
+		 * No changes here */
+		int fkMLambda[][] = new int[array_fset.length][];
+		for (int i=0; i<fkMstate.length; i++){
+			fkMLambda[i] = new int[fkMstate[i].length+fkLambdaState[i].length];
+			System.arraycopy(fkMstate[i], 0, fkMLambda[i], 0, fkMstate[i].length);
+			System.arraycopy(fkLambdaState[i], 0, fkMLambda[i], fkMstate[i].length, fkLambdaState[i].length);
+		}
+		
+		//call the recursive procedure 
+		/* Recurse
+		 * Needs to:
+		 * 1. Recurse on left children
+		 * 2. Manage right children solution list. 
+		 * */
+				
+		for(int i=0;i<array_fset.length;i++)
+		{
+			TreeEdge fk = (TreeEdge)array_fset[i];
+			fk.bTrackBestConf(bestPosAARot,fkMLambda[i]);
+		}
+		
+		TreeEdge leftEdge = leftChild.getCofEdge();
+		int[] leftM = getMstateForEdgeCurState(bestState, leftEdge);
+		Conf leftConf = leftEdge.A2[leftEdge.computeIndexInA(leftM)].poll();
+		int[] leftMLambda = leftConf.conformation;
+		double leftEnergy = leftEdge.bTrackBestConfNew(bestPosAARot, leftMLambda);
+		double newEnergy = leftEnergy;
+		
+		Integer[] completeLeftConformation = null;
+		int offset = rightSolutionOffset.get(completeLeftConformation);
+		if(offset < rightSolutions.size())
+		{
+			rightSolutionOffset.put(completeLeftConformation, offset+1);
+
+			double rightEnergy = rightSolutions.get(offset).energy;
+			nextState.updateRightEnergy(rightEnergy);
+			A2[computeIndexInA(bestState)].add(nextState);
+			RotTypeMap[] rightBestPosAARot = rightSolutions.get(offset).fullConformation;
+			/* populate bestPosAARot with our results */
+		}
+		else 
+		{
+			TreeEdge rightEdge = rightChild.getCofEdge();
+			int[] rightM = getMstateForEdgeCurState(bestState, rightEdge);
+			Conf rightConf = rightEdge.A2[rightEdge.computeIndexInA(rightM)].poll();
+			int[] rightMLambda = rightConf.conformation;
+			if(rightEdge.moreConformations())
+			{
+				RotTypeMap[] bestPosAARot2 = new RotTypeMap[molResMap.length];
+				double rightEnergy = rightEdge.bTrackBestConfNew(bestPosAARot2, rightMLambda);
+				rightSolutions.add(new RightConf(bestPosAARot2, rightEnergy));
+				newEnergy += rightEnergy;
+				nextState.energy = newEnergy;
+				A2[computeIndexInA(bestState)].add(nextState);
+			}
+		}
+	
+		return A2[computeIndexInA(bestState)].peek().energy;
+	}
+	
+	public boolean moreConformations()
+	{
+		return false;
+	}
+	
 	/* Update energies method */
 	private void updateEnergies()
 	{
 	    
+	}
+	
+	private String stateArrayToString(int[] curState)
+	{
+		String out = "";
+		for(int i = 0; i < curState.length; i++)
+		{
+			out+="-"+curState[i];
+		}
+		return out;
 	}
 	
 	public double nextBestEnergy(RotTypeMap[] partialConformation)
@@ -694,9 +859,8 @@ public class TreeEdge implements Serializable{
 	 * @author Jon
 	 *
 	 */
-	public RotTypeMap[] ConftoRotTypeMap(Conf c)
+	public RotTypeMap[] IntArrayToRotTypeMap(int[] bestState)
 	{
-	    int[] bestState = c.conformation;
 	    RotTypeMap[] bestPosAARot = new RotTypeMap[bestState.length];
 	    for(int i=0; i<bestState.length;i++)
 	    {
@@ -706,16 +870,45 @@ public class TreeEdge implements Serializable{
 	    return bestPosAARot;
 	}
 	
+	private class RightConf
+	{
+		RotTypeMap[] fullConformation;
+		double energy;
+		
+		public RightConf(RotTypeMap[] fullRightConf, double e)
+		{
+			fullConformation = fullRightConf;
+			energy = e;
+		}
+	}
+	
 	private class Conf
 	{
 	    int[] conformation;
 	    double energy;
+	    double rightEnergy;
 	    int indexInA;
-	    public Conf(int[] c, double e, int i)
+	    RotTypeMap[][] rtm;
+	    public Conf(int[] c, double e, RotTypeMap[][] rtm)
 	    {
 	        conformation = c;
 	        energy = e;
-	        indexInA = i;
+	    }
+	    
+		public void fillRotTypeMap(RotTypeMap[] bestPosAARot)
+		{
+		    for(int i=0; i<conformation.length;i++)
+		    {
+		        int position=rtm[i][conformation[i]].pos;
+		        bestPosAARot[position]= new RotTypeMap(rtm[i][conformation[i]].pos,rtm[i][conformation[i]].aa,rtm[i][conformation[i]].rot);
+		    }
+		}
+	    
+	    public void updateRightEnergy(double newRightEnergy)
+	    {
+	    	energy -= rightEnergy;
+	    	energy += newRightEnergy;
+	    	rightEnergy = newRightEnergy;
 	    }
 	    
 	    public int hashCode()
