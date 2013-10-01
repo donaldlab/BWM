@@ -6685,10 +6685,10 @@ public class KSParser
 		bt.getRoot().printTree("");
 		
 		/* New BWM Enumeration section */
+		/*
 		BWMSolutionSpace space = new BWMSolutionSpace(prunedRotAtResObject, 
 				new EnergyFunction(rs.getMinMatrix(), bt.getGraph()), mp.mutRes2Strand, 
 				mp.strandMut, mp.mutRes2StrandMutIndex, bt.getRoot().getCofEdge().getInvResMap(), grl[sysStrNum]);
-		bt.setEnumerationObjects(null, space);
 		TreeNode start = bt.getRoot().getlc();
 		BWMAStarNode AStarRoot = new BWMAStarNode(space.getEmptyConformation());
 		BWMAStarNode.CreateTree2(start, AStarRoot, space.getEmptyConformation(), AStarRoot.getChildren(), space, 0, start.getCofEdge().getPositionList());
@@ -6713,9 +6713,14 @@ public class KSParser
 
                     
 		}
-		
+		*/
 		
 		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
+
+                bt.getRoot().getlc().getCofEdge().outputBestStateE2(mp.m, grl[sysStrNum], "");
+
+                bt.getRoot().getlc().getCofEdge().outputBestStateE2(mp.m, grl[sysStrNum], "");
+                bt.getRoot().getlc().getCofEdge().outputBestStateE2(mp.m, grl[sysStrNum], "");
 		
 	}
 	
