@@ -6682,7 +6682,11 @@ public class KSParser
 		
 		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,ligPresent);
 		bt.computeLambdaSets(bt.getRoot());
+		TreeNode realRoot = bt.getRoot().getlc();
+		TreeEdge actualRootEdge = realRoot.getCofEdge();
 		bt.getRoot().printTree("");
+		actualRootEdge.compactTree();
+		actualRootEdge.printTree("");
 		
 		/* New BWM Enumeration section */
 		/*
@@ -6716,11 +6720,10 @@ public class KSParser
 		*/
 		
 		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
-
-                bt.getRoot().getlc().getCofEdge().outputBestStateE2(mp.m, grl[sysStrNum], "");
-
-                bt.getRoot().getlc().getCofEdge().outputBestStateE2(mp.m, grl[sysStrNum], "");
-                bt.getRoot().getlc().getCofEdge().outputBestStateE2(mp.m, grl[sysStrNum], "");
+		
+		actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
+		actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
+		actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
 		
 	}
 	

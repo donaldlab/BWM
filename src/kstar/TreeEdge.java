@@ -53,7 +53,7 @@ public class TreeEdge implements Serializable{
     private static BWMSolutionSpace solutionSpace;
     private ArrayList<PriorityQueue<Conf>> A2;
     private Set<TreeEdge> rightFSet;
-    private Map<Integer[],Integer> rightSolutionOffset;
+    private Map<String,Integer> rightSolutionOffset;
     private List<RightConf> rightSolutions;
     TreeNode leftChild;
     TreeNode rightChild;
@@ -76,6 +76,8 @@ public class TreeEdge implements Serializable{
         isRootEdge = rootEdge;
         if(comparator == null)
             comparator = new ConformationComparator();
+        rightSolutionOffset = new HashMap<String, Integer>();
+        rightSolutions = new ArrayList<RightConf>();
     }
 
     public void setBWMAStarObjects( BWMAStarNode node, BWMSolutionSpace space)
@@ -358,8 +360,6 @@ public class TreeEdge implements Serializable{
 
         TreeNode clc = tn.getlc();
         TreeNode crc = tn.getrc();
-        leftChild = searchSubtree(tn.getlc());
-        rightChild = searchSubtree(tn.getrc());
         if (clc!=null){
             TreeEdge clce = clc.getCofEdge();
             if (clce.getIsLambdaEdge()) //if clce is a lambda edge, add it to Fi, and do not travers the subtree rooted at clc
@@ -379,12 +379,33 @@ public class TreeEdge implements Serializable{
         }
     }
 
-    //Called by bTrackHelper(.); finds the tree edges belonging to the set F starting at the sub-tree rooted at the tree node tn
+    public void compactTree()
+    {
+    	leftChild = searchSubtree(c.getlc());
+    	rightChild = searchSubtree(c.getrc());
+    	if(leftChild != null)
+    		leftChild.getCofEdge().compactTree();
+    	if(rightChild != null)
+    		rightChild.getCofEdge().compactTree();
+    	if(leftChild == null && rightChild != null)
+    	{
+    		leftChild = rightChild;
+    		rightChild = null;
+    	}
+    }
+    
+    public void printTree(String prefix)
+    {
+    	String output = prefix+""+c;
+    	System.out.println(output);
+    	if(leftChild != null)
+    	leftChild.getCofEdge().printTree(prefix+"+L--");
+    	if(rightChild != null)
+    	rightChild.getCofEdge().printTree(prefix+"+R--");
+    }
+    
     private TreeNode searchSubtree(TreeNode tn){
         if(tn == null) return null;
-        if(tn.getCofEdge().isRootEdge)
-            System.out.println("Whee");
-        
         if(tn.getCofEdge().isLambdaEdge)
             return tn;
         if(tn.getIsLeaf())
@@ -392,11 +413,11 @@ public class TreeEdge implements Serializable{
         TreeNode clc = searchSubtree(tn.getlc());
         TreeNode crc = searchSubtree(tn.getrc());
         if(clc != null && crc != null)
-            return this.c;
+            return tn;
         if(clc == null && crc != null)
-            return clc;
-        if(clc != null && crc == null)
             return crc;
+        if(clc != null && crc == null)
+            return clc;
         return null;
     }
 
@@ -610,16 +631,19 @@ public class TreeEdge implements Serializable{
         System.out.print("GMEC: ");
 
         for (int i=0; i<bestPosAARot.length; i++) { //output the AAs
-
+        	if(bestPosAARot[i] == null) continue;
             if (m.residue[molResMap[i]].strandNumber==sysStrNum) //this residue is in the system strand
-                System.out.print(rl.getAAName(bestPosAARot[i].aa)+" ");
+                System.out.print(molResMap[i]+": "+rl.getAAName(bestPosAARot[i].aa)+" ");
 
             else //this residue is in the ligand strand
                 System.out.print(ligType+" ");
         }
 
-        for (int i=0; i<bestPosAARot.length; i++) //output the rotamers
+        for (int i=0; i<bestPosAARot.length; i++){ //output the rotamers
+
+        	if(bestPosAARot[i] == null) continue;
             System.out.print(bestPosAARot[i].rot+" ");
+        }
 
         System.out.println(energy[0]); //output the energy
     }
@@ -719,6 +743,7 @@ public class TreeEdge implements Serializable{
 
     public double bTrackBestConfNew (RotTypeMap bestPosAARot[], int bestState[])
     {
+    	System.out.println(this.c+", "+leftChild+", "+rightChild);
         /* If we're a node with two children but no lambda set of our own, recurse! */
         if(lambda.size() < 1)
         {
@@ -781,50 +806,56 @@ public class TreeEdge implements Serializable{
 
         TreeEdge leftEdge = leftChild.getCofEdge();
         int[] leftM = getMstateForEdgeCurState(bestState, leftEdge);
-        Conf leftConf = leftEdge.A2.get(leftEdge.computeIndexInA(leftM)).poll();
+        Conf leftConf = leftEdge.A2.get(leftEdge.computeIndexInA(leftM)).peek();
         int[] leftMLambda = leftConf.conformation;
         double leftEnergy = leftEdge.bTrackBestConfNew(bestPosAARot, leftMLambda);
         double newEnergy = leftEnergy;
-
-        Integer[] completeLeftConformation = null;
-        int offset = rightSolutionOffset.get(completeLeftConformation);
-        if(offset < rightSolutions.size())
+        nextState.energy = leftEnergy;
+        boolean addBackNextState = false;
+        if(rightChild != null)
         {
-            rightSolutionOffset.put(completeLeftConformation, offset+1);
+        	RotTypeMap[] completeLeftConformation = bestPosAARot;
+        	if(!rightSolutionOffset.containsKey(completeLeftConformation.toString()))
+        		rightSolutionOffset.put(completeLeftConformation.toString(), 0);
+        	int offset = rightSolutionOffset.get(completeLeftConformation.toString());
+        	if(offset < rightSolutions.size())
+        	{
+        		rightSolutionOffset.put(completeLeftConformation.toString(), offset+1);
 
-            double rightEnergy = rightSolutions.get(offset).energy;
-            nextState.updateRightEnergy(rightEnergy);
-            A2.get(computeIndexInA(bestState)).add(nextState);
-            RotTypeMap[] rightBestPosAARot = rightSolutions.get(offset).fullConformation;
-            /* populate bestPosAARot with our results */
-            for(int i = 0; i < rightBestPosAARot.length; i++)
-            {
-                bestPosAARot[rightBestPosAARot[i].pos] = rightBestPosAARot[i];
-            }
+        		double rightEnergy = rightSolutions.get(offset).energy;
+        		nextState.updateRightEnergy(rightEnergy);
+        		addBackNextState = true;
+        		rightSolutions.get(offset).fillRotTypeMap(bestPosAARot);
+        	}
+        	else 
+        	{
+        		TreeEdge rightEdge = rightChild.getCofEdge();
+        		int[] rightM = getMstateForEdgeCurState(bestState, rightEdge);
+        		Conf rightConf = rightEdge.A2.get(rightEdge.computeIndexInA(rightM)).poll();
+        		int[] rightMLambda = rightConf.conformation;
+        		if(rightEdge.moreConformations(rightMLambda))
+        		{
+        			RotTypeMap[] bestPosAARot2 = new RotTypeMap[molResMap.length];
+        			double rightEnergy = rightEdge.bTrackBestConfNew(bestPosAARot2, rightMLambda);
+        			rightSolutions.add(new RightConf(bestPosAARot2, rightEnergy));
+        			newEnergy += rightEnergy;
+        			nextState.energy = newEnergy;
+        			addBackNextState = true;
+        			rightSolutionOffset.put(completeLeftConformation.toString(), offset+1);
+        			rightSolutions.get(offset).fillRotTypeMap(bestPosAARot);
+        		}
+        	}
         }
-        else 
-        {
-            TreeEdge rightEdge = rightChild.getCofEdge();
-            int[] rightM = getMstateForEdgeCurState(bestState, rightEdge);
-            Conf rightConf = rightEdge.A2.get(rightEdge.computeIndexInA(rightM)).poll();
-            int[] rightMLambda = rightConf.conformation;
-            if(rightEdge.moreConformations())
-            {
-                RotTypeMap[] bestPosAARot2 = new RotTypeMap[molResMap.length];
-                double rightEnergy = rightEdge.bTrackBestConfNew(bestPosAARot2, rightMLambda);
-                rightSolutions.add(new RightConf(bestPosAARot2, rightEnergy));
-                newEnergy += rightEnergy;
-                nextState.energy = newEnergy;
-                A2.get(computeIndexInA(bestState)).add(nextState);
-            }
-        }
-
+        PriorityQueue<Conf> outHeap = A2.get(computeIndexInA(bestState));
+        if(addBackNextState || leftChild.getCofEdge().moreConformations(leftMLambda))
+        	outHeap.add(nextState);
+        Conf outConf = outHeap.peek();
         return A2.get(computeIndexInA(bestState)).peek().energy;
     }
 
-    public boolean moreConformations()
+    public boolean moreConformations(int[] state)
     {
-        return false;
+    	return !A2.get(computeIndexInA(state)).isEmpty();
     }
 
     /* Update energies method */
@@ -914,6 +945,19 @@ public class TreeEdge implements Serializable{
             fullConformation = fullRightConf;
             energy = e;
         }
+        
+        public void fillRotTypeMap(RotTypeMap[] bestPosAARot)
+        {
+            for(int i=0; i<fullConformation.length;i++)
+            {
+            	RotTypeMap current = fullConformation[i];
+            	System.out.println("DO WE HAVE A NULL? "+current);
+            	System.out.println(current == null);
+            	if(fullConformation[i] != null)
+            		bestPosAARot[i] = fullConformation[i];
+            }
+        }
+
     }
 
     private class Conf
