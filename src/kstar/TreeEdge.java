@@ -773,17 +773,6 @@ public class TreeEdge implements Serializable{
         RotTypeMap[] nextConf = new RotTypeMap[bestPosAARot.length];
         nextState.fillRotTypeMap(nextConf);
 
-        for(int i = index; i < bestState.length; i++)
-        {
-            position=rtm[i][bestState[i]].pos;
-            bestPosAARot[position]= nextConf[position];
-        }
-
-        for(int i=index; i<index+lambda.size();i++)
-        {
-            position=rtm[i][bestState[i]].pos;
-            bestPosAARot[position]= new RotTypeMap(rtm[i][bestState[i]].pos,rtm[i][bestState[i]].aa,rtm[i][bestState[i]].rot);
-        }
         /* If we have no further lambda children, return. */
         if(Fset == null)
             return A2.get(computeIndexInA(bestState)).peek().energy;
@@ -810,7 +799,7 @@ public class TreeEdge implements Serializable{
         int[] leftMLambda = leftConf.conformation;
         double leftEnergy = leftEdge.bTrackBestConfNew(bestPosAARot, leftMLambda);
         double newEnergy = leftEnergy;
-        nextState.energy = leftEnergy;
+        nextState.updateLeftEnergy(leftEnergy);
         boolean addBackNextState = false;
         if(rightChild != null)
         {
@@ -837,12 +826,13 @@ public class TreeEdge implements Serializable{
         		{
         			RotTypeMap[] bestPosAARot2 = new RotTypeMap[molResMap.length];
         			double rightEnergy = rightEdge.bTrackBestConfNew(bestPosAARot2, rightMLambda);
-        			rightSolutions.add(new RightConf(bestPosAARot2, rightEnergy));
+        			RightConf conf = new RightConf(bestPosAARot2, rightEnergy);
+        			rightSolutions.add(conf);
         			newEnergy += rightEnergy;
         			nextState.energy = newEnergy;
         			addBackNextState = true;
         			rightSolutionOffset.put(completeLeftConformation.toString(), offset+1);
-        			rightSolutions.get(offset).fillRotTypeMap(bestPosAARot);
+        			conf.fillRotTypeMap(bestPosAARot);
         		}
         	}
         }
@@ -850,7 +840,7 @@ public class TreeEdge implements Serializable{
         if(addBackNextState || leftChild.getCofEdge().moreConformations(leftMLambda))
         	outHeap.add(nextState);
         Conf outConf = outHeap.peek();
-        return A2.get(computeIndexInA(bestState)).peek().energy;
+        return outHeap.peek().energy;
     }
 
     public boolean moreConformations(int[] state)
@@ -950,12 +940,22 @@ public class TreeEdge implements Serializable{
         {
             for(int i=0; i<fullConformation.length;i++)
             {
-            	RotTypeMap current = fullConformation[i];
-            	System.out.println("DO WE HAVE A NULL? "+current);
-            	System.out.println(current == null);
             	if(fullConformation[i] != null)
             		bestPosAARot[i] = fullConformation[i];
             }
+        }
+        
+        public String toString()
+        {
+        	String out = "[";
+        	RotTypeMap[] conformation = fullConformation;
+            for(int i=0; i<conformation.length;i++)
+            {
+                RotTypeMap current = conformation[i];
+                out+= current.pos+":"+current.aa+"-"+current.rot+" ";
+            }
+            out+="]";
+            return out;
         }
 
     }
@@ -984,12 +984,29 @@ public class TreeEdge implements Serializable{
                 bestPosAARot[position]= new RotTypeMap(rtm[i][conformation[i]].pos,rtm[i][conformation[i]].aa,rtm[i][conformation[i]].rot);
             }
         }
+        
+        public void updateLeftEnergy(double newLeftEnergy)
+        {
+        	energy = newLeftEnergy + rightEnergy;
+        }
 
         public void updateRightEnergy(double newRightEnergy)
         {
             energy -= rightEnergy;
             energy += newRightEnergy;
             rightEnergy = newRightEnergy;
+        }
+        
+        public String toString()
+        {
+        	String out = "[";
+            for(int i=0; i<conformation.length;i++)
+            {
+                RotTypeMap current = rtm[i][conformation[i]];
+                out+= current.pos+":"+current.aa+"-"+current.rot+" ";
+            }
+            out+="]";
+            return out;
         }
 
         public int hashCode()
