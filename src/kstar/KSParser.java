@@ -6720,10 +6720,12 @@ public class KSParser
 		*/
 		
 		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
-		
+		int rank = 0;
+		while(rank < 1000)
+		{
+		    rank++;
 		actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
-		actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
-		actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
+		}
 		
 	}
 	
