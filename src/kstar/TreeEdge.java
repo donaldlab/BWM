@@ -634,7 +634,9 @@ public class TreeEdge implements Serializable{
         RotTypeMap bestPosAARot[] = new RotTypeMap[molResMap.length]; // creating a variable to store the best energy returned by the Btrack Procedure, molresMap
         // length is equal to the number of residues being designed
         /** TODO: Backtrack entry point. */
-        double energy = bTrackBestConfNew(bestPosAARot,A[0]);
+
+        double resultEnergy = A2.get(0).peek().energy;
+        bTrackBestConfNew(bestPosAARot,A[0]);
         System.out.print("GMEC: ");
 
         for (int i=0; i<bestPosAARot.length; i++) { //output the AAs
@@ -652,7 +654,7 @@ public class TreeEdge implements Serializable{
             System.out.print(bestPosAARot[i].rot+" ");
         }
 
-        System.out.println(energy); //output the energy
+        System.out.println(resultEnergy); //output the energy
     }
 
     //Returns a deep copy of this TreeEdge (modified from http://javatechniques.com/blog/faster-deep-copies-of-java-objects/, accessed 10/30/2008)
@@ -748,7 +750,7 @@ public class TreeEdge implements Serializable{
      */
 
 
-    public double bTrackBestConfNew (RotTypeMap bestPosAARot[], int bestState[])
+    public void bTrackBestConfNew (RotTypeMap bestPosAARot[], int bestState[])
     {
         System.out.println("Backtrack to "+this.c+", "+leftChild+", "+rightChild);
         //printTree("");
@@ -768,7 +770,7 @@ public class TreeEdge implements Serializable{
         System.out.println("Heap status: size "+outHeapp.size()+", "+outHeapp);
         
         if(outHeapp.isEmpty())
-            return Double.MAX_VALUE;
+            return;
 
         /* If we're a node with two children but no lambda set of our own, recurse! */
         if(lambda.size() < 1)
@@ -800,7 +802,7 @@ public class TreeEdge implements Serializable{
 
         /* If we have no further lambda children, return. */
         if(Fset == null)
-            return A2.get(computeIndexInA(bestState)).peek().energy;
+            return;
         /* Calculate the M Set for children. 
          * No changes here. */
 
@@ -815,7 +817,7 @@ public class TreeEdge implements Serializable{
         {
 
             PriorityQueue<Conf> outHeap = A2.get(computeIndexInA(bestState));
-            return A2.get(computeIndexInA(bestState)).peek().energy;
+            return;
         }
 
         nextState.fillRotTypeMap(bestPosAARot);
@@ -825,7 +827,8 @@ public class TreeEdge implements Serializable{
         PriorityQueue<Conf> leftHeap = leftEdge.A2.get(leftEdge.computeIndexInA(leftM));
         Conf leftConf = leftHeap.peek();
         int[] leftMLambda = leftConf.conformation;
-        double leftEnergy = leftEdge.bTrackBestConfNew(bestPosAARot, leftMLambda);
+        leftEdge.bTrackBestConfNew(bestPosAARot, leftMLambda);
+        double leftEnergy = leftEdge.peekEnergy(leftMLambda);
         double newEnergy = leftEnergy;
         nextState.updateLeftEnergy(leftEnergy);
         boolean addBackNextState = false;
@@ -856,7 +859,8 @@ public class TreeEdge implements Serializable{
                 if(rightEdge.moreConformations(rightMLambda))
                 {
                     RotTypeMap[] bestPosAARot2 = new RotTypeMap[molResMap.length];
-                    double rightEnergy = rightEdge.bTrackBestConfNew(bestPosAARot2, rightMLambda);
+                    double rightEnergy = rightEdge.peekEnergy(rightMLambda);
+                    rightEdge.bTrackBestConfNew(bestPosAARot2, rightMLambda);
                     RightConf conf = new RightConf(bestPosAARot2, rightEnergy);
                     rightSolutions.add(conf);
                     newEnergy += rightEnergy;
@@ -870,13 +874,10 @@ public class TreeEdge implements Serializable{
         }
         PriorityQueue<Conf> outHeap = A2.get(computeIndexInA(bestState));
         System.out.println("Should we addback "+nextState+"? addback: "+addBackNextState+", more conformations: "+leftChild.getCofEdge().moreConformations(leftM));
-        if(addBackNextState || leftChild.getCofEdge().moreConformations(leftM))
+        if(addBackNextState || leftEdge.moreConformations(leftM))
             outHeap.add(nextState);
         else System.out.println("Removing "+nextState);
         System.out.println("Heap is now "+outHeap+", size "+outHeap.size());
-        
-        Conf outConf = outHeap.peek();
-        return outHeap.peek().energy;
     }
 
     public boolean moreConformations(int[] state)
@@ -916,7 +917,9 @@ public class TreeEdge implements Serializable{
     public double peekEnergy(int[] MLambda)
     {
         int[] leftM = getMstateForEdgeCurState(MLambda, this);
-        return A2.get(computeIndexInA(leftM)).peek().energy;
+        PriorityQueue<Conf> heap = A2.get(computeIndexInA(leftM));
+        if(heap.size() < 1) return Double.MAX_VALUE;
+        return heap.peek().energy;
     }
 
     /* Update energies method */
