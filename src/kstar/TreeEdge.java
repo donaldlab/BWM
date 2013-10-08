@@ -748,6 +748,33 @@ public class TreeEdge implements Serializable{
      * 
      * @return
      */
+    
+    /**
+     * New NEW algorithm:
+     * 
+     * Remove late option:
+     * 1. Given M conformation, peek lambda heap
+     * 2. Use results of peek to populate output
+     * 3. Recurse on left child
+     * 4. If a new right conformation is needed, get one.
+     * 5. If there was a right conformation,
+     *    recalculate energies along this path, by traversing down to the leaf, assigning 
+     *    it the new right energy, and allowing the results to propagate back up.
+     * 6. Poll the current lambda heap for the root node.
+     * 7. If there are remaining left or right conformations, update its energy with 
+     *    the new energy from its child, and reinsert into the heap.
+     *    
+     * Remove early option:
+     * 1. Given the M Conformation, POLL the lambda heap.
+     * 2. Populate output.
+     * 3. If a new right conformation is needed, get one. (Always have one extra conformation)
+     * 4. Recurse on left child, passing in rightConformationMap
+     * 5. If at the leftmost leaf, travel along the list of rightConformationMaps until 
+     *    the resulting total energy doesn't change.
+     * 6. Update the node's energy with the its child's next best energy, and reinsert. 
+     * @param bestPosAARot
+     * @param bestState
+     */
 
 
     public void bTrackBestConfNew (RotTypeMap bestPosAARot[], int bestState[])
