@@ -91,7 +91,7 @@ public class TreeNode implements Serializable {
 				out+=i+", ";
 		}
 		out+="]";
-		
+		/*
 		out += " - L Set:[";
 		if(cOfEdge != null)
 		{			
@@ -106,7 +106,9 @@ public class TreeNode implements Serializable {
 			for(int i : cOfEdge.getM())
 				out+=i+", ";
 		}
+		
 		out+="]";
+		*/
 		return out;
 	}
 	

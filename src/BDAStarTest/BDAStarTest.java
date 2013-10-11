@@ -1,5 +1,6 @@
 package BDAStarTest;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -15,42 +16,57 @@ import kstar.TreeEdge;
 import kstar.TreeNode;
 
 public class BDAStarTest {
+	
+	public static final int CHOICES = 2;
+	
+	private static void BuildBalancedTree(TreeNode root, int height, int currentHeight, 
+			int currentIndex)
+	{
+		boolean isLeaf = height == currentHeight;
+		TreeNode leftChild = new TreeNode(0, isLeaf, 0, 0);
+		TreeNode rightChild = new TreeNode(0, isLeaf, 0, 0);
+		LinkedHashSet<Integer> leftLambda = new LinkedHashSet<Integer>();
+		LinkedHashSet<Integer> rightLambda = new LinkedHashSet<Integer>();
+		TreeEdge leftEdge = new TreeEdge(0,1, leftLambda, null, null, null, 0, false);
+		TreeEdge rightEdge = new TreeEdge(0,1, leftLambda, null, null, null, 0, false);
+		for(int i = 0; i < CHOICES; i++)
+		{
+			leftLambda.add(i + currentIndex*CHOICES);
+			rightLambda.add(i + (currentIndex+1)*CHOICES);
+		}
+		leftEdge.setPositions(leftLambda);
+		rightEdge.setPositions(rightLambda);
+		leftChild.setCofEdge(leftEdge);
+		rightChild.setCofEdge(rightEdge);
+		root.setLc(leftChild);
+		root.setRc(rightChild);
+		
+		if(currentHeight < height)
+		{
+			BuildBalancedTree(leftChild, height, currentHeight + 1, currentIndex + 2);
+			BuildBalancedTree(leftChild, height, currentHeight + 1, currentIndex + 
+					(int)Math.pow(2, height - currentHeight));
+		}
+	}
     
     public static void main (String[] args)
     {
-        System.out.println("HOORAY");
-        TreeNode root = new TreeNode(0, false, 0, 0);
-        TreeNode lchild = new TreeNode(0, true, 0, 0);
-        TreeNode rchild = new TreeNode(0, true, 0, 0);
-    	LinkedHashSet<Integer> lambda = new LinkedHashSet<Integer>();
-    	LinkedHashSet<Integer> lambda2 = new LinkedHashSet<Integer>();
-    	LinkedHashSet<Integer> lambda3 = new LinkedHashSet<Integer>();
-    	int choices = 2;
-        for(int i = 0; i < choices; i ++)
+    	TreeNode testRoot = new TreeNode(0, false, 0, 0);
+    	LinkedHashSet<Integer> testLambda = new LinkedHashSet<Integer>();
+    	for(int i = 0; i < CHOICES; i ++)
         {
-            lambda.add(i);
-            lambda2.add(i+choices);
-            lambda3.add(i+2*choices);
+            testLambda.add(i);
         }
-        TreeEdge edge = new TreeEdge(0, 1, lambda, null, null, null, 0, false);
-        edge.setPositions(lambda);
-        TreeEdge edge2 = new TreeEdge(0, 1, lambda2, null, null, null, 0, false);
-        edge2.setPositions(lambda2);
-        TreeEdge edge3 = new TreeEdge(0, 1, lambda3, null, null, null, 0, false);
-        edge3.setPositions(lambda3);
-        
-        
-        root.setCofEdge(edge);
-        lchild.setCofEdge(edge2);
-        rchild.setCofEdge(edge3);
-        root.setLc(lchild);
-        root.setRc(rchild);
-        SolutionSpace space = new TestSolutionSpace(2, 10);
-        //BDAStarNode rootNode = BDAStarNode.CreateTree(root, new TestConformation(), space);
-        //root.setEnumerationObjects(null, space);
-        //BWMAStarNode rootNode = BWMAStarNode.CreateTree(root, space.getEmptyConformation(), space, 0);
+    	TreeEdge testRootEdge = new TreeEdge(0,1,testLambda,null,null,null,0,false);
+    	testRootEdge.setPositions(testLambda);
+    	testRoot.setCofEdge(testRootEdge);
+    	
+    	BuildBalancedTree(testRoot, 3, 0, 1);
+    	testRoot.printTree("");
+
+        SolutionSpace space = new TestSolutionSpace(10, 2);
         BWMAStarNode rootNode = new BWMAStarNode(space.getEmptyConformation());
-        BWMAStarNode.CreateTree2(root, rootNode, space.getEmptyConformation(), rootNode.getChildren(), space, 0, root.getCofEdge().getPositionList());
+        BWMAStarNode.CreateTree2(testRoot, rootNode, space.getEmptyConformation(), rootNode.getChildren(), space, 0, testRoot.getCofEdge().getPositionList());
         
         rootNode.resort();
         System.out.println("Done!");
@@ -76,7 +92,7 @@ public class BDAStarTest {
             if(solutions.contains(c.toString()))
             	System.out.println("DUPLICATE!!!");
             solutions.add(c.toString());
-            rootNode.printTree("");
+            //rootNode.printTree("");
             if(rank + rootNode.remainingConformations() != 64)
             {
                 System.out.println("Dur?");
