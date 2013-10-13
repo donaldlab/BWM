@@ -810,7 +810,10 @@ public class TreeEdge implements Serializable{
     {
         //Peek and populate
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
-        System.out.println("Heap is "+outHeap);
+        System.out.println("Heap is "+outHeap+", code "+outHeap.hashCode());
+        if(outHeap.size() < 1)
+            System.out.println("ARMAGEDDON!!!!!!PNEPEIANG");
+        System.out.println("Conf Stack is "+polledConfs);
         Conf nextState = outHeap.poll();
         nextState.fillRotTypeMap(bestPosAARot);
         
@@ -835,7 +838,7 @@ public class TreeEdge implements Serializable{
         if(!polledConfs.isEmpty() && reinsert)
         {
             String leftConfString = RTMToLString(bestPosAARot);
-            System.out.println("Pulling "+leftConfString+"..."+rightSolutionOffset.get(leftConfString));
+            System.out.println("Pulling  right side for"+leftConfString+"..."+rightSolutionOffset.get(leftConfString));
             System.out.println(rightSolutionOffset);
             if(!rightSolutionOffset.containsKey(leftConfString))
                 rightSolutionOffset.put(leftConfString, 0);
@@ -844,24 +847,33 @@ public class TreeEdge implements Serializable{
             
             RightConf newRightConf = rightSolutions.get(index);
             polledConfs.push(nextState);
+            //Must remove our right side result before reinserting...
             reinsertLeftConformation(bestPosAARot, leftMLambda, polledConfs, newRightConf.energy);
         }
-        else polledConfs.clear();
+        if(outHeap.size() < 1 && !reinsert)
+        {
+            System.out.println(outHeap + " code "+ outHeap.hashCode() + " is exhausted. ");
+        }
+        
 
-
-        if(leftEdge.moreConformations(leftM))
+        if(leftEdge.moreConformations(bestPosAARot, leftM))
         {
             double nextLeftEnergy = leftEdge.A2.get(leftEdge.computeIndexInA(leftM)).peek().energy;
             nextState.updateLeftEnergy(nextLeftEnergy);
             outHeap.add(nextState);
         }
+        else System.out.println("Not reinserting "+nextState+" into "+outHeap.hashCode());
         if(!polledConfs.isEmpty())
             polledConfs.push(nextState);
+        if(outHeap.size() < 1)
+            System.out.println("ARMAGEDDON!?");
+        System.out.println("End Recursion: Heap is "+outHeap+", code "+outHeap.hashCode());
     }
     
     private PriorityQueue<Conf> getHeap(RotTypeMap[] bestPosAARot, int[] bestState)
     {
     	String curString = RTMToPrefix(bestPosAARot);
+    	System.out.println("Getting heap for "+curString);
     	if(!leftHeapMap.containsKey(curString))
     	{
     		PriorityQueue<Conf> outHeap = A2.get(computeIndexInA(bestState));
@@ -871,6 +883,7 @@ public class TreeEdge implements Serializable{
     		System.out.println("Copy for "+curString+" complete. New  Heap is size "+newHeap);
     	}
     	PriorityQueue<Conf> out = leftHeapMap.get(curString);
+    	System.out.println("Returning heap with code "+out.hashCode());
     	return out;
     }
     
@@ -892,7 +905,7 @@ public class TreeEdge implements Serializable{
                 }
                 int[] rightM = getMstateForEdgeCurState(leftMLambda, rightChild.getCofEdge());
 
-                if(!rightChild.getCofEdge().moreConformations(rightM))
+                if(!rightChild.getCofEdge().moreConformations(bestPosAARot, rightM))
                 {
                     System.out.println(leftConfString + "is depleted.");
                     return false;
@@ -914,6 +927,8 @@ public class TreeEdge implements Serializable{
     {
         //Peek
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
+
+        System.out.println("Reinsert "+removedConfs.peek()+" into "+outHeap.hashCode());
         Conf toAdd = removedConfs.pop();
         
         //If leaf, return
@@ -952,9 +967,11 @@ public class TreeEdge implements Serializable{
 
 
     
-    public boolean moreConformations(int[] state)
+    public boolean moreConformations(RotTypeMap[] bestPosAARot, int[] state)
     {
-        return !A2.get(computeIndexInA(state)).isEmpty();
+        PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, state);
+        System.out.println("Is "+outHeap.hashCode()+" empty? "+outHeap.isEmpty()+": "+outHeap);
+        return !outHeap.isEmpty();
     }
     
     
