@@ -59,7 +59,7 @@ public class TreeEdge implements Serializable{
     private Map<String,Integer> rightSolutionOffset;
     private List<RightConf> rightSolutions;
     Map<String, PriorityQueue<Conf>> leftHeapMap;
-	
+
     TreeNode leftChild;
     TreeNode rightChild;
     TreeEdge parent;
@@ -165,7 +165,7 @@ public class TreeEdge implements Serializable{
     public LinkedHashSet<Integer> getL(){
         return L;
     }
-    
+
     public LinkedHashSet<Integer> getleftOnlyL(){
         return leftOnlyL;
     }
@@ -243,7 +243,6 @@ public class TreeEdge implements Serializable{
             PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
             Conf newConf = new Conf(curState.clone(), en[0], rtm);
             conformationHeap.add(newConf);
-            System.out.println(conformationHeap);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
 
@@ -265,9 +264,9 @@ public class TreeEdge implements Serializable{
                 vArray = arrayLambda;
                 vInd = depth - M.size();
             }
-            
+
             if(rtm[depth] == null)
-            rtm[depth] = new RotTypeMap[numStates[invResMap[(Integer)vArray[vInd]]]];
+                rtm[depth] = new RotTypeMap[numStates[invResMap[(Integer)vArray[vInd]]]];
 
             int curPos = invResMap[(Integer)vArray[vInd]];
 
@@ -420,31 +419,31 @@ public class TreeEdge implements Serializable{
 
     public void printTree(String prefix)
     {
-    	String out = prefix + "[";
-    	for(int i : getLambda())
-    		out+=invResMap[i]+", ";
-    	out+="]";
+        String out = prefix + "[";
+        for(int i : getLambda())
+            out+=invResMap[i]+", ";
+        out+="]";
 
-    	out += " - L Set:[";
+        out += " - L Set:[";
 
-    	for(int i : getL())
-    		out+=invResMap[i]+", ";
-    	out+="]";
+        for(int i : getL())
+            out+=invResMap[i]+", ";
+        out+="]";
 
-    	out += " - M Set:[";
+        out += " - M Set:[";
 
-    	for(int i : getM())
-    		out+=invResMap[i]+", ";
-    	out+="]";
-    	boolean showHeaps = true;
+        for(int i : getM())
+            out+=invResMap[i]+", ";
+        out+="]";
+        boolean showHeaps = false;
         if(showHeaps)
         {
-        out+="heaps: \n";
-        for(PriorityQueue<Conf> heap : A2)
-        {
-            if(heap.size() > 0)
-            out+=""+heap+"\n";
-        }
+            out+="heaps: \n";
+            for(PriorityQueue<Conf> heap : A2)
+            {
+                if(heap.size() > 0)
+                    out+=""+heap+"\n";
+            }
         }
         System.out.println(out);
         if(leftChild != null)
@@ -678,7 +677,7 @@ public class TreeEdge implements Serializable{
         /** TODO: Backtrack entry point. */
 
         double resultEnergy = A2.get(0).peek().energy;
-        bTrackBestConfRemoveLate(bestPosAARot, A[0], new Stack<Conf>());
+        bTrackBestConfRemoveLate(bestPosAARot, A[0], new Stack<Conf>(), new Stack<Boolean>());
         System.out.print("GMEC: ");
 
         for (int i=0; i<bestPosAARot.length; i++) { //output the AAs
@@ -790,7 +789,7 @@ public class TreeEdge implements Serializable{
      * 
      * @return
      */
-    
+
     /**
      * New NEW algorithm:
      * 
@@ -806,7 +805,7 @@ public class TreeEdge implements Serializable{
      * 7. If there are remaining left or right conformations, update its energy with 
      *    the new energy from its child, and reinsert into the heap.
      * */
-    public void bTrackBestConfRemoveLate(RotTypeMap bestPosAARot[], int[] bestState, Stack<Conf> polledConfs)
+    public void bTrackBestConfRemoveLate(RotTypeMap bestPosAARot[], int[] bestState, Stack<Conf> polledConfs, Stack<Boolean> reinserts)
     {
         //Peek and populate
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
@@ -816,24 +815,25 @@ public class TreeEdge implements Serializable{
         System.out.println("Conf Stack is "+polledConfs);
         Conf nextState = outHeap.poll();
         nextState.fillRotTypeMap(bestPosAARot);
-        
+
         //If leaf, return
         if(leftChild == null)
         {
             polledConfs.push(nextState);
+            reinserts.push(true);
             return;
         }
-        
+
         //Recurse
         TreeEdge leftEdge = leftChild.getCofEdge();
         int[] leftMLambda = nextState.conformation;
         int[] leftM = getMstateForEdgeCurState(leftMLambda, leftEdge);
-        leftChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot, leftM, polledConfs);
-        
+        leftChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot, leftM, polledConfs, reinserts);
+
         //Handle right side
-        
+
         boolean reinsert = bTrackRightSideRemoveLate(bestPosAARot, leftEdge.getL(), leftMLambda);
-        
+
         //Reinsertion time!
         if(!polledConfs.isEmpty() && reinsert)
         {
@@ -842,51 +842,89 @@ public class TreeEdge implements Serializable{
             System.out.println(rightSolutionOffset);
             if(!rightSolutionOffset.containsKey(leftConfString))
                 rightSolutionOffset.put(leftConfString, 0);
-            
+
             int index = rightSolutionOffset.get(leftConfString);
-            
+
             RightConf newRightConf = rightSolutions.get(index);
             polledConfs.push(nextState);
+            reinserts.push(!leftEdge.moreConformations(bestPosAARot, leftM));
             //Must remove our right side result before reinserting...
-            reinsertLeftConformation(bestPosAARot, leftMLambda, polledConfs, newRightConf.energy);
+            RotTypeMap[] bestPosAARotCopy = new RotTypeMap[bestPosAARot.length];
+            for(int i = 0; i < bestPosAARotCopy.length; i++)
+            {
+                bestPosAARotCopy[i] = bestPosAARot[i];
+            }
+            reinsertLeftConformation(bestPosAARot, leftMLambda, polledConfs, reinserts, newRightConf.energy);
         }
         if(outHeap.size() < 1 && !reinsert)
         {
             System.out.println(outHeap + " code "+ outHeap.hashCode() + " is exhausted. ");
         }
-        
+
+
 
         if(leftEdge.moreConformations(bestPosAARot, leftM))
         {
+            System.out.println("Reinserting "+nextState+", its heap "+outHeap.hashCode()+" is "+outHeap);
             double nextLeftEnergy = leftEdge.A2.get(leftEdge.computeIndexInA(leftM)).peek().energy;
             nextState.updateLeftEnergy(nextLeftEnergy);
             outHeap.add(nextState);
         }
-        else System.out.println("Not reinserting "+nextState+" into "+outHeap.hashCode());
+        else {
+            System.out.println("Not reinserting "+nextState+" into "+outHeap.hashCode());
+        }
         if(!polledConfs.isEmpty())
+        {
             polledConfs.push(nextState);
+            reinserts.push(!leftEdge.moreConformations(bestPosAARot, leftM));
+        }
+
         if(outHeap.size() < 1)
             System.out.println("ARMAGEDDON!?");
         System.out.println("End Recursion: Heap is "+outHeap+", code "+outHeap.hashCode());
     }
-    
+
     private PriorityQueue<Conf> getHeap(RotTypeMap[] bestPosAARot, int[] bestState)
     {
-    	String curString = RTMToPrefix(bestPosAARot);
-    	System.out.println("Getting heap for "+curString);
-    	if(!leftHeapMap.containsKey(curString))
-    	{
-    		PriorityQueue<Conf> outHeap = A2.get(computeIndexInA(bestState));
-        	PriorityQueue<Conf> newHeap = new PriorityQueue<Conf>();
-        	newHeap.addAll(outHeap);
-    		leftHeapMap.put(curString, newHeap);
-    		System.out.println("Copy for "+curString+" complete. New  Heap is size "+newHeap);
-    	}
-    	PriorityQueue<Conf> out = leftHeapMap.get(curString);
-    	System.out.println("Returning heap with code "+out.hashCode());
-    	return out;
+        System.out.println("Heap retrieval; RTM is "+RTMToString(bestPosAARot)+", state "+stateArrayToString(bestState));
+        String curString = RTMToPrefix(bestPosAARot);
+        if(!leftHeapMap.containsKey(curString))
+        {
+            PriorityQueue<Conf> outHeap = A2.get(computeIndexInA(bestState));
+            PriorityQueue<Conf> newHeap = new PriorityQueue<Conf>();
+            newHeap.addAll(outHeap);
+            leftHeapMap.put(curString, newHeap);
+            System.out.println("Copy for "+curString+" complete. New  Heap is size "+newHeap);
+        }
+        PriorityQueue<Conf> out = leftHeapMap.get(curString);
+        System.out.println("Returning heap with code "+out.hashCode()+": "+out);
+        return out;
     }
-    
+
+    private String RTMToString(RotTypeMap[] rtm)
+    {
+        String output = "";
+        for(int i = 0; i < rtm.length; i++)
+        {
+            RotTypeMap current  = rtm[i];
+
+            if(current!=null)
+                output+= current.pos+":"+current.aa+"-"+current.rot+" ";
+        }        
+        return output;
+    } 
+
+    private String stateArrayToString(int[] conformation)
+    {
+        String out = "[";
+        for(int i=0; i<conformation.length;i++)
+        {
+            RotTypeMap current = rtm[i][conformation[i]];
+            out+= current.pos+":"+current.aa+"-"+current.rot+" ";
+        }
+        out+="]";
+        return out;
+    }
 
     private boolean bTrackRightSideRemoveLate (RotTypeMap[] bestPosAARot, LinkedHashSet<Integer> leftL,
             int[] leftMLambda) {
@@ -894,24 +932,24 @@ public class TreeEdge implements Serializable{
         {
             String leftConfString = RTMToLString(bestPosAARot);
             if(!rightSolutionOffset.containsKey(leftConfString))
-                    rightSolutionOffset.put(leftConfString, 0);
+                rightSolutionOffset.put(leftConfString, 0);
             int index = rightSolutionOffset.get(leftConfString);
             while(index + 1 >= rightSolutions.size())
             {
                 RotTypeMap[] bestPosAARot2 = Arrays.copyOf(bestPosAARot, bestPosAARot.length);
                 for(int l : leftL)
                 {
-                	bestPosAARot[invResMap[l]] = null;
+                    bestPosAARot2[invResMap[l]] = null;
                 }
                 int[] rightM = getMstateForEdgeCurState(leftMLambda, rightChild.getCofEdge());
 
-                if(!rightChild.getCofEdge().moreConformations(bestPosAARot, rightM))
+                if(!rightChild.getCofEdge().moreConformations(bestPosAARot2, rightM))
                 {
                     System.out.println(leftConfString + "is depleted.");
                     return false;
                 }
-                double rightEnergy = rightChild.getCofEdge().peekEnergy(rightM);
-                rightChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot2, rightM, new Stack<Conf>());
+                double rightEnergy = rightChild.getCofEdge().peekEnergy(bestPosAARot, rightM);
+                rightChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot2, rightM, new Stack<Conf>(), new Stack<Boolean>());
                 RightConf conf = new RightConf(bestPosAARot2, rightEnergy);
                 rightSolutions.add(conf);
             }
@@ -922,15 +960,25 @@ public class TreeEdge implements Serializable{
         }
         return false;
     }
-    
-    private void reinsertLeftConformation(RotTypeMap bestPosAARot[], int[] bestState, Stack<Conf> removedConfs, double newRightEnergy)
+
+    private void reinsertLeftConformation(RotTypeMap bestPosAARot[], int[] bestState, Stack<Conf> removedConfs, Stack<Boolean> reinserts, double newRightEnergy)
     {
+        if(rightChild != null)
+        {
+            TreeEdge rightEdge = rightChild.getCofEdge();
+            for(int l: rightEdge.getL())
+            {
+                System.out.println("Not considering "+invResMap[l]+" for reinsertion.");
+                bestPosAARot[invResMap[l]] = null;
+            }
+        }
         //Peek
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
 
         System.out.println("Reinsert "+removedConfs.peek()+" into "+outHeap.hashCode());
         Conf toAdd = removedConfs.pop();
-        
+        boolean reinsert = reinserts.pop();
+
         //If leaf, return
         if(leftChild == null)
         {
@@ -938,14 +986,15 @@ public class TreeEdge implements Serializable{
             toAdd.energy = toAdd.selfEnergy;
             toAdd.energy += newRightEnergy;
             outHeap.add(toAdd);
+            System.out.println("Leaf heap is now "+outHeap);
             return;
         }
-        
+
         //Recurse
         TreeEdge leftEdge = leftChild.getCofEdge();
         int[] leftMLambda = toAdd.conformation;
         int[] leftM = getMstateForEdgeCurState(leftMLambda, leftEdge);
-        
+
         if(rightChild != null)
         {
             String leftConfString = RTMToLString(bestPosAARot);
@@ -959,30 +1008,32 @@ public class TreeEdge implements Serializable{
                 rightSolutionOffset.put(bestPosAARot.toString(), 0);
             }
         }
-        
-        leftChild.getCofEdge().reinsertLeftConformation(bestPosAARot, leftM, removedConfs, newRightEnergy);
-        toAdd.updateLeftEnergy(leftChild.getCofEdge().peekEnergy(leftM));
-        outHeap.add(toAdd);
+
+        leftChild.getCofEdge().reinsertLeftConformation(bestPosAARot, leftM, removedConfs, reinserts, newRightEnergy);
+        toAdd.updateLeftEnergy(leftChild.getCofEdge().peekEnergy(bestPosAARot, leftM));
+        if(reinsert)
+            outHeap.add(toAdd);
+        System.out.println("heap is now "+outHeap);
     }
 
 
-    
+
     public boolean moreConformations(RotTypeMap[] bestPosAARot, int[] state)
     {
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, state);
-        System.out.println("Is "+outHeap.hashCode()+" empty? "+outHeap.isEmpty()+": "+outHeap);
+        //System.out.println("Is "+outHeap.hashCode()+" empty? "+outHeap.isEmpty()+": "+outHeap);
         return !outHeap.isEmpty();
     }
-    
-    
-    public double peekEnergy(int[] MLambda)
+
+
+    public double peekEnergy(RotTypeMap[] bestPosAARot, int[] MLambda)
     {
         int[] leftM = getMstateForEdgeCurState(MLambda, this);
-        PriorityQueue<Conf> heap = A2.get(computeIndexInA(leftM));
+        PriorityQueue<Conf> heap = getHeap(bestPosAARot, MLambda); 
         if(heap.size() < 1) return Double.MAX_VALUE;
         return heap.peek().energy;
     }
-    
+
     private String RTMToLString (RotTypeMap[] bestPosAARot) {
         String output = "[";
         //TODO: STORE THESE!!!
@@ -1008,7 +1059,7 @@ public class TreeEdge implements Serializable{
         //System.out.println("Constructed "+output);
         return output +"]";
     }
-    
+
     private String RTMToPrefix (RotTypeMap[] bestPosAARot) {
         String output = "[";
         String[] prefixElements = new String[bestPosAARot.length];
@@ -1018,16 +1069,15 @@ public class TreeEdge implements Serializable{
             if(current!=null)
                 prefixElements[current.pos] = current.pos+":"+current.aa+"-"+current.rot+" ";
         }
-        
+
         for(int l : L)
         {
-        	prefixElements[invResMap[l]] = "";
+            prefixElements[invResMap[l]] = "";
         }
-        
+
         for(int i = 0; i < prefixElements.length; i++)
-        	if(prefixElements[i]!=null)
-        	output+=prefixElements[i];
-        //System.out.println("Constructed "+output);
+            if(prefixElements[i]!=null)
+                output+=prefixElements[i];
         return output +"]";
     }
 
@@ -1095,7 +1145,7 @@ public class TreeEdge implements Serializable{
             {
                 RotTypeMap current = conformation[i];
                 if(current != null)
-                out+= current.pos+":"+current.aa+"-"+current.rot+" ";
+                    out+= current.pos+":"+current.aa+"-"+current.rot+" ";
             }
             out+="]";
             return out;
@@ -1118,7 +1168,7 @@ public class TreeEdge implements Serializable{
             energy = e;
             rtm = matrix;
         }
-        
+
         public void fillRotTypeMap(RotTypeMap[] bestPosAARot)
         {
             for(int i=0; i<conformation.length;i++)
@@ -1153,14 +1203,14 @@ public class TreeEdge implements Serializable{
             return indexInA;
         }
 
-		@Override
-		public int compareTo(Conf c) {
+        @Override
+        public int compareTo(Conf c) {
             if(energy - c.energy < 0) 
                 return -1;
             if(energy - c.energy > 0)
                 return 1;
             return 0;
-		}
+        }
     }
 
 
