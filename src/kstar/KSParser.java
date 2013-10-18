@@ -6725,6 +6725,7 @@ public class KSParser
 		while(rank < 1000)
 		{
 		    rank++;
+		    System.out.println("=========================================Rank "+rank+"=======================================================");
 		actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
 		}
 		
