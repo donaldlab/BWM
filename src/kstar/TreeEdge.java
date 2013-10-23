@@ -951,17 +951,21 @@ public class TreeEdge implements Serializable{
                 {
                     System.out.println(leftConfString + "is depleted.");
                     //TODO: This results in a bug. You have to use the last right conformation here.
-                    return false;
+                    break;
                 }
                 double rightEnergy = rightChild.getCofEdge().peekEnergy(bestPosAARot, rightM);
                 rightChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot3, rightM, new Stack<Conf>(), new Stack<Boolean>());
                 RightConf conf = new RightConf(bestPosAARot3, rightEnergy);
                 rightSolutions.add(conf);
             }
-            RightConf rightConf = rightSolutions.get(index);
-            rightConf.fillRotTypeMap(bestPosAARot);
-            rightSolutionOffset.put(leftConfString, index + 1);
-            return true;
+            if(index < rightSolutions.size())
+            {
+	            RightConf rightConf = rightSolutions.get(index);
+	            rightConf.fillRotTypeMap(bestPosAARot);
+	            rightSolutionOffset.put(leftConfString, index + 1);
+            }
+            
+            return index + 1 < rightSolutions.size();
         }
         return false;
     }
