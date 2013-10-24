@@ -818,7 +818,9 @@ public class TreeEdge implements Serializable{
             System.out.println("ARMAGEDDON!!!!!!PNEPEIANG");
         Conf nextState = outHeap.poll();
         nextState.fillRotTypeMap(bestPosAARot);
-
+        
+        RotTypeMap[] bestPosAARot3 = Arrays.copyOf(bestPosAARot, bestPosAARot.length);
+        
         //If leaf, return
         if(leftChild == null)
         {
@@ -834,9 +836,16 @@ public class TreeEdge implements Serializable{
         leftChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot, leftM, polledConfs, reinserts);
 
         //Handle right side
-
+        if(!outHeap.isEmpty() && outHeap.peek().compareTo(nextState) == 0)
+        	System.out.println("WEGIPJEPAJIGWEPGJAEIPGAJGJP\n======================"+
+        			"===========\n=================");
         boolean reinsert = bTrackRightSideRemoveLate(bestPosAARot, leftEdge.getL(), leftMLambda);
 
+        
+        if(!outHeap.isEmpty() && outHeap.peek().compareTo(nextState) == 0)
+        	System.out.println("WEGIPJEPAJIGWE\n\n\n\nPGJAEIPGAJGJP\n======================"+
+        			"===========\n=================");
+        
         //Reinsertion time!
         if(!polledConfs.isEmpty() && reinsert)
         {
@@ -847,7 +856,7 @@ public class TreeEdge implements Serializable{
 
             RightConf newRightConf = rightSolutions.get(index);
             polledConfs.push(nextState);
-            reinserts.push(!leftEdge.moreConformations(bestPosAARot, leftM));
+            reinserts.push(!leftEdge.moreConformations(bestPosAARot3, leftM));
             //Must remove our right side result before reinserting...
             RotTypeMap[] bestPosAARotCopy = new RotTypeMap[bestPosAARot.length];
             for(int i = 0; i < bestPosAARotCopy.length; i++)
@@ -860,10 +869,14 @@ public class TreeEdge implements Serializable{
         {
             System.out.println(outHeap + " code "+ outHeap.hashCode() + " is exhausted. ");
         }
+        
+        if(!outHeap.isEmpty() && outHeap.peek().compareTo(nextState) == 0)
+        	System.out.println("WEGIPJEPA\noeahfeowafheawou================\nJIGWEPGJAEIPGAJGJP\n======================"+
+        			"===========\n=================");
 
 
 
-        if(leftEdge.moreConformations(bestPosAARot, leftM))
+        if(!leftEdge.moreConformations(bestPosAARot3, leftM))
         {
             System.out.println("Reinserting "+nextState+", its heap "+outHeap.hashCode()+" is "+outHeap);
             double nextLeftEnergy = leftEdge.A2.get(leftEdge.computeIndexInA(leftM)).peek().energy;
@@ -871,12 +884,16 @@ public class TreeEdge implements Serializable{
             outHeap.add(nextState);
         }
         else {
-            System.out.println("Not reinserting "+nextState+" into "+outHeap.hashCode());
+            if(!outHeap.isEmpty() && outHeap.peek().compareTo(nextState) == 0)
+            	System.out.println("AHHHH OOGIE BOOGIE\n\n\nAHHHH OOGIE BOOGIE-0\n21"+
+            			"344444444444444444444444444444444444\n======================"+
+            			"===========\n=================");
+            System.out.println("Not reinserting "+nextState+" into "+outHeap.hashCode()+": "+outHeap);
         }
         if(!polledConfs.isEmpty())
         {
             polledConfs.push(nextState);
-            reinserts.push(!leftEdge.moreConformations(bestPosAARot, leftM));
+            reinserts.push(!leftEdge.moreConformations(bestPosAARot3, leftM));
         }
 
         if(outHeap.size() < 1)
@@ -903,7 +920,7 @@ public class TreeEdge implements Serializable{
 
     private PriorityQueue<Conf> getHeap(RotTypeMap[] bestPosAARot, int[] bestState)
     {
-       // System.out.println("Heap retrieval; RTM is "+RTMToString(bestPosAARot)+", state "+stateArrayToString(bestState));
+        System.out.println("Heap retrieval; RTM is "+RTMToString(bestPosAARot));
         String curString = RTMToPrefix(bestPosAARot);
         if(!leftHeapMap.containsKey(curString))
         {
@@ -914,7 +931,7 @@ public class TreeEdge implements Serializable{
             System.out.println("Copy for "+curString+" complete. New  Heap is size "+newHeap);
         }
         PriorityQueue<Conf> out = leftHeapMap.get(curString);
-      //  System.out.println("Returning heap with code "+out.hashCode()+": "+out);
+        System.out.println("Returning heap with code "+out.hashCode()+": "+out);
         return out;
     }
 
@@ -950,7 +967,6 @@ public class TreeEdge implements Serializable{
                 if(!rightChild.getCofEdge().moreConformations(bestPosAARot3, rightM))
                 {
                     System.out.println(leftConfString + "is depleted.");
-                    //TODO: This results in a bug. You have to use the last right conformation here.
                     break;
                 }
                 double rightEnergy = rightChild.getCofEdge().peekEnergy(bestPosAARot, rightM);
@@ -984,7 +1000,7 @@ public class TreeEdge implements Serializable{
         //Peek
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
 
-       // System.out.println("Reinsert "+removedConfs.peek()+" into "+outHeap.hashCode());
+        System.out.println("Reinsert "+removedConfs.peek()+" into "+outHeap.hashCode());
         Conf toAdd = removedConfs.pop();
         boolean reinsert = reinserts.pop();
 
@@ -1028,7 +1044,7 @@ public class TreeEdge implements Serializable{
     public boolean moreConformations(RotTypeMap[] bestPosAARot, int[] state)
     {
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, state);
-        //System.out.println("Is "+outHeap.hashCode()+" empty? "+outHeap.isEmpty()+": "+outHeap);
+        System.out.println("Is "+outHeap.hashCode()+" empty? "+outHeap.isEmpty()+": "+outHeap);
         return !outHeap.isEmpty();
     }
 
