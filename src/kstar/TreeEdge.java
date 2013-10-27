@@ -58,7 +58,8 @@ public class TreeEdge implements Serializable{
     private static BWMSolutionSpace solutionSpace;
     private ArrayList<PriorityQueue<Conf>> A2;
     private Map<String,Integer> rightSolutionOffset;
-    private List<RightConf> rightSolutions;
+    private Map<String, List<RightConf>> rightSolutionMap;
+    private List<RightConf> rightSolutionss;
     Map<String, PriorityQueue<Conf>> leftHeapMap;
 
     TreeNode leftChild;
@@ -84,7 +85,7 @@ public class TreeEdge implements Serializable{
         if(comparator == null)
             comparator = new ConformationComparator();
         rightSolutionOffset = new HashMap<String, Integer>();
-        rightSolutions = new ArrayList<RightConf>();
+        rightSolutionMap = new HashMap<String, List<RightConf>>();
         leftHeapMap = new HashMap<String, PriorityQueue<Conf>>();
     }
 
@@ -246,7 +247,6 @@ public class TreeEdge implements Serializable{
 
             PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
             Conf newConf = new Conf(curState.clone(), en[0], rtm);
-            if(conformationHeap.size() < 2)
             conformationHeap.add(newConf);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -767,13 +767,6 @@ public class TreeEdge implements Serializable{
             System.arraycopy(fkLambdaState[i], 0, fkMLambda[i], fkMstate[i].length, fkLambdaState[i].length);
         }
 
-        //call the recursive procedure 
-        /* Recurse
-         * Needs to:
-         * 1. Recurse on left children
-         * 2. Manage right children solution list. 
-         * */
-
         for(int i=0;i<array_fset.length;i++)
         {
             TreeEdge fk = (TreeEdge)array_fset[i];
@@ -834,21 +827,17 @@ public class TreeEdge implements Serializable{
         TreeEdge leftEdge = leftChild.getCofEdge();
         int[] leftMLambda = nextState.conformation;
         int[] leftM = getMstateForEdgeCurState(leftMLambda, leftEdge);
+        String sanityString = getLeftConfString(bestPosAARot);
+        System.out.println("First sanity check: "+sanityString);
+        RotTypeMap last3 = bestPosAARot[3];
         leftChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot, leftM, polledConfs, reinserts);
-
+        
         //Handle right side
-        if(!outHeap.isEmpty() && outHeap.peek().equals(nextState))
-        	System.out.println("WEGIPJEPAJIGWEPGJAEIPGAJGJP\n======================"+
-        			"===========\n=================");
         boolean reinsert = bTrackRightSideRemoveLate(bestPosAARot, leftEdge.getL(), leftMLambda);
 
-        
-        if(!outHeap.isEmpty() && outHeap.peek().equals(nextState))
-        	System.out.println("WEGIPJEPAJIGWE\n\n\n\nPGJAEIPGAJGJP\n======================"+
-        			"===========\n=================");
-        
         //Reinsertion time!
         boolean outOfConformations = !leftEdge.moreConformations(bestPosAARot3, leftM);
+
         if(!polledConfs.isEmpty() && reinsert)
         {
             String leftConfString = getLeftConfString(bestPosAARot);
@@ -856,9 +845,10 @@ public class TreeEdge implements Serializable{
             System.out.println(rightSolutionOffset);
             int index = getRightOffset(leftConfString);
 
+            List<RightConf> rightSolutions = getRightSolutions(bestPosAARot);
             RightConf newRightConf = rightSolutions.get(index);
             polledConfs.push(nextState);
-            reinserts.push(outOfConformations);
+            reinserts.push(true);
             //Must remove our right side result before reinserting...
             RotTypeMap[] bestPosAARotCopy = new RotTypeMap[bestPosAARot.length];
             for(int i = 0; i < bestPosAARotCopy.length; i++)
@@ -872,20 +862,11 @@ public class TreeEdge implements Serializable{
             System.out.println(outHeap + " code "+ outHeap.hashCode() + " is exhausted. ");
         }
         
-        if(!outHeap.isEmpty() && outHeap.peek().equals(nextState))
-        	System.out.println("WEGIPJEPA\noeahfeowafheawou================\nJIGWEPGJAEIPGAJGJP\n======================"+
-        			"===========\n=================");
-
-
-
         if(!reinsert && !outOfConformations)
         {
             System.out.println("Reinserting "+nextState+", its heap "+outHeap.hashCode()+" is "+outHeap);
             double nextLeftEnergy = leftEdge.A2.get(leftEdge.computeIndexInA(leftM)).peek().energy;
             nextState.updateLeftEnergy(nextLeftEnergy);
-            if(!outHeap.isEmpty() && outHeap.peek().equals(nextState))
-            	System.out.println("ABORT REINSERTION!!!================\nJIGWEPGJAEIPGAJGJP\n======================"+
-            			"===========\n=================");
             outHeap.add(nextState);
         }
         else {
@@ -957,8 +938,10 @@ public class TreeEdge implements Serializable{
         	System.out.println(RTMToString(bestPosAARot)+": recursing right child.");
             String leftConfString = getLeftConfString(bestPosAARot);
             int index = getRightOffset(leftConfString);
+            List<RightConf> rightSolutions = getRightSolutions(bestPosAARot);
             while(index + 1 >= rightSolutions.size())
             {
+                //TODO: Create new maps on the fly, MAKE SURE ITS THE M SET!!
                 RotTypeMap[] bestPosAARot3 = Arrays.copyOf(bestPosAARot, bestPosAARot.length);
                 for(int l : leftL)
                 {
@@ -986,6 +969,14 @@ public class TreeEdge implements Serializable{
             return index + 1 < rightSolutions.size();
         }
         return false;
+    }
+
+    private List<RightConf> getRightSolutions (RotTypeMap[] bestPosAARot) {
+        String prefix = RTMToPrefix(bestPosAARot);
+        if(!rightSolutionMap.containsKey(prefix))
+            rightSolutionMap.put(prefix, new LinkedList<RightConf>());
+        List<RightConf> rightSolutions = rightSolutionMap.get(prefix);
+        return rightSolutions;
     }
 
     private void reinsertLeftConformation(RotTypeMap bestPosAARot[], int[] bestState, Stack<Conf> removedConfs, Stack<Boolean> reinserts, double newRightEnergy)
@@ -1026,6 +1017,8 @@ public class TreeEdge implements Serializable{
         {
             String leftConfString = getLeftConfString(bestPosAARot);
             int index = getRightOffset(leftConfString);
+
+            List<RightConf> rightSolutions = getRightSolutions(bestPosAARot);
             if(index >= rightSolutions.size())
             {
                 double resetRightEnergy = rightSolutions.get(0).energy;
@@ -1210,6 +1203,15 @@ public class TreeEdge implements Serializable{
             {   
                 int position=rtm[i][conformation[i]].pos;
                 RotTypeMap result =  new RotTypeMap(rtm[i][conformation[i]].pos,rtm[i][conformation[i]].aa,rtm[i][conformation[i]].rot);
+                RotTypeMap previous = bestPosAARot[position];
+                if(previous != null)
+                {
+                    System.out.println("Previous position exists!! "+previous.pos+":"+previous.aa+"-"+previous.rot+", new: "+result.pos+":"+result.aa+"-"+result.rot);
+                    if (result.aa != previous.aa)
+                        System.out.println("AAH!!! OVERWRITE "+previous.aa+" with "+result.aa);
+                    if(result.rot != previous.rot)
+                        System.out.println("AAH!!! OVERWRITE "+previous.rot+" with "+result.rot);
+                }
                 bestPosAARot[position] = result;
             }
         }
