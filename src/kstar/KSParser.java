@@ -6722,7 +6722,7 @@ public class KSParser
 		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
 //		actualRootEdge.generateFirstRightConformation();
 		int rank = 0;
-		while(rank < 1000)
+		while(rank < 10)
 		{
 		    rank++;
 		    System.out.println("=========================================Rank "+rank+"=======================================================");

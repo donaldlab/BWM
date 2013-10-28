@@ -246,7 +246,9 @@ public class TreeEdge implements Serializable{
             }
 
             PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
-            Conf newConf = new Conf(curState.clone(), en[0], rtm);
+            Conf newConf = new Conf(curState.clone(), total_energy, rtm);
+            newConf.selfEnergy = en[1];
+            newConf.leftEnergy = energy_ll;
             conformationHeap.add(newConf);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -363,17 +365,6 @@ public class TreeEdge implements Serializable{
             energy_return+=fk.getEnergy()[index];
         }
 
-        /* Handle right side... 
-		TreeEdge[] arrayRightF = rightFSet.toArray(new TreeEdge[]{});
-		int[][] rightMState = new int[arrayRightF.length][];
-                for (int i=0; i<rightMState.length; i++)
-                    rightMState[i] = getMstateForEdgeCurState(curState,(TreeEdge)arrayF[i]);
-		for(int j = 0; j < arrayRightF.length; j++)
-		{
-		    int index = arrayRightF[j].computeIndexInA(rightMState[j]);
-		    energy_return += arrayRightF[j].getEnergy()[index];
-		}
-         */
         return energy_return;
     }
 
@@ -808,8 +799,10 @@ public class TreeEdge implements Serializable{
         //Peek and populate
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
         System.out.println("Heap is "+outHeap+", code "+outHeap.hashCode());
-        if(outHeap.size() < 1)
-            System.out.println("ARMAGEDDON!!!!!!PNEPEIANG");
+        for(Conf c : outHeap)
+        {
+        	System.out.println(c+"$"+c.energy);
+        }
         Conf nextState = outHeap.poll();
         nextState.fillRotTypeMap(bestPosAARot);
         
@@ -828,7 +821,6 @@ public class TreeEdge implements Serializable{
         int[] leftMLambda = nextState.conformation;
         int[] leftM = getMstateForEdgeCurState(leftMLambda, leftEdge);
         String sanityString = getLeftConfString(bestPosAARot);
-        System.out.println("First sanity check: "+sanityString);
         RotTypeMap last3 = bestPosAARot[3];
         leftChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot, leftM, polledConfs, reinserts);
         
@@ -857,10 +849,6 @@ public class TreeEdge implements Serializable{
             }
             reinsertLeftConformation(bestPosAARotCopy, leftMLambda, polledConfs, reinserts, newRightConf.energy);
         }
-        if(outHeap.size() < 1 && !reinsert)
-        {
-            System.out.println(outHeap + " code "+ outHeap.hashCode() + " is exhausted. ");
-        }
         
         if(!reinsert && !outOfConformations)
         {
@@ -879,8 +867,6 @@ public class TreeEdge implements Serializable{
             reinserts.push(!leftEdge.moreConformations(bestPosAARot3, leftM));
         }
 
-        if(outHeap.size() < 1)
-            System.out.println("ARMAGEDDON!?");
         System.out.println("End Recursion: Heap is "+outHeap+", code "+outHeap.hashCode());
     }
 
@@ -903,7 +889,7 @@ public class TreeEdge implements Serializable{
 
     private PriorityQueue<Conf> getHeap(RotTypeMap[] bestPosAARot, int[] bestState)
     {
-        System.out.println("Heap retrieval; RTM is "+RTMToString(bestPosAARot));
+        //System.out.println("Heap retrieval; RTM is "+RTMToString(bestPosAARot));
         String curString = RTMToPrefix(bestPosAARot);
         if(!leftHeapMap.containsKey(curString))
         {
@@ -911,10 +897,10 @@ public class TreeEdge implements Serializable{
             PriorityQueue<Conf> newHeap = new PriorityQueue<Conf>();
             newHeap.addAll(outHeap);
             leftHeapMap.put(curString, newHeap);
-            System.out.println("Copy for "+curString+" complete. New  Heap is size "+newHeap);
+        //    System.out.println("Copy for "+curString+" complete. New  Heap is size "+newHeap);
         }
         PriorityQueue<Conf> out = leftHeapMap.get(curString);
-        System.out.println("Returning heap with code "+out.hashCode()+": "+out);
+        //System.out.println("Returning heap with code "+out.hashCode()+": "+out);
         return out;
     }
 
