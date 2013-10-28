@@ -1080,7 +1080,7 @@ public class TreeEdge implements Serializable{
                 prefixElements[current.pos] = current.pos+":"+current.aa+"-"+current.rot+" ";
         }
 
-        for(int l : leftL)
+        for(int l : L)
         {
             prefixElements[invResMap[l]] = "";
         }
