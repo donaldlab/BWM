@@ -121,7 +121,7 @@ public class TreeEdge implements Serializable{
             L = new LinkedHashSet<Integer>(lambda);
             leftL = new LinkedHashSet<Integer>(lambda);
             leftOnlyL = new LinkedHashSet<Integer>(lambda);
-            rightL = new LinkedHashSet<Integer>(lambda);
+            rightL = new LinkedHashSet<Integer>();
             leftL.addAll(clc.getCofEdge().getleftOnlyL());
             rightL.addAll(c.getrc().getCofEdge().getL());
             L.addAll(clc.getCofEdge().getL()); //add the L set of the left edge
@@ -799,10 +799,12 @@ public class TreeEdge implements Serializable{
         //Peek and populate
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
         System.out.println("Heap is "+outHeap+", code "+outHeap.hashCode());
+        /*
         for(Conf c : outHeap)
         {
         	System.out.println(c+"$"+c.energy);
         }
+        */
         Conf nextState = outHeap.poll();
         nextState.fillRotTypeMap(bestPosAARot);
         
@@ -889,7 +891,8 @@ public class TreeEdge implements Serializable{
 
     private PriorityQueue<Conf> getHeap(RotTypeMap[] bestPosAARot, int[] bestState)
     {
-        //System.out.println("Heap retrieval; RTM is "+RTMToString(bestPosAARot));
+        System.out.println("Heap retrieval; RTM is "+RTMToString(bestPosAARot));
+        System.out.println(leftHeapMap);
         String curString = RTMToPrefix(bestPosAARot);
         if(!leftHeapMap.containsKey(curString))
         {
@@ -897,10 +900,10 @@ public class TreeEdge implements Serializable{
             PriorityQueue<Conf> newHeap = new PriorityQueue<Conf>();
             newHeap.addAll(outHeap);
             leftHeapMap.put(curString, newHeap);
-        //    System.out.println("Copy for "+curString+" complete. New  Heap is size "+newHeap);
+            System.out.println("Copy for "+curString+" complete. New  Heap is size "+newHeap);
         }
         PriorityQueue<Conf> out = leftHeapMap.get(curString);
-        //System.out.println("Returning heap with code "+out.hashCode()+": "+out);
+        System.out.println("Returning heap with code "+out.hashCode()+": "+out);
         return out;
     }
 
@@ -972,15 +975,14 @@ public class TreeEdge implements Serializable{
             TreeEdge rightEdge = rightChild.getCofEdge();
             for(int l: rightEdge.getL())
             {
-                System.out.println("Not considering "+invResMap[l]+" for reinsertion.");
                 bestPosAARot[invResMap[l]] = null;
             }
         }
         //Peek
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
 
-        System.out.println("Preparing to reinsert "+removedConfs.peek()+" into "+outHeap.hashCode()+":"+outHeap);
         Conf toAdd = removedConfs.pop();
+        System.out.println("Preparing to reinsert "+toAdd+" into "+outHeap);
         boolean reinsert = reinserts.pop();
 
         //If leaf, return
@@ -1031,7 +1033,6 @@ public class TreeEdge implements Serializable{
     public boolean moreConformations(RotTypeMap[] bestPosAARot, int[] state)
     {
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, state);
-        System.out.println("Is "+outHeap.hashCode()+" empty? "+outHeap.isEmpty()+": "+outHeap);
         return !outHeap.isEmpty();
     }
 
@@ -1079,7 +1080,7 @@ public class TreeEdge implements Serializable{
                 prefixElements[current.pos] = current.pos+":"+current.aa+"-"+current.rot+" ";
         }
 
-        for(int l : L)
+        for(int l : leftL)
         {
             prefixElements[invResMap[l]] = "";
         }
@@ -1146,7 +1147,18 @@ public class TreeEdge implements Serializable{
             {
                 if(fullConformation[i] != null)
                 {
+                    RotTypeMap result = fullConformation[i];
+                    RotTypeMap previous = bestPosAARot[i];
+                    if(previous != null)
+                    {
+                        System.out.println("Previous position exists!! "+previous.pos+":"+previous.aa+"-"+previous.rot+", new: "+result.pos+":"+result.aa+"-"+result.rot);
+                        if (result.aa != previous.aa)
+                            System.out.println("AAH!!! OVERWRITE "+previous.aa+" with "+result.aa);
+                        if(result.rot != previous.rot)
+                            System.out.println("AAH!!! OVERWRITE "+previous.rot+" with "+result.rot);
+                    }
                     bestPosAARot[i] = fullConformation[i];
+                    
                 }
             }
         }
@@ -1204,9 +1216,8 @@ public class TreeEdge implements Serializable{
 
         public void updateLeftEnergy(double newLeftEnergy)
         {
-            energy -= leftEnergy;
-            energy += newLeftEnergy;
             leftEnergy = newLeftEnergy;
+            energy = leftEnergy + selfEnergy;
         }
 
         public String toString()
