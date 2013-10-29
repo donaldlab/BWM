@@ -59,7 +59,6 @@ public class TreeEdge implements Serializable{
     private ArrayList<PriorityQueue<Conf>> A2;
     private Map<String,Integer> rightSolutionOffset;
     private Map<String, List<RightConf>> rightSolutionMap;
-    private List<RightConf> rightSolutionss;
     Map<String, PriorityQueue<Conf>> leftHeapMap;
 
     TreeNode leftChild;
@@ -246,9 +245,10 @@ public class TreeEdge implements Serializable{
             }
 
             PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
-            Conf newConf = new Conf(curState.clone(), en[1] + energy_ll, rtm);
+            Conf newConf = new Conf(curState.clone(), 0, rtm);
             newConf.selfEnergy = en[1];
-            newConf.leftEnergy = energy_ll;
+            newConf.updateRightEnergy(bTrackRight(curState));
+            newConf.updateLeftEnergy(bTrackLeft(curState));
             if(conformationHeap.size() < 2)
             conformationHeap.add(newConf);
 
@@ -369,50 +369,20 @@ public class TreeEdge implements Serializable{
         return energy_return;
     }
     
-    private float bTrackLeft(int curState[]){		
-
-
-        Object arrayF[] = leftL.toArray();
-        float energy_return=0;
-
-        //Find the state assignments for the edges in the M sets of each of the edges in the set F
-        int fkMstate[][] = new int[arrayF.length][];
-        for (int i=0; i<fkMstate.length; i++)
-            fkMstate[i] = getMstateForEdgeCurState(curState,(TreeEdge)arrayF[i]);
-
-        // code to sum the energies from the F set and return that value
-        for(int i=0; i<arrayF.length;i++)
-
-        {
-            TreeEdge fk = (TreeEdge)arrayF[i];
-            int index = fk.computeIndexInA(fkMstate[i]);
-            energy_return+=fk.getEnergy()[index];
-        }
-
-        return energy_return;
+    private float bTrackLeft(int curState[]){	
+    	if(leftChild == null) return 0;
+    	TreeEdge leftEdge = leftChild.getCofEdge();
+    	int[] rightMLambda = getMstateForEdgeCurState(curState, leftEdge);
+    	
+    	return (float)leftEdge.A2.get(leftEdge.computeIndexInA(rightMLambda)).peek().energy;
     }
     
     private float bTrackRight(int curState[]){		
-
-
-        Object arrayF[] = rightL.toArray();
-        float energy_return=0;
-
-        //Find the state assignments for the edges in the M sets of each of the edges in the set F
-        int fkMstate[][] = new int[arrayF.length][];
-        for (int i=0; i<fkMstate.length; i++)
-            fkMstate[i] = getMstateForEdgeCurState(curState,(TreeEdge)arrayF[i]);
-
-        // code to sum the energies from the F set and return that value
-        for(int i=0; i<arrayF.length;i++)
-
-        {
-            TreeEdge fk = (TreeEdge)arrayF[i];
-            int index = fk.computeIndexInA(fkMstate[i]);
-            energy_return+=fk.getEnergy()[index];
-        }
-
-        return energy_return;
+    	if(rightChild == null) return 0;
+    	TreeEdge rightEdge = rightChild.getCofEdge();
+    	int[] rightMLambda = getMstateForEdgeCurState(curState, rightEdge);
+    	
+    	return (float)rightEdge.A2.get(rightEdge.computeIndexInA(rightMLambda)).peek().energy;
     }
 
 
@@ -1058,8 +1028,7 @@ public class TreeEdge implements Serializable{
         //If leaf, return
         if(leftChild == null)
         {
-            toAdd.rightEnergy = newRightEnergy;
-            toAdd.energy = toAdd.selfEnergy + toAdd.leftEnergy + toAdd.rightEnergy;
+            toAdd.updateRightEnergy(newRightEnergy);
             System.out.println("New energy is "+toAdd.energy);
             outHeap.add(toAdd);
             
@@ -1346,6 +1315,12 @@ public class TreeEdge implements Serializable{
         public void updateLeftEnergy(double newLeftEnergy)
         {
             leftEnergy = newLeftEnergy;
+            energy = leftEnergy + selfEnergy + rightEnergy;
+        }
+        
+        public void updateRightEnergy(double newRightEnergy)
+        {
+            rightEnergy = newRightEnergy;
             energy = leftEnergy + selfEnergy + rightEnergy;
         }
 
