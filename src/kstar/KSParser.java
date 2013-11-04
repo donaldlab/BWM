@@ -6686,7 +6686,6 @@ public class KSParser
 		TreeEdge actualRootEdge = realRoot.getCofEdge();
 		bt.getRoot().printTree("");
 		actualRootEdge.compactTree();
-		actualRootEdge.printTree("");
 		
 		/* New BWM Enumeration section */
 		/*
@@ -6720,9 +6719,10 @@ public class KSParser
 		*/
 		
 		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
+		actualRootEdge.populateLeftHeaps();
 //		actualRootEdge.generateFirstRightConformation();
 		int rank = 0;
-		while(rank < 5000)
+		while(rank < 5)
 		{
 		    rank++;
 		    System.out.println("=========================================Rank "+rank+"=======================================================");
