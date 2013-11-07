@@ -6722,11 +6722,19 @@ public class KSParser
 		actualRootEdge.populateLeftHeaps();
 //		actualRootEdge.generateFirstRightConformation();
 		int rank = 0;
-		while(rank < 1000)
+		double lastEnergy = -1000;
+		while(rank < 100000)
 		{
 		    rank++;
 		    System.out.println("=========================================Rank "+rank+"=======================================================");
-		actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
+		    double energy = actualRootEdge.nextBestEnergy();
+		    if(energy < lastEnergy)
+		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
+		    lastEnergy = energy;
+		    if((rank > 1186 && rank < 1189) || (rank > 1195 && rank < 1199) )// || (rank > 2154 && rank < 2157) )
+		        actualRootEdge.printHeap = true;
+		    else actualRootEdge.printHeap = false;
+		    String confString = actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
 		}
 		
 	}

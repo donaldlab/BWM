@@ -62,7 +62,7 @@ public class TreeEdge implements Serializable{
     Map<String, PriorityQueue<Conf>> leftHeapMap;
     private double firstRightEnergy;
 
-    boolean printHeap = false;
+    static boolean printHeap = false;
 
     TreeNode leftChild;
     TreeNode rightChild;
@@ -252,6 +252,7 @@ public class TreeEdge implements Serializable{
             newConf.selfEnergy = en[1];
 			newConf.energy = en[1] + energy_ll;
 			newConf.leftEnergy = bTrackLeft(curState);
+			if(conformationHeap.size() < 2)
                 conformationHeap.add(newConf);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -681,7 +682,7 @@ public class TreeEdge implements Serializable{
         System.out.println(energy[0]); //output the energy
     }
 
-    public void outputBestStateE2(Molecule m, RotamerLibrary rl, String ligType){
+    public String outputBestStateE2(Molecule m, RotamerLibrary rl, String ligType){
 
         if (!isRootEdge) {
             System.out.println("ERROR: cannot output best state for non-root edges");
@@ -693,6 +694,8 @@ public class TreeEdge implements Serializable{
         // length is equal to the number of residues being designed
         int[] bestState = new int[]{};
         double resultEnergy = getHeap(bestPosAARot, bestState).peek().energy;
+        if(printHeap)
+            System.out.println("Peek heap: "+resultEnergy);
         bTrackBestConfRemoveLate(bestPosAARot, new int[]{}, new Stack<Conf>(), new Stack<Boolean>());
         System.out.println("RTM result: "+RTMToString(bestPosAARot));
         System.out.print("GMEC: ");
@@ -712,6 +715,16 @@ public class TreeEdge implements Serializable{
         }
 
         System.out.println(resultEnergy); //output the energy
+        return RTMToString(bestPosAARot);
+    }
+    
+    public double nextBestEnergy()
+    {
+        RotTypeMap bestPosAARot[] = new RotTypeMap[molResMap.length]; // creating a variable to store the best energy returned by the Btrack Procedure, molresMap
+        // length is equal to the number of residues being designed
+        int[] bestState = new int[]{};
+        double resultEnergy = getHeap(bestPosAARot, bestState).peek().energy;
+        return resultEnergy;
     }
 
     //Returns a deep copy of this TreeEdge (modified from http://javatechniques.com/blog/faster-deep-copies-of-java-objects/, accessed 10/30/2008)
@@ -819,20 +832,32 @@ public class TreeEdge implements Serializable{
         //Peek and populate
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
         String curString = RTMToString(bestPosAARot);
+        PriorityQueue<Conf> sortCopy = new PriorityQueue<Conf>();
+        while(!outHeap.isEmpty())
+        {
+            sortCopy.add(outHeap.poll());
+        }
+        
+        while(!sortCopy.isEmpty())
+        {
+            Conf c = sortCopy.poll();
+            outHeap.add(c);
+        }
         if(printHeap)
         {
             System.out.println("====================== start "+curString+"========================");
             PriorityQueue<Conf> copy = new PriorityQueue<Conf>();
 
-            for(Conf c : outHeap)
+            while(!outHeap.isEmpty())
             {
-                copy.add(c);
+                copy.add(outHeap.poll());
             }
-
+            
             while(!copy.isEmpty())
             {
                 Conf c = copy.poll();
                 System.out.println(c+"$"+c.energy+", left "+c.leftEnergy+", self "+c.selfEnergy+", right "+c.rightEnergy);
+                outHeap.add(c);
             }
         }
 
@@ -1115,7 +1140,7 @@ public class TreeEdge implements Serializable{
         {
             toAdd.updateRightEnergy(newRightEnergy);
             if(printHeap)
-            System.out.println("New energy is "+toAdd.energy);
+            System.out.println("Updated leaf with "+newRightEnergy+" new energy is "+toAdd.energy);
             outHeap.add(toAdd);
 
             if(printHeap)
