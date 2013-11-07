@@ -62,6 +62,8 @@ public class TreeEdge implements Serializable{
     Map<String, PriorityQueue<Conf>> leftHeapMap;
     private double firstRightEnergy;
 
+    boolean printHeap = false;
+
     TreeNode leftChild;
     TreeNode rightChild;
     TreeEdge parent;
@@ -250,7 +252,6 @@ public class TreeEdge implements Serializable{
             newConf.selfEnergy = en[1];
 			newConf.energy = en[1] + energy_ll;
 			newConf.leftEnergy = bTrackLeft(curState);
-            if(conformationHeap.size() < 2)
                 conformationHeap.add(newConf);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -692,7 +693,6 @@ public class TreeEdge implements Serializable{
         // length is equal to the number of residues being designed
         int[] bestState = new int[]{};
         double resultEnergy = getHeap(bestPosAARot, bestState).peek().energy;
-        System.out.println("Peek energy: "+resultEnergy+", heap "+A2.get(0));
         bTrackBestConfRemoveLate(bestPosAARot, new int[]{}, new Stack<Conf>(), new Stack<Boolean>());
         System.out.println("RTM result: "+RTMToString(bestPosAARot));
         System.out.print("GMEC: ");
@@ -819,7 +819,6 @@ public class TreeEdge implements Serializable{
         //Peek and populate
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
         String curString = RTMToString(bestPosAARot);
-        boolean printHeap = true;
         if(printHeap)
         {
             System.out.println("====================== start "+curString+"========================");
@@ -890,7 +889,7 @@ public class TreeEdge implements Serializable{
 
         if(!reinsert && !outOfConformations)
         {
-            double nextLeftEnergy = leftEdge.A2.get(leftEdge.computeIndexInA(leftM)).peek().energy;
+            double nextLeftEnergy = leftEdge.peekEnergy(bestPosAARot, leftMLambda);
             nextState.updateLeftEnergy(nextLeftEnergy);
             outHeap.add(nextState);
         }
@@ -1052,22 +1051,27 @@ public class TreeEdge implements Serializable{
             List<RightConf> rightSolutions = getRightSolutions(bestPosAARot);
             while(index + 1 >= rightSolutions.size())
             {
+                if(printHeap)
+                System.out.println("=================================CREATING NEW RIGHT CONFORMATION=============================================");
                 //TODO: Create new maps on the fly, MAKE SURE ITS THE M SET!!
                 RotTypeMap[] bestPosAARot3 = Arrays.copyOf(bestPosAARot, bestPosAARot.length);
                 for(int l : leftL)
                 {
                     bestPosAARot3[invResMap[l]] = null;
                 }
-                int[] rightM = getMstateForEdgeCurState(leftMLambda, rightChild.getCofEdge());
+                TreeEdge rightEdge = rightChild.getCofEdge();
+                int[] rightM = getMstateForEdgeCurState(leftMLambda, rightEdge);
 
-                if(!rightChild.getCofEdge().moreConformations(bestPosAARot3, rightM))
+                if(!rightEdge.moreConformations(bestPosAARot3, rightM))
                 {
                     System.out.println(leftConfString + "is depleted.");
                     break;
                 }
-                double rightEnergy = rightChild.getCofEdge().peekEnergy(bestPosAARot, rightM);
-                rightChild.getCofEdge().bTrackBestConfRemoveLate(bestPosAARot3, rightM, new Stack<Conf>(), new Stack<Boolean>());
+                double rightEnergy = rightEdge.peekEnergy(bestPosAARot3, rightM);
+                rightEdge.bTrackBestConfRemoveLate(bestPosAARot3, rightM, new Stack<Conf>(), new Stack<Boolean>());
                 RightConf conf = new RightConf(bestPosAARot3, rightEnergy);
+                if(printHeap)
+                System.out.println("New energy is "+rightEnergy+", conf "+conf);
                 rightSolutions.add(conf);
             }
             if(index < rightSolutions.size())
@@ -1105,12 +1109,12 @@ public class TreeEdge implements Serializable{
 
         Conf toAdd = removedConfs.pop();
         boolean reinsert = reinserts.pop();
-        boolean printHeap = true;
 
         //If leaf, return
         if(leftChild == null)
         {
             toAdd.updateRightEnergy(newRightEnergy);
+            if(printHeap)
             System.out.println("New energy is "+toAdd.energy);
             outHeap.add(toAdd);
 

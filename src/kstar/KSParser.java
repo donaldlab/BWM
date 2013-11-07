@@ -6722,7 +6722,7 @@ public class KSParser
 		actualRootEdge.populateLeftHeaps();
 //		actualRootEdge.generateFirstRightConformation();
 		int rank = 0;
-		while(rank < 5)
+		while(rank < 1000)
 		{
 		    rank++;
 		    System.out.println("=========================================Rank "+rank+"=======================================================");
