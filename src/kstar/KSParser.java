@@ -6723,7 +6723,7 @@ public class KSParser
 //		actualRootEdge.generateFirstRightConformation();
 		int rank = 0;
 		double lastEnergy = -1000;
-		while(rank < 100000)
+		while(rank < 280)
 		{
 		    rank++;
 		    System.out.println("=========================================Rank "+rank+"=======================================================");
@@ -6731,9 +6731,7 @@ public class KSParser
 		    if(energy < lastEnergy)
 		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
 		    lastEnergy = energy;
-		    if((rank > 1186 && rank < 1189) || (rank > 1195 && rank < 1199) )// || (rank > 2154 && rank < 2157) )
-		        actualRootEdge.printHeap = true;
-		    else actualRootEdge.printHeap = false;
+		    TreeEdge.printHeap = true;
 		    String confString = actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
 		}
 		
