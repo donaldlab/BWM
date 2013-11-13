@@ -252,7 +252,6 @@ public class TreeEdge implements Serializable{
             newConf.selfEnergy = en[1];
 			newConf.energy = en[1] + energy_ll;
 			newConf.leftEnergy = bTrackLeft(curState);
-			if(conformationHeap.size() < 2)
                 conformationHeap.add(newConf);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -1236,7 +1235,13 @@ public class TreeEdge implements Serializable{
         }
 
         leftEdge.reinsertLeftConformation(bestPosAARot, leftM, removedConfs, reinserts, newRightEnergy);
-        toAdd.updateLeftEnergy(leftEdge.peekEnergy(bestPosAARot, leftM));
+        double newLeftEnergy = leftEdge.peekEnergy(bestPosAARot, leftM);
+        if(toAdd.leftEnergy > newLeftEnergy)
+        {
+            outHeap.remove(toAdd);
+            reinsert = true;
+        }
+        toAdd.updateLeftEnergy(newLeftEnergy);
         if(reinsert){
             if(!outHeap.isEmpty() && outHeap.peek().equals(toAdd))
                 System.out.println("=========AHHH ABORT================\n"
