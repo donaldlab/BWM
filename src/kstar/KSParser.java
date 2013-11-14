@@ -6723,7 +6723,7 @@ public class KSParser
 //		actualRootEdge.generateFirstRightConformation();
 		int rank = 0;
 		double lastEnergy = -1000;
-		while(rank < 1000000)
+		while(rank < 2000)
 		{
 		    rank++;
 		    System.out.println("=========================================Rank "+rank+"=======================================================");

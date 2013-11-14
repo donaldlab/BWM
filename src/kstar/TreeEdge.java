@@ -67,6 +67,7 @@ public class TreeEdge implements Serializable{
     TreeNode leftChild;
     TreeNode rightChild;
     TreeEdge parent;
+	private float shellShellEnergy;
     private static ConformationComparator comparator;
 
     public TreeEdge(int eNodeName1, int eNodeName2, LinkedHashSet<Integer> teM,
@@ -538,6 +539,7 @@ public class TreeEdge implements Serializable{
 
         int pi=0,ai=0,ri=0,pj=0,aj=0,rj=0;
         en[0] =eMatrix.getShellShellE(); //Add shell shell energy
+        shellShellEnergy = en[0];
         int numPos = M.size() + lambda.size();
         for(int i=0;i<numPos;i++){
 
@@ -695,6 +697,7 @@ public class TreeEdge implements Serializable{
         double resultEnergy = getHeap(bestPosAARot, bestState).peek().energy;
         if(printHeap)
             System.out.println("Peek heap: "+resultEnergy);
+        resultEnergy += shellShellEnergy;
         bTrackBestConfRemoveLate(bestPosAARot, new int[]{}, new Stack<Conf>(), new Stack<Boolean>());
         System.out.println("RTM result: "+RTMToString(bestPosAARot));
         System.out.print("GMEC: ");
