@@ -256,7 +256,7 @@ public class Strand implements Serializable{
 
 	// This function rotates the entire strand by thetaDeg
 	//  degrees around axis dx, dy, dz (around the center of mass)
-	// If you don?½t have a molecule pass null
+	// If you don't have a molecule pass null
 	public void rotateAroundCOM(double dx, double dy, double dz,
 		double thetaDeg, Molecule m) {
 
@@ -268,7 +268,7 @@ public class Strand implements Serializable{
 
 	// This function rotates the entire strand by thetaDeg
 	//  degrees around axis dx, dy, dz (around the point cx,cy,cz)
-	// If you don?½t have a molecule pass null
+	// If you don't have a molecule pass null
 	public void rotateStrand(double dx, double dy, double dz,
 		double thetaDeg, Molecule m, float cx, float cy, float cz) {
 			

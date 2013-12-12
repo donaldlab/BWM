@@ -167,7 +167,7 @@ public class SimpleMinimizer implements Serializable {
 		// step size for the rigid rotation
 		//  of the ligand
 	float TransStep = 0.10f;
-		// step size in ?½ for the rigid ligand
+		// step size in degrees? for the rigid ligand
 		//  translation
 	double MaxTrans = 1.2;
 		// the maximum ligand translation allowed
@@ -1243,7 +1243,7 @@ public class SimpleMinimizer implements Serializable {
 			// step size for the rigid rotation
 			//  of the ligand
 		float strTransStep = TransStep;
-			// step size in ?½ for the rigid ligand
+			// step size in degrees? for the rigid ligand
 			//  translation
 		double strMaxTrans = MaxTrans;
 			// the maximum ligand translation allowed
