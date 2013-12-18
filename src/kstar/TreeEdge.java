@@ -490,6 +490,11 @@ public class TreeEdge implements Serializable{
     //Computes the state of all vertices in e.M (returned in eMstate[]) corresponding to the state assignment curState[] for this edge;
     //NOTE: This must be called only when edge e is in the F set of this edge
     public int [] getMstateForEdgeCurState(int curState[],TreeEdge e){
+    	if(e.getrtm() == null)
+    	{
+    		System.out.println("Whoa!");
+    	System.out.println(e.getc());
+    	}
 
         int eMstate[] = new int[e.getM().size()];
 

@@ -6571,7 +6571,7 @@ public class KSParser
                 int curStrForMatrix = (new Integer((String)sParams.getValue("ONLYSINGLESTRAND","-1"))).intValue();
                 
                 
-		boolean ligPresent = (new Boolean((String)sParams.getValue("LIGPRESENT"))).booleanValue();
+		boolean ligPresent = (new Boolean((String)sParams.getValue("LIGPRESENT", "false"))).booleanValue();
 		String ligType = null;
 		if (ligPresent)
 			ligType = (String)(sParams.getValue("LIGTYPE"));
@@ -6686,6 +6686,7 @@ public class KSParser
 		TreeEdge actualRootEdge = realRoot.getCofEdge();
 		bt.getRoot().printTree("");
 		actualRootEdge.compactTree();
+		actualRootEdge.printTree("");
 		
 		/* New BWM Enumeration section */
 		/*
