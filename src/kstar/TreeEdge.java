@@ -252,7 +252,8 @@ public class TreeEdge implements Serializable{
             Conf newConf = new Conf(curState.clone(), 0, rtm);
             newConf.selfEnergy = en[1];
 			newConf.energy = en[1] + energy_ll;
-			newConf.leftEnergy = bTrackLeft(curState);
+			if(leftChild != null)
+			    newConf.leftEnergy = bTrackLeft(curState);
                 conformationHeap.add(newConf);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -373,14 +374,24 @@ public class TreeEdge implements Serializable{
     }
 
     private float bTrackLeft(int curState[]){	
+        /* TODO: Handle empty lambda set */
         if(leftChild == null) return 0;
         TreeEdge leftEdge = leftChild.getCofEdge();
-        int[] rightMLambda = getMstateForEdgeCurState(curState, leftEdge);
-
-        return (float)leftEdge.A2.get(leftEdge.computeIndexInA(rightMLambda)).peek().energy;
+        while (leftEdge.lambda.size() < 1 && leftEdge.leftChild != null)
+            leftEdge = leftEdge.leftChild.getCofEdge();
+        if(leftEdge.leftChild == null && leftEdge.lambda.size() < 1)
+        {
+            System.err.println("The impossible has happened.");
+            return 0;
+            
+        }
+        int[] MLambda = getMstateForEdgeCurState(curState, leftEdge);
+        return (float)leftEdge.A2.get(leftEdge.computeIndexInA(MLambda)).peek().energy;
     }
+    
 
     private float bTrackRight(int curState[]){		
+        /* TODO: Handle empty lambda set */
         if(rightChild == null) return 0;
         TreeEdge rightEdge = rightChild.getCofEdge();
         int[] rightMLambda = getMstateForEdgeCurState(curState, rightEdge);
@@ -494,6 +505,7 @@ public class TreeEdge implements Serializable{
     	{
     		System.out.println("Whoa!");
     	System.out.println(e.getc());
+    	return null; 
     	}
 
         int eMstate[] = new int[e.getM().size()];
@@ -518,7 +530,7 @@ public class TreeEdge implements Serializable{
 
                 if (eMi==MLambdaj){
 
-                    int p = rtm[j][curState[j]].pos;
+                     int p = rtm[j][curState[j]].pos;
                     int a = rtm[j][curState[j]].aa;
                     int r = rtm[j][curState[j]].rot;
 
@@ -604,7 +616,7 @@ public class TreeEdge implements Serializable{
     //Compute the index into the A matrix for this tree edge, given the state assignments for the vertices in M in curState[]
     public int computeIndexInA(int curState[]){
 
-        if (isRootEdge) //the M set is empty for the root edge
+        if (isRootEdge || curState == null) //the M set is empty for the root edge
             return 0;
 
         Object array_M[] = M.toArray();
@@ -840,6 +852,7 @@ public class TreeEdge implements Serializable{
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState);
         checkHeap(outHeap);
         String curString = RTMToString(bestPosAARot);
+        /* TODO: Handle empty lambda set */
         boolean sort = false;
         if(sort)
         {
@@ -1253,6 +1266,7 @@ public class TreeEdge implements Serializable{
 
     private boolean bTrackRightSideRemoveLate (RotTypeMap[] bestPosAARot, LinkedHashSet<Integer> leftL,
             int[] leftMLambda) {
+        /* TODO: Handle empty lambda set */
         if(rightChild != null)
         {
             String leftConfString = getLeftConfString(bestPosAARot);
@@ -1312,6 +1326,7 @@ public class TreeEdge implements Serializable{
 
     private void reinsertLeftConformation(RotTypeMap bestPosAARot[], int[] bestState, Stack<Conf> removedConfs, Stack<Boolean> reinserts, double newRightEnergy)
     {
+        /* TODO: Handle empty lambda set */
         if(rightChild != null)
         {
             TreeEdge rightEdge = rightChild.getCofEdge();
