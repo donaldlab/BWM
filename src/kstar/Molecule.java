@@ -2757,7 +2757,7 @@ public class Molecule implements Serializable{
         float HBAngle = 108.78f*(float)Math.PI/180;//HB1-CB-HB2 angle
         float HGAngle = 108.47f*(float)Math.PI/180;
         float HDAngle = 108.46f*(float)Math.PI/180;
-        //These values are from Allen et al, Chem. Eur. J. 2004, 10, 4512 â€?4517
+        //These values are from Allen et al, Chem. Eur. J. 2004, 10, 4512 - 4517
         //which is an ab initio study of free neutral proline
         //They provide constraints for structural refinement given heavy-atom positions,
         //including constant values for the above angles plus linear combinations of angles like CA-CB-HB1

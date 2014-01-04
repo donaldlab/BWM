@@ -265,7 +265,7 @@ public class PMinimizer extends SimpleMinimizer {
 			// step size for the rigid rotation
 			//  of the ligand
 		float strTransStep = TransStep;
-			// step size in ?½ for the rigid ligand
+			// step size in degrees for the rigid ligand
 			//  translation
 		double strMaxTrans = MaxTrans;
 			// the maximum ligand translation allowed
