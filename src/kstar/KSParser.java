@@ -6571,11 +6571,7 @@ public class KSParser
                 int curStrForMatrix = (new Integer((String)sParams.getValue("ONLYSINGLESTRAND","-1"))).intValue();
                 
                 
-		boolean ligPresent = (new Boolean((String)sParams.getValue("LIGPRESENT"))).booleanValue();
-		String ligType = null;
-		if (ligPresent)
-			ligType = (String)(sParams.getValue("LIGTYPE"));
-		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF"))).booleanValue();
+		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF", "false"))).booleanValue();
 		if(eRefGenerated) 
 			useEref = true;
 		//boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
@@ -6680,7 +6676,7 @@ public class KSParser
 			numUnprunedRot[numInAS] = numLigRotamers - curPruned;
 		}*/
 		
-		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,ligPresent);
+		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,false);
 		bt.computeLambdaSets(bt.getRoot());
 		TreeNode realRoot = bt.getRoot().getlc();
 		TreeEdge actualRootEdge = realRoot.getCofEdge();
