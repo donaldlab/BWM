@@ -6571,7 +6571,15 @@ public class KSParser
                 int curStrForMatrix = (new Integer((String)sParams.getValue("ONLYSINGLESTRAND","-1"))).intValue();
                 
                 
+<<<<<<< HEAD
 		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF", "false"))).booleanValue();
+=======
+		boolean ligPresent = (new Boolean((String)sParams.getValue("LIGPRESENT", "false"))).booleanValue();
+		String ligType = null;
+		if (ligPresent)
+			ligType = (String)(sParams.getValue("LIGTYPE"));
+		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF"))).booleanValue();
+>>>>>>> b07ec89229851c79deec08f652b09de6a66dddb7
 		if(eRefGenerated) 
 			useEref = true;
 		//boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
@@ -6682,6 +6690,7 @@ public class KSParser
 		TreeEdge actualRootEdge = realRoot.getCofEdge();
 		bt.getRoot().printTree("");
 		actualRootEdge.compactTree();
+		actualRootEdge.printTree("");
 		
 		/* New BWM Enumeration section */
 		/*
