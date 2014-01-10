@@ -1,3 +1,0 @@
-#!/bin/bash
-
- dir /b /s *.java | etags --language=java
