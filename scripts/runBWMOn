@@ -6,14 +6,18 @@ use Cwd;
 my @args = @ARGV;
 #3. import data files.
 my $pdblocation = "/home/home3/swati/OSPREY_v2.1beta_Dec2012/Experiments";
+my $eMatrixLocation= "/home/home3/swati/OSPREY_v2.1beta_Dec2012/Results";
 print"Creating directory $args[0]\n";
 system("mkdir $args[0]");
 system("mkdir $args[0]/import");
 system("cp -r $pdblocation/$args[0]/* $args[0]/import/.");
+system("cp -r $eMatrixLocation/$args[0]/* $args[0]/import/.");
 system("mv $args[0]/import/*min*.pdb $args[0]/$args[0].pdbresult");
 system("cp $args[0]/import/*.pdb $args[0]/$args[0].pdb");
 system("cp $args[0]/import/DEE*.cfg $args[0]/DEE.cfg");
 system("cp $args[0]/import/System*.cfg $args[0]/System.cfg");
+system("cp $args[0]/import/*.dat $args[0]/.");
+system("cp $args[0]/import/*.dat .");
 chdir("$args[0]/");
 #2. Convert config files.
 # add bd info to BWM.cfg
@@ -22,12 +26,48 @@ open (my $DEEConfigFile, "<DEE.cfg")
 	or die "Unable to open DEE.cfg\n";
 open (my $output, ">$args[0]BWM.cfg") 
 	or die "Unable to create Cleaned pdb file for writing.\n";
+	$genGraph = 0;
+	$distCutoff = 0;
+	$eCutoff = 0;
 while(<$DEEConfigFile>)
 {
 	chomp;
 	my $line = $_;
 	$line =~ s/\r//g;
+	if($line =~ m/genInteractionGraph false/)
+	{
+		print "genInteractionGraph was false\n";
+		$genGraph = 0;
+	}
 	print $output "$line\n";
+	if($line =~ m/genInteractionGraph true/)
+	{
+		print "Adding genInteractionGraph flag\n";
+		$genGraph = 1;
+	}
+		
+	if($line =~ m/distCutoff/)
+	{
+		$distCutoff = 1;
+	}
+	if($line =~ m/eInteractionCutoff/)
+	{
+		$eCutoff = 1;
+	}
+}
+
+if(!$genGraph)
+{
+		print "Adding genInteractionGraph line\n";
+	print $output "genInteractionGraph true\n";
+}
+if(!$distCutoff)
+{
+	print $output "distCutoff 8.0\n";
+}
+if(!$eCutoff)
+{
+	print $output "eInteractionCutoff 0.2\n";
 }
 print $output "prunedRotFile $args[0]_pruneInfo.obj\n";
 print $output "branchDfile $args[0]bd\n";
@@ -43,15 +83,21 @@ while(<$systemConfigFile>)
 	{
 		$line = "pdbName data/$args[0].pdb\n";
 	}
+	if($line =~/minEneryMatrixName (\w+)/)
+	{
+		$energyMatrixName = \1;
+		print "Energy matrix is called $energyMatrixName\n";
+	}
 	print $output $line;
 }
 # move the config and pdb files
 system("cp $args[0]BWM.cfg ../config/.");
 system("cp $args[0]System.cfg ../config/.");
 system("cp $args[0].pdb ../data/.");
+system("cp import/$eMatrixFile ../.");
 #3. call runBWM.
 chdir("..");
-$ENV{CLASSPATH} = "$ENV{CLASSPATH}:bin";
+$ENV{CLASSPATH} = "$ENV{CLASSPATH}:bin:src/BranchDecomposition/jmatharray.jar";
 $currentDirectory = getcwd();
 print "We're in $currentDirectory\n";
 system("java -Xmx60000M kstar/KStar -t 3 -c config/KStar.cfg doBWM config/$args[0]System.cfg config/$args[0]BWM.cfg");
