@@ -6555,169 +6555,163 @@ public class KSParser
 	}
 	
 	public void handleCompBranchDGMEC(String s)
-    {
-    	handleCompBranchDGMEC(s, false);
-    }
+	{
+		handleCompBranchDGMEC(s, false);
+	}
+	
+	public void handleCompBranchDGMEC (String s, boolean eRefGenerated) { //funciton added for BWM - Swati
 
-    public void handleCompBranchDGMEC (String s, boolean eRefGenerated) { //funciton added for BWM - Swati
-    
-    		// Takes the following parameters
-    		// 1: System parameter filename (string)
-    		// 2: Mutation search parameter filename (string)
-    		// 3: Branch decomposition filename (string)
-    		
-    		int sysStrNum = 0;
-        	int ligStrNum = 1;
-    		
-    		// Read System parameters for the reference structure
-    		ParamSet sParams = new ParamSet();
-    		sParams.addParamsFromFile(getToken(s,2)); //read system parameters
-    		sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
-    		
-    		int numInAS = (new Integer((String)sParams.getValue("NUMINAS"))).intValue();
-    	        String runName = (String)sParams.getValue("RUNNAME");
-    		String eMatrixNameMin = (String)sParams.getValue("MINENERGYMATRIXNAME", runName+"minM");
-                    String eMatrixNameMax = (String)sParams.getValue("MAXENERGYMATRIXNAME", runName+"maxM");
-                    int curStrForMatrix = (new Integer((String)sParams.getValue("ONLYSINGLESTRAND","-1"))).intValue();
-                    
-                    
-    		boolean ligPresent = (new Boolean((String)sParams.getValue("LIGPRESENT", "false"))).booleanValue();
-    		String ligType = null;
-    		if (ligPresent)
-    			ligType = (String)(sParams.getValue("LIGTYPE"));
-    		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF","false"))).booleanValue();
-    		if(eRefGenerated) 
-    			useEref = true;
-    		//boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
-    
-    		PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers<Boolean>)readObject(sParams.getValue("PRUNEDROTFILE"),false);
-    		String bdFile = sParams.getValue("BRANCHDFILE", runName+"_bd");
-    		
-    		MolParameters mp = loadMolecule(sParams, curStrForMatrix);
-                    
-    	
-    		boolean useTriples = (new Boolean((String)sParams.getValue("USETRIPLES","false"))).booleanValue();
-    		boolean useFlagsAStar = (new Boolean((String)sParams.getValue("USEFLAGSASTAR","false"))).booleanValue();
-    
-    
-    		// DEEPer parameters
-    		boolean doPerturbations = (new Boolean((String)sParams.getValue("DOPERTURBATIONS","false"))).booleanValue();//Triggers DEEPer
-    		String pertFile = (String)sParams.getValue("PERTURBATIONFILE","defaultPerturbationFileName.pert");//Input file giving perturbation information
-    		boolean minimizePerts = (new Boolean((String)sParams.getValue("MINIMIZEPERTURBATIONS","false"))).booleanValue();//Allow continuous minimization with respect to perturbation parameters
-    		boolean doMinimize = (new Boolean((String)sParams.getValue("DOMINIMIZE", "false"))).booleanValue();
-    		
-    		
-    		RotamerSearch rs = new RotamerSearch(mp.m,mp.numberMutable, mp.strandsPresent, hElect, hVDW, hSteric, true,
-    			true, 0.0f, stericThresh, softStericThresh, distDepDielect, dielectConst, doDihedE, doSolvationE, solvScale, softvdwMultiplier, grl,
-    			doPerturbations, pertFile, minimizePerts, useTriples, useFlagsAStar);
-    		
-    		
-    		
-    		//Set the allowable AAs for each AS residue
-    		boolean addWT = (new Boolean((String)sParams.getValue("ADDWT","true"))).booleanValue();
-                    int molStrand = 0;
-                    for (int strNum=0; strNum<mp.numOfStrands; strNum++){
-                            if(mp.strandPresent[strNum]){
-                                    for (int k=0; k<mp.strandMut[molStrand].length; k++){
-                                            setAllowablesHelper(rs, sParams, addWT, strNum, molStrand, k, mp.strandMut, mp.strandDefault);
-                                    }
-                                    molStrand++;
-                            }
-                    }
-                    
-            loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin,doMinimize,eMatrixNameMax,curStrForMatrix);        
-        	if (useEref) { //add the reference energies to the min (and max) intra-energies
-        		float eRef[][] = null;
-        		String eRefName = sParams.getValue("EREFMATRIXNAME", "Eref");
-        		eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
-        		//rs.loadPairwiseEnergyMatrices(eRefName+".dat", true);
-        		//eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.strandRot,mp.strandMut,null,mp.numberMutable,mp.mutRes2Strand,mp.mutRes2StrandMutIndex);
-        		rs.addEref(eRef, doMinimize, mp.strandMut);
-        	}
-        	else {
-            	System.out.print("Calculating energy matrix...");
-                //loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,null);
-                System.out.println("done");
-        	}
-    		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, mp.mutRes2StrandMutIndex);
-    		
-    		
-    		/**
-    		 * for (int str1=0; str1<strandMut.length; str1++){
-    			for (int i=0; i<strandMut[str1].length; i++){
-    				prunedRot[p1] = (T[][]) new Object[rs.strandRot[str1].rl.getNumAAallowed()][];
-    				for (int a1=0; a1<rs.strandRot[str1].getNumAllowable(strandMut[str1][i]); a1++){
-    					int curAAind1 = rs.strandRot[str1].getIndexOfNthAllowable(strandMut[str1][i],a1);
-    
-    		 */
-    
-    		int numUnprunedRot[] = new int[numRotForRes.length];
-    		for(int strand = 0; strand < mp.strandsPresent; strand++){
-    
-    		    for (int curRes=0; curRes<mp.numberMutable; curRes++){                      
-    		        int curPruned = 0;
-    		        for(int curAA=0;curAA<grl[strand].getNumAAallowed();curAA++){
-    		            int curAAind1 = rs.strandRot[strand].getIndexOfNthAllowable(mp.strandMut[strand][curRes],curAA);
-    		            if(curAAind1 < 0)
-    		            {
-    		                System.out.println("WHAT?");
-    		                continue;
-    		            }
-    		            for (int curRot=0; curRot< rs.strandRot[strand].rl.getNumRotForAAtype(curAAind1); curRot++) {
-    		                if (prunedRotAtResObject.get(strand, curRes, curAAind1, curRot)) //cur rot is pruned (pruned rotamers are necessarily in the cur set of allowed AAs)
-    		                    curPruned++;
-    		            }                       
-    		        }
-    		        numUnprunedRot[curRes] = numRotForRes[curRes] - curPruned;
-    		    }
-    		}
-    		/*
-    		for (int curRes=0; curRes<numInAS; curRes++){			
-    			int curPruned = 0;
-    			for(int curAA = 0; curAA < grl[sysStrNum].getNumAAallowed(); curAA++)
-    			for (int curRot=0; curRot<totalNumRotamers; curRot++) {
-    				if(prunedRotAtResObject.get(curRes, curAA, curRot));
-    				if (prunedRotAtRes[curRes*totalNumRotamers+curRot]) //cur rot is pruned (pruned rotamers are necessarily in the cur set of allowed AAs)
-    					curPruned++;
-    			}			
-    			numUnprunedRot[curRes] = numRotForRes[curRes] - curPruned;
-    		}
-    		if (ligPresent) { //ligand is present
-    			int curPruned = 0;
-    			for (int curRot=0; curRot<numLigRotamers; curRot++)
-    				if (prunedRotAtRes[numInAS*totalNumRotamers+curRot])
-    					curPruned++;
-    			numUnprunedRot[numInAS] = numLigRotamers - curPruned;
-    		}*/
-    		
-    		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,ligPresent);
-    		bt.computeLambdaSets(bt.getRoot());
-    		TreeNode realRoot = bt.getRoot().getlc();
-    		TreeEdge actualRootEdge = realRoot.getCofEdge();
-    		bt.getRoot().printTree("");
-    		actualRootEdge.compactTree();
-    		actualRootEdge.printTreeMol("");
-                    actualRootEdge.printTree("");
-    		
-    		/* New BWM Enumeration section */
-    		/*
-    		BWMSolutionSpace space = new BWMSolutionSpace(prunedRotAtResObject, 
-    				new EnergyFunction(rs.getMinMatrix(), bt.getGraph()), mp.mutRes2Strand, 
-    				mp.strandMut, mp.mutRes2StrandMutIndex, bt.getRoot().getCofEdge().getInvResMap(), grl[sysStrNum]);
-    		TreeNode start = bt.getRoot().getlc();
-    		BWMAStarNode AStarRoot = new BWMAStarNode(space.getEmptyConformation());
-    		BWMAStarNode.CreateTree2(start, AStarRoot, space.getEmptyConformation(), AStarRoot.getChildren(), space, 0, start.getCofEdge().getPositionList());
-    		bt.setEnumerationObjects(AStarRoot, space);
-    		//AStarRoot.remainingConformations();
-    		//AStarRoot.printTree("");
-    		int rank = 0;
-    		double lastScore = -500;
-    		
-    		int lastRemaining = AStarRoot.totalPossibleCombinations();
-    		while(AStarRoot.moreConformations()&& rank < 100){
-    		    rank++;
-    		    Conformation out = AStarRoot.getNextConformation();
-                        
+		// Takes the following parameters
+		// 1: System parameter filename (string)
+		// 2: Mutation search parameter filename (string)
+		// 3: Branch decomposition filename (string)
+		
+		int sysStrNum = 0;
+    	int ligStrNum = 1;
+		
+		// Read System parameters for the reference structure
+		ParamSet sParams = new ParamSet();
+		sParams.addParamsFromFile(getToken(s,2)); //read system parameters
+		sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
+		
+		int numInAS = (new Integer((String)sParams.getValue("NUMINAS"))).intValue();
+	        String runName = (String)sParams.getValue("RUNNAME");
+		String eMatrixNameMin = (String)sParams.getValue("MINENERGYMATRIXNAME", runName+"minM");
+                String eMatrixNameMax = (String)sParams.getValue("MAXENERGYMATRIXNAME", runName+"maxM");
+                int curStrForMatrix = (new Integer((String)sParams.getValue("ONLYSINGLESTRAND","-1"))).intValue();
+                
+                
+		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF","false"))).booleanValue();
+		if(eRefGenerated) 
+			useEref = true;
+		//boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
+
+		PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers<Boolean>)readObject(sParams.getValue("PRUNEDROTFILE"),false);
+		String bdFile = sParams.getValue("BRANCHDFILE", runName+"_bd");
+		
+		MolParameters mp = loadMolecule(sParams, curStrForMatrix);
+                
+	
+		boolean useTriples = (new Boolean((String)sParams.getValue("USETRIPLES","false"))).booleanValue();
+		boolean useFlagsAStar = (new Boolean((String)sParams.getValue("USEFLAGSASTAR","false"))).booleanValue();
+
+
+		// DEEPer parameters
+		boolean doPerturbations = (new Boolean((String)sParams.getValue("DOPERTURBATIONS","false"))).booleanValue();//Triggers DEEPer
+		String pertFile = (String)sParams.getValue("PERTURBATIONFILE","defaultPerturbationFileName.pert");//Input file giving perturbation information
+		boolean minimizePerts = (new Boolean((String)sParams.getValue("MINIMIZEPERTURBATIONS","false"))).booleanValue();//Allow continuous minimization with respect to perturbation parameters
+		boolean doMinimize = (new Boolean((String)sParams.getValue("DOMINIMIZE", "false"))).booleanValue();
+		
+		
+		RotamerSearch rs = new RotamerSearch(mp.m,mp.numberMutable, mp.strandsPresent, hElect, hVDW, hSteric, true,
+			true, 0.0f, stericThresh, softStericThresh, distDepDielect, dielectConst, doDihedE, doSolvationE, solvScale, softvdwMultiplier, grl,
+			doPerturbations, pertFile, minimizePerts, useTriples, useFlagsAStar);
+		
+		
+		
+		//Set the allowable AAs for each AS residue
+		boolean addWT = (new Boolean((String)sParams.getValue("ADDWT"))).booleanValue();
+                int molStrand = 0;
+                for (int strNum=0; strNum<mp.numOfStrands; strNum++){
+                        if(mp.strandPresent[strNum]){
+                                for (int k=0; k<mp.strandMut[molStrand].length; k++){
+                                        setAllowablesHelper(rs, sParams, addWT, strNum, molStrand, k, mp.strandMut, mp.strandDefault);
+                                }
+                                molStrand++;
+                        }
+                }
+                
+        loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin,doMinimize,eMatrixNameMax,curStrForMatrix);        
+    	if (useEref) { //add the reference energies to the min (and max) intra-energies
+    		float eRef[][] = null;
+    		String eRefName = sParams.getValue("EREFMATRIXNAME", "Eref");
+    		eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
+    		//rs.loadPairwiseEnergyMatrices(eRefName+".dat", true);
+    		//eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.strandRot,mp.strandMut,null,mp.numberMutable,mp.mutRes2Strand,mp.mutRes2StrandMutIndex);
+    		rs.addEref(eRef, doMinimize, mp.strandMut);
+    	}
+    	else {
+        	System.out.print("Calculating energy matrix...");
+            //loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,null);
+            System.out.println("done");
+    	}
+		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, mp.mutRes2StrandMutIndex);
+		
+		
+		/**
+		 * for (int str1=0; str1<strandMut.length; str1++){
+			for (int i=0; i<strandMut[str1].length; i++){
+				prunedRot[p1] = (T[][]) new Object[rs.strandRot[str1].rl.getNumAAallowed()][];
+				for (int a1=0; a1<rs.strandRot[str1].getNumAllowable(strandMut[str1][i]); a1++){
+					int curAAind1 = rs.strandRot[str1].getIndexOfNthAllowable(strandMut[str1][i],a1);
+
+		 */
+
+		int numUnprunedRot[] = new int[numRotForRes.length];
+		for(int strand = 0; strand < mp.strandsPresent; strand++){
+
+		    for (int curRes=0; curRes<mp.numberMutable; curRes++){                      
+		        int curPruned = 0;
+		        for(int curAA=0;curAA<grl[strand].getNumAAallowed();curAA++){
+		            int curAAind1 = rs.strandRot[strand].getIndexOfNthAllowable(mp.strandMut[strand][curRes],curAA);
+		            if(curAAind1 < 0)
+		            {
+		                System.out.println("WHAT?");
+		                continue;
+		            }
+		            for (int curRot=0; curRot< rs.strandRot[strand].rl.getNumRotForAAtype(curAAind1); curRot++) {
+		                if (prunedRotAtResObject.get(strand, curRes, curAAind1, curRot)) //cur rot is pruned (pruned rotamers are necessarily in the cur set of allowed AAs)
+		                    curPruned++;
+		            }                       
+		        }
+		        numUnprunedRot[curRes] = numRotForRes[curRes] - curPruned;
+		    }
+		}
+		/*
+		for (int curRes=0; curRes<numInAS; curRes++){			
+			int curPruned = 0;
+			for(int curAA = 0; curAA < grl[sysStrNum].getNumAAallowed(); curAA++)
+			for (int curRot=0; curRot<totalNumRotamers; curRot++) {
+				if(prunedRotAtResObject.get(curRes, curAA, curRot));
+				if (prunedRotAtRes[curRes*totalNumRotamers+curRot]) //cur rot is pruned (pruned rotamers are necessarily in the cur set of allowed AAs)
+					curPruned++;
+			}			
+			numUnprunedRot[curRes] = numRotForRes[curRes] - curPruned;
+		}
+		if (ligPresent) { //ligand is present
+			int curPruned = 0;
+			for (int curRot=0; curRot<numLigRotamers; curRot++)
+				if (prunedRotAtRes[numInAS*totalNumRotamers+curRot])
+					curPruned++;
+			numUnprunedRot[numInAS] = numLigRotamers - curPruned;
+		}*/
+		
+		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,false);
+		bt.computeLambdaSets(bt.getRoot());
+		TreeNode realRoot = bt.getRoot().getlc();
+		TreeEdge actualRootEdge = realRoot.getCofEdge();
+		bt.getRoot().printTree("");
+		actualRootEdge.compactTree();
+		actualRootEdge.printTree("");
+		
+		/* New BWM Enumeration section */
+		/*
+		BWMSolutionSpace space = new BWMSolutionSpace(prunedRotAtResObject, 
+				new EnergyFunction(rs.getMinMatrix(), bt.getGraph()), mp.mutRes2Strand, 
+				mp.strandMut, mp.mutRes2StrandMutIndex, bt.getRoot().getCofEdge().getInvResMap(), grl[sysStrNum]);
+		TreeNode start = bt.getRoot().getlc();
+		BWMAStarNode AStarRoot = new BWMAStarNode(space.getEmptyConformation());
+		BWMAStarNode.CreateTree2(start, AStarRoot, space.getEmptyConformation(), AStarRoot.getChildren(), space, 0, start.getCofEdge().getPositionList());
+		bt.setEnumerationObjects(AStarRoot, space);
+		//AStarRoot.remainingConformations();
+		//AStarRoot.printTree("");
+		int rank = 0;
+		double lastScore = -500;
+		
+		int lastRemaining = AStarRoot.totalPossibleCombinations();
+		while(AStarRoot.moreConformations()&& rank < 100){
+		    rank++;
+		    Conformation out = AStarRoot.getNextConformation();
     		    if(lastScore > out.score())
                         {
                             System.out.println("WRONG ORDER");
@@ -6731,7 +6725,7 @@ public class KSParser
     		*/
     		
     		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
-    		//actualRootEdge.populateLeftHeaps();
+    		actualRootEdge.populateLeftHeaps();
     //		actualRootEdge.generateFirstRightConformation();
     		int rank = 0;
     		double lastEnergy = -1000;

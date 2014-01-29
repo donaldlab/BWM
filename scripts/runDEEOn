@@ -1,0 +1,8 @@
+#!/usr/bin/perl
+use Cwd;
+print "Hello world!\n";
+my @args = @ARGV;
+$ENV{CLASSPATH} = "$ENV{CLASSPATH}:bin";
+$currentDirectory = getcwd();
+print "We're in $currentDirectory\n";
+system("java -Xmx60000M kstar/KStar -c config/KStar.cfg doDEE config/$arg[0]System.cfg config/$arg[0]DEE.cfg");
