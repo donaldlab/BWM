@@ -254,6 +254,7 @@ public class TreeEdge implements Serializable{
 			newConf.energy = en[1] + energy_ll;
 			if(leftChild != null)
 			    newConf.leftEnergy = bTrackLeft(curState);
+	//if(conformationHeap.size() < 2)
                 conformationHeap.add(newConf);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -463,6 +464,41 @@ public class TreeEdge implements Serializable{
 
         for(int i : getM())
             out+=invResMap[i]+", ";
+        out+="]";
+        boolean showHeaps = false;
+        if(showHeaps)
+        {
+            out+="heaps: \n";
+            for(PriorityQueue<Conf> heap : A2)
+            {
+                if(heap.size() > 0)
+                    out+=""+heap+"\n";
+            }
+        }
+        System.out.println(out);
+        if(leftChild != null)
+            leftChild.getCofEdge().printTree(prefix+"+L--");
+        if(rightChild != null)
+            rightChild.getCofEdge().printTree(prefix+"+R--");
+    }
+    
+    public void printTreeMol(String prefix)
+    {
+        String out = prefix + "[";
+        for(int i : getLambda())
+            out+=i+", ";
+        out+="]";
+
+        out += " - L Set:[";
+
+        for(int i : getL())
+            out+=i+", ";
+        out+="]";
+
+        out += " - M Set:[";
+
+        for(int i : getM())
+            out+=i+", ";
         out+="]";
         boolean showHeaps = false;
         if(showHeaps)

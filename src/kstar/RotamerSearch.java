@@ -4039,9 +4039,13 @@ public class RotamerSearch implements Serializable
 			approxMinGMEC = false; //reset approxMinGMEC, since it is valid only for MinDEE, and not for traditional DEE*/
 
 		updateBestE((float)bestScore);
-	
+		long start = System.currentTimeMillis();
+		int confs = 0;
 		while (true){
-			
+			System.out.println("Conformations enumerated: "+confs);
+			confs++;
+			long sofar = System.currentTimeMillis() - start;
+	                System.out.println("Time to enumerate: "+sofar);
 			//debugPS.println("curMinE: "+curMinE);debugPS.flush();
 			
 			if (cObj!=null){				
