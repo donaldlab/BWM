@@ -905,6 +905,16 @@ public class TreeEdge implements Serializable{
             int[] leftMLambda = nextState.conformation; 
             int[] leftM = getMstateForEdgeCurState(leftMLambda, leftEdge);
             TreeEdge rightEdge = rightChild.getCofEdge();
+            
+            List<RightConf> rightConfs = getRightSolutions(bestPosAARot);
+            if(rightConfs.size() < 1)
+            {
+                int[] rightMLambda = nextState.conformation; 
+                int[] rightM = getMstateForEdgeCurState(rightMLambda, rightEdge);
+                getNewRightconf(bestPosAARotOld, rightEdge, rightConfs, rightM);
+            }
+            
+            
             LazyHeap<Conf> secondaryHeap = getSecondaryHeap(bestPosAARotOld, leftM);
             if(secondaryHeap.dirty || secondaryHeap.size() < 1) 
             {
@@ -914,6 +924,7 @@ public class TreeEdge implements Serializable{
                 double newLeftEnergy = leftEdge.peekEnergy(bestPosAARotLeft, leftM);
                 leftEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotLeft, leftM);
                 Conf newLeftConf = new Conf(bestPosAARotLeft, newLeftEnergy);
+                newLeftConf.updateLeftEnergy(rightConfs.get(0).energy);
                 secondaryHeap.cleanNode = newLeftConf;
                 secondaryHeap.add(newLeftConf);
                 secondaryHeap.dirty = false;
@@ -924,20 +935,15 @@ public class TreeEdge implements Serializable{
             leftConf.fillConf(bestPosAARot);
             if(leftConf == secondaryHeap.cleanNode)
                 secondaryHeap.dirty = true;
-            
             int index = getRightOffset(leftConf.toString());
-            List<RightConf> rightConfs = getRightSolutions(bestPosAARot);
+           
 
             int[] rightMLambda = nextState.conformation; 
             int[] rightM = getMstateForEdgeCurState(rightMLambda, rightEdge);
             while(rightConfs.size() <= index + 1 && rightEdge.moreConformations(bestPosAARotOld, rightM))
             {
                 
-                RotTypeMap[] bestPosAARotRight = Arrays.copyOf(bestPosAARotOld, bestPosAARot.length);
-                double newRightEnergy = rightEdge.peekEnergy(bestPosAARotRight, rightM);
-                rightEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotRight, rightM);
-                RightConf newRight = new RightConf(bestPosAARotRight, newRightEnergy);
-                rightConfs.add(newRight);
+                getNewRightconf(bestPosAARotOld, rightEdge, rightConfs, rightM);
             }
             
             RightConf rightConf = rightConfs.get(index);
@@ -998,6 +1004,15 @@ public class TreeEdge implements Serializable{
 
 
     }
+
+	private void getNewRightconf(RotTypeMap[] bestPosAARotOld, TreeEdge rightEdge, List<RightConf> rightConfs, int[] rightM) 
+	{
+		RotTypeMap[] bestPosAARotRight = Arrays.copyOf(bestPosAARotOld, bestPosAARotOld.length);
+		double newRightEnergy = rightEdge.peekEnergy(bestPosAARotRight, rightM);
+		rightEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotRight, rightM);
+		RightConf newRight = new RightConf(bestPosAARotRight, newRightEnergy);
+		rightConfs.add(newRight);
+	}
 
 
     /**
