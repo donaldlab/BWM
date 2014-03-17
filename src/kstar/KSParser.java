@@ -6739,7 +6739,7 @@ public class KSParser
     		    if(energy < lastEnergy)
     		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
     		    lastEnergy = energy;
-    		    TreeEdge.printHeap = false;
+    		    TreeEdge.printHeap = true;
     		    String confString = actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
     
                         long end = System.currentTimeMillis();
