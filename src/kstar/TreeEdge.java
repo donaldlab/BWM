@@ -916,7 +916,7 @@ public class TreeEdge implements Serializable{
             
             
             LazyHeap<Conf> secondaryHeap = getSecondaryHeap(bestPosAARotOld, leftM);
-            if(secondaryHeap.dirty || secondaryHeap.size() < 1) 
+            if((secondaryHeap.dirty || secondaryHeap.size() < 1) && leftEdge.moreConformations(bestPosAARotOld, leftM)) 
             {
                 /* Acquire new left conformation for the heap */
                 RotTypeMap[] bestPosAARotLeft = Arrays.copyOf(bestPosAARotOld, bestPosAARot.length);
@@ -952,7 +952,7 @@ public class TreeEdge implements Serializable{
             if(index + 1 < rightConfs.size() || rightEdge.moreConformations(bestPosAARotOld, rightM))
             {
                 RightConf nextRightConf = rightConfs.get(index + 1);
-                leftConf.updateRightEnergy(nextRightConf.energy);
+                leftConf.updateLeftEnergy(nextRightConf.energy);
                 rightSolutionOffset.put(leftConf.toString(), index + 1);
                 secondaryHeap.add(leftConf);
                 reinsert = true;
@@ -1011,6 +1011,7 @@ public class TreeEdge implements Serializable{
 		double newRightEnergy = rightEdge.peekEnergy(bestPosAARotRight, rightM);
 		rightEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotRight, rightM);
 		RightConf newRight = new RightConf(bestPosAARotRight, newRightEnergy);
+		System.out.println("New Right Conf: "+newRight.toString()+", energy "+newRight.energy);
 		rightConfs.add(newRight);
 	}
 

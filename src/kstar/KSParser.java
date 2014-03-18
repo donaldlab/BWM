@@ -6725,7 +6725,7 @@ public class KSParser
     		*/
     		
     		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
-    		actualRootEdge.populateLeftHeaps();
+    		//actualRootEdge.populateLeftHeaps();
     //		actualRootEdge.generateFirstRightConformation();
     		int rank = 0;
     		double lastEnergy = -1000;
