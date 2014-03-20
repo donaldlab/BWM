@@ -62,6 +62,7 @@ public class TreeEdge implements Serializable{
     private double firstRightEnergy;
 
     static boolean printHeap = false;
+    HashMap<String, Integer> confsEnumerated = new HashMap<String, Integer>();
 
     TreeNode leftChild;
     TreeNode rightChild;
@@ -132,13 +133,16 @@ public class TreeEdge implements Serializable{
             L.addAll(c.getrc().getCofEdge().getL()); //add the L set of the right edge
         }
 
+        Fset = new LinkedHashSet<TreeEdge>();
+        computeFset(c);
+        initializeMatrices();
+        
         if(!lambda.isEmpty())
         {
             isLambdaEdge=true; // initialising the matrices and calculating the Fset since it is a lambda edge
-            initializeMatrices();
+            
             rtm = new RotTypeMap[M.size()+lambda.size()][];
-            Fset = new LinkedHashSet<TreeEdge>();
-            computeFset(c);
+
         }
         else
             isLambdaEdge=false;
@@ -255,7 +259,7 @@ public class TreeEdge implements Serializable{
             newConf.energy = en[1] + energy_ll;
             if(leftChild != null)
                 newConf.leftEnergy = energy_ll;
-            if(conformationHeap.size() < 2)
+            //if(conformationHeap.size() < 2) 
             conformationHeap.add(newConf);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
@@ -404,7 +408,7 @@ public class TreeEdge implements Serializable{
 
 
     //Called by bTrackHelper(.); finds the tree edges belonging to the set F starting at the sub-tree rooted at the tree node tn
-    private void computeFset(TreeNode tn){
+    public void computeFset(TreeNode tn){
 
         TreeNode clc = tn.getlc();
         TreeNode crc = tn.getrc();
@@ -542,7 +546,7 @@ public class TreeEdge implements Serializable{
         {
             System.out.println("Whoa!");
             System.out.println(e.getc());
-            return null; 
+            return curState; 
         }
 
         int eMstate[] = new int[e.getM().size()];
@@ -654,6 +658,9 @@ public class TreeEdge implements Serializable{
     public int computeIndexInA(int curState[]){
 
         if (isRootEdge || curState == null) //the M set is empty for the root edge
+            return 0;
+        
+        if(M.size() < 1)
             return 0;
 
         Object array_M[] = M.toArray();
@@ -945,7 +952,7 @@ public class TreeEdge implements Serializable{
                 
                 getNewRightconf(bestPosAARotOld, rightEdge, rightConfs, rightM);
             }
-            
+                        
             RightConf rightConf = rightConfs.get(index);
             rightConf.fillRotTypeMap(bestPosAARot);
             
@@ -957,7 +964,15 @@ public class TreeEdge implements Serializable{
                 secondaryHeap.add(leftConf);
                 reinsert = true;
             }
-            nextState.updateLeftEnergy(secondaryHeap.peek().energy);
+
+            if(secondaryHeap.size() > 0)
+            {
+                nextState.updateLeftEnergy(secondaryHeap.peek().energy);
+                reinsert = true;
+            }
+            else
+                reinsert = false;
+            
         }
 
         else if(leftChild != null)
@@ -1011,7 +1026,7 @@ public class TreeEdge implements Serializable{
 		double newRightEnergy = rightEdge.peekEnergy(bestPosAARotRight, rightM);
 		rightEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotRight, rightM);
 		RightConf newRight = new RightConf(bestPosAARotRight, newRightEnergy);
-		System.out.println("New Right Conf: "+newRight.toString()+", energy "+newRight.energy);
+		System.out.println("New Right Conf: "+RTMToString(bestPosAARotRight)+", energy "+newRight.energy);
 		rightConfs.add(newRight);
 	}
 
@@ -1922,6 +1937,7 @@ public class TreeEdge implements Serializable{
         {
             String out = "[";
             RotTypeMap[] conformation = conf;
+            if(conformation != null)
             for(int i=0; i<conformation.length;i++)
             {
                 RotTypeMap current = conformation[i];
