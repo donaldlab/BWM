@@ -6693,6 +6693,7 @@ public class KSParser
 		bt.getRoot().printTree("");
 		actualRootEdge.compactTree();
 		actualRootEdge.printTree("");
+		actualRootEdge.printTreeMol("");
 		
 		/* New BWM Enumeration section */
 		/*

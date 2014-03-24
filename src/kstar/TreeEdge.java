@@ -63,6 +63,8 @@ public class TreeEdge implements Serializable{
 
     static boolean printHeap = false;
     HashMap<String, Integer> confsEnumerated = new HashMap<String, Integer>();
+    Set<String> stringSet = new HashSet<String>();
+    private static Map<String, Integer> heapHashCodes = new HashMap<String, Integer>();
 
     TreeNode leftChild;
     TreeNode rightChild;
@@ -163,7 +165,8 @@ public class TreeEdge implements Serializable{
         A2 = new ArrayList<PriorityQueue<Conf>>(size);
         while(A2.size() < size)
         {
-            A2.add(new PriorityQueue<Conf>(1, comparator));
+            PriorityQueue<Conf> newQueue = new PriorityQueue<Conf>(1, comparator);
+            A2.add(newQueue);
         }
         energy = new float[size];
 
@@ -252,15 +255,24 @@ public class TreeEdge implements Serializable{
             {
                 A2.add(new PriorityQueue<Conf>());
             }
+            
 
             PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
             Conf newConf = new Conf(curState.clone(), 0, rtm);
+            if(newConf.toString().length() < 3 && lambda.size() > 0)
+            {
+                System.err.println("Empty heap should not be empty.");
+                System.exit(-1);
+            }
             newConf.selfEnergy = en[1];
             newConf.energy = en[1] + energy_ll;
             if(leftChild != null)
                 newConf.leftEnergy = energy_ll;
-            //if(conformationHeap.size() < 2) 
-            conformationHeap.add(newConf);
+            if(conformationHeap.size() < 2)
+                conformationHeap.add(newConf);
+
+            if(conformationHeap.size() < 1)
+                System.exit(-1);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
 
@@ -379,31 +391,6 @@ public class TreeEdge implements Serializable{
         return energy_return;
     }
 
-    private float bTrackLeft(int curState[]){	
-        /* TODO: Handle empty lambda set */
-        if(leftChild == null) return 0;
-        TreeEdge leftEdge = leftChild.getCofEdge();
-        while (leftEdge.lambda.size() < 1 && leftEdge.leftChild != null)
-            leftEdge = leftEdge.leftChild.getCofEdge();
-        if(leftEdge.leftChild == null && leftEdge.lambda.size() < 1)
-        {
-            System.err.println("The impossible has happened.");
-            return 0;
-
-        }
-        int[] MLambda = getMstateForEdgeCurState(curState, leftEdge);
-        return (float)leftEdge.A2.get(leftEdge.computeIndexInA(MLambda)).peek().energy;
-    }
-
-
-    private float bTrackRight(int curState[]){		
-        /* TODO: Handle empty lambda set */
-        if(rightChild == null) return 0;
-        TreeEdge rightEdge = rightChild.getCofEdge();
-        int[] rightMLambda = getMstateForEdgeCurState(curState, rightEdge);
-
-        return (float)rightEdge.A2.get(rightEdge.computeIndexInA(rightMLambda)).peek().energy;
-    }
 
 
 
@@ -517,9 +504,9 @@ public class TreeEdge implements Serializable{
         }
         System.out.println(out);
         if(leftChild != null)
-            leftChild.getCofEdge().printTree(prefix+"+L--");
+            leftChild.getCofEdge().printTreeMol(prefix+"+L--");
         if(rightChild != null)
-            rightChild.getCofEdge().printTree(prefix+"+R--");
+            rightChild.getCofEdge().printTreeMol(prefix+"+R--");
     }
 
     private TreeNode searchSubtree(TreeNode tn){
@@ -544,10 +531,14 @@ public class TreeEdge implements Serializable{
     public int [] getMstateForEdgeCurState(int curState[],TreeEdge e){
         if(e.getrtm() == null)
         {
-            System.out.println("Whoa!");
-            System.out.println(e.getc());
-            return curState; 
+            if(e.lambda.size() < 1 && e.M.size() > 0)
+                e.copyParentRTM();
+            else 
+                System.out.println("Whoa!");
         }
+        
+        if(lambda.size() < 1)
+            System.out.println("Funtimes!");
 
         int eMstate[] = new int[e.getM().size()];
 
@@ -584,6 +575,11 @@ public class TreeEdge implements Serializable{
                     }
                     break;
                 }
+            }
+            if(eMstate[i] < 0)
+            {
+                System.err.println("Can't find full M state.");
+                System.exit(-1);
             }
         }
 
@@ -980,6 +976,8 @@ public class TreeEdge implements Serializable{
             TreeEdge leftEdge = leftChild.getCofEdge();
             int[] leftMLambda = nextState.conformation; 
             int[] leftM = getMstateForEdgeCurState(leftMLambda, leftEdge);
+            if(leftM == null)
+                leftM = leftMLambda;
             leftEdge.bTrackBestConfRemoveEarlyNew(bestPosAARot, leftM);
             nextState.updateLeftEnergy(leftEdge.peekEnergy(bestPosAARot, leftM));
             reinsert = leftEdge.moreConformations(bestPosAARot, leftM);
@@ -1311,7 +1309,11 @@ public class TreeEdge implements Serializable{
 
     private void checkHeap(PriorityQueue<Conf> heap)
     {
-        if(heap.isEmpty()) return;
+        if(heap.isEmpty())
+            {
+            System.err.println("Empty heap found, should not be empty.");
+            return;
+            }
         PriorityQueue<Conf> copy = new PriorityQueue<Conf>();
         double lastEnergy = heap.peek().energy;
         copy.add(heap.poll());
@@ -1433,23 +1435,37 @@ public class TreeEdge implements Serializable{
     private PriorityQueue<Conf> getHeap(RotTypeMap[] bestPosAARot, int[] bestState)
     {
         String curString = RTMToPrefix(bestPosAARot);
+        if(curString.equals("[2:0-0 3:9-3 4:0-0 10:1-1 11:9-7 12:0-0 ]"))
+        {
+            System.out.println("HOOEEEH!?");
+        }
         if(!leftHeapMap.containsKey(curString))
         {
             PriorityQueue<Conf> newHeap = new PriorityQueue<Conf>();
-            if(A2.size() < 1)
-            {
-                if(lambda.size() < 1)
-                {
-                    newHeap.add(new Conf(new int[]{}, 0, rtm));
-                }
-                else
-                {
-                    System.err.println("Unrecognized sequence with existing lambda set...");
-                }
-            }
-            else
-            {
+            int index = computeIndexInA(bestState);
                 PriorityQueue<Conf> outHeap = A2.get(computeIndexInA(bestState));
+                if(outHeap.isEmpty())
+                {
+                    if(lambda.size() < 1)
+                    {
+                        /* TODO: THIS IS A HACK? */
+                        //copyParentRTM();
+                        //M = parent.M;
+                        //lambda = parent.lambda;
+                        //L = parent.L;
+                        Conf newConf = new Conf(bestState, 0, parent.getrtm());
+                        double nextLeftEnergy = leftChild.getCofEdge().peekEnergy(bestPosAARot, bestState);
+                        double nextRightEnergy = leftChild.getCofEdge().peekEnergy(bestPosAARot, bestState);
+                        newConf.updateLeftEnergy(nextLeftEnergy + nextRightEnergy);
+                        newHeap.add(newConf);
+                    }
+                    else
+                    {
+                        System.err.println("Unrecognized sequence with existing lambda set...");
+                        System.err.println("Empty template heap: "+outHeap.hashCode());
+                        System.exit(-1);
+                    }
+                }
                 checkHeap(outHeap);
 
                 for(Conf c : outHeap)
@@ -1458,12 +1474,55 @@ public class TreeEdge implements Serializable{
                     newHeap.add(newConf);
                 }
                 checkHeap(newHeap);
-            }
+
             leftHeapMap.put(curString, newHeap);
         }
+        for(String hashString : heapHashCodes.keySet())
+        {
+            System.out.println(hashString+" = "+heapHashCodes.get(hashString));
+        }
+        
         PriorityQueue<Conf> out = leftHeapMap.get(curString);
+        String curHashString = curString + lambda.toString();
+        
+        if(!heapHashCodes.containsKey(curHashString))
+        {
+            heapHashCodes.put(curHashString, out.hashCode());
+            System.out.println("Put "+out+" for "+out.hashCode()+",  string "+curHashString);
+        }
+        if(heapHashCodes.get(curHashString) != out.hashCode())
+        {
+            System.err.println("One string, two hashcodes: "+curHashString+" returns "+heapHashCodes.get(curHashString)+", "+out.hashCode());
+            System.exit(-1);
+        }
         checkHeap(out);
+        if(curHashString.equals("[2:0-0 3:9-3 4:0-0 10:1-1 11:9-7 12:0-0 ][84]"))
+            System.out.println("I got your problem right here.");
+        System.out.println("Returning heap with hashcode "+out.hashCode());
         return out;
+    }
+
+    private void copyParentRTM () {
+        RotTypeMap[][] parentRTM = parent.getrtm();
+        RotTypeMap[][] newRTM = new RotTypeMap[M.size()][];
+        Integer[] MArray = M.toArray(new Integer[]{});
+        ArrayList<Integer> parentMLambda = new ArrayList<Integer>();
+        parentMLambda.addAll(parent.M);
+        parentMLambda.addAll(parent.lambda);
+        Integer[] parentM = parentMLambda.toArray(new Integer[]{});
+        
+        
+        for(int m = 0; m < M.size(); m++)
+        {
+            for(int parentIndex = 0; parentIndex < parentM.length; parentIndex++)
+            {
+                if(parentM[parentIndex] == MArray[m])
+                {
+                    newRTM[m] = parentRTM[parentIndex];
+                }
+            }
+        }
+        rtm = newRTM;
     }
 
     private LazyHeap<Conf> getSecondaryHeap(RotTypeMap[] bestPosAARot, int[] bestState)
@@ -1478,7 +1537,7 @@ public class TreeEdge implements Serializable{
             secondaryHeapMap.put(curString, newHeap);
         }
         LazyHeap<Conf> out = secondaryHeapMap.get(curString);
-        checkHeap(out);
+        //checkHeap(out);
         return out;
     }
 
@@ -1808,14 +1867,20 @@ public class TreeEdge implements Serializable{
                     if(previous != null)
                     {
                         if (result.aa != previous.aa)
-                            System.out.println("AAH!!! OVERWRITE "+previous.aa+" with "+result.aa);
+                            reportError(previous.aa, result.aa);
                         if(result.rot != previous.rot)
-                            System.out.println("AAH!!! OVERWRITE "+previous.rot+" with "+result.rot);
+                            reportError(previous.aa, result.aa);
                     }
                     bestPosAARot[i] = fullConformation[i];
 
                 }
             }
+        }
+        
+        private void reportError(int previous, int result)
+        {
+            System.err.println("AAH!!! OVERWRITE "+previous+" with "+result);
+            System.exit(-1);
         }
 
         public String toString()
@@ -1898,9 +1963,9 @@ public class TreeEdge implements Serializable{
                 if(previous != null)
                 {
                     if (result.aa != previous.aa)
-                        System.out.println("AAH!!! OVERWRITE "+previous.aa+" with "+result.aa);
+                        reportError(previous.aa, result.aa);
                     if(result.rot != previous.rot)
-                        System.out.println("AAH!!! OVERWRITE "+previous.rot+" with "+result.rot);
+                        reportError(previous.aa, result.aa);
                 }
                 bestPosAARot[position] = result;
             }
@@ -1918,6 +1983,12 @@ public class TreeEdge implements Serializable{
             energy = leftEnergy + selfEnergy + rightEnergy;
         }
 
+        private void reportError(int previous, int result)
+        {
+            System.err.println("AAH!!! OVERWRITE "+previous+" with "+result);
+            System.exit(-1);
+        }
+        
         public String toString()
         {
             if(conformation == null || conformation.length < 1)
