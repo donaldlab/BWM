@@ -4,4 +4,4 @@ print "Hello world!\n";
 $ENV{CLASSPATH} = "$ENV{CLASSPATH}:bin";
 $currentDirectory = getcwd();
 print "We're in $currentDirectory\n";
-system("java -Xmx60000M kstar/KStar -c config/KStar.cfg doBranchDGMEC config/System.cfg config/GD.cfg");
+system("java -Xmx60000M kstar/KStar -c config/KStar.cfg doBranchDGMEC config/System.cfg config/BWM.cfg");
