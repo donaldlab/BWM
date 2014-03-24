@@ -250,6 +250,11 @@ public class TreeEdge implements Serializable{
             computeEforState(curState,eMatrix,m,G,en); //en[0] will contain the energy to compare, en[1] will contain the energy to store
             float total_energy=0;
             total_energy=en[0]+energy_ll;
+            
+            if(lambda.contains(84))
+            {
+                System.out.println("Buggy baby.");
+            }
 
             if(A2.size() <= computeIndexInA(curState))
             {
@@ -268,7 +273,7 @@ public class TreeEdge implements Serializable{
             newConf.energy = en[1] + energy_ll;
             if(leftChild != null)
                 newConf.leftEnergy = energy_ll;
-            if(conformationHeap.size() < 2)
+            //if(conformationHeap.size() < 2)
                 conformationHeap.add(newConf);
 
             if(conformationHeap.size() < 1)
@@ -537,9 +542,6 @@ public class TreeEdge implements Serializable{
                 System.out.println("Whoa!");
         }
         
-        if(lambda.size() < 1)
-            System.out.println("Funtimes!");
-
         int eMstate[] = new int[e.getM().size()];
 
         Object curM[] = M.toArray();
@@ -1024,7 +1026,6 @@ public class TreeEdge implements Serializable{
 		double newRightEnergy = rightEdge.peekEnergy(bestPosAARotRight, rightM);
 		rightEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotRight, rightM);
 		RightConf newRight = new RightConf(bestPosAARotRight, newRightEnergy);
-		System.out.println("New Right Conf: "+RTMToString(bestPosAARotRight)+", energy "+newRight.energy);
 		rightConfs.add(newRight);
 	}
 
@@ -1311,7 +1312,6 @@ public class TreeEdge implements Serializable{
     {
         if(heap.isEmpty())
             {
-            System.err.println("Empty heap found, should not be empty.");
             return;
             }
         PriorityQueue<Conf> copy = new PriorityQueue<Conf>();
@@ -1453,9 +1453,11 @@ public class TreeEdge implements Serializable{
                         //M = parent.M;
                         //lambda = parent.lambda;
                         //L = parent.L;
-                        Conf newConf = new Conf(bestState, 0, parent.getrtm());
-                        double nextLeftEnergy = leftChild.getCofEdge().peekEnergy(bestPosAARot, bestState);
-                        double nextRightEnergy = leftChild.getCofEdge().peekEnergy(bestPosAARot, bestState);
+                        Conf newConf = new Conf(bestState, 0, rtm);
+                        int[] leftM = getMstateForEdgeCurState(bestState, leftChild.getCofEdge());
+                        int[] rightM = getMstateForEdgeCurState(bestState, rightChild.getCofEdge());
+                        double nextLeftEnergy = leftChild.getCofEdge().peekEnergy(bestPosAARot, leftM);
+                        double nextRightEnergy = leftChild.getCofEdge().peekEnergy(bestPosAARot, rightM);
                         newConf.updateLeftEnergy(nextLeftEnergy + nextRightEnergy);
                         newHeap.add(newConf);
                     }
@@ -1477,12 +1479,11 @@ public class TreeEdge implements Serializable{
 
             leftHeapMap.put(curString, newHeap);
         }
-        for(String hashString : heapHashCodes.keySet())
-        {
-            System.out.println(hashString+" = "+heapHashCodes.get(hashString));
-        }
         
         PriorityQueue<Conf> out = leftHeapMap.get(curString);
+        
+        if(printHeap)
+        {
         String curHashString = curString + lambda.toString();
         
         if(!heapHashCodes.containsKey(curHashString))
@@ -1495,10 +1496,9 @@ public class TreeEdge implements Serializable{
             System.err.println("One string, two hashcodes: "+curHashString+" returns "+heapHashCodes.get(curHashString)+", "+out.hashCode());
             System.exit(-1);
         }
+        }
         checkHeap(out);
-        if(curHashString.equals("[2:0-0 3:9-3 4:0-0 10:1-1 11:9-7 12:0-0 ][84]"))
-            System.out.println("I got your problem right here.");
-        System.out.println("Returning heap with hashcode "+out.hashCode());
+
         return out;
     }
 

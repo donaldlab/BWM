@@ -6735,12 +6735,12 @@ public class KSParser
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
-    		    System.out.println("=========================================Rank "+rank+"=======================================================");
-    		    double energy = actualRootEdge.nextBestEnergy();
+    		double energy = actualRootEdge.nextBestEnergy();
+                System.out.println("=========================================Rank "+rank+" energy "+energy+"=======================================================");
     		    if(energy < lastEnergy)
     		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
     		    lastEnergy = energy;
-    		    TreeEdge.printHeap = true;
+    		    TreeEdge.printHeap = false;
     		    String confString = actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
     
                         long end = System.currentTimeMillis();
