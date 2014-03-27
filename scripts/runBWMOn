@@ -22,6 +22,7 @@ chdir("$args[0]/");
 #2. Convert config files.
 # add bd info to BWM.cfg
 my $fileName = "";
+$runName = "TEST";
 open (my $DEEConfigFile, "<DEE.cfg")
 	or die "Unable to open DEE.cfg\n";
 open (my $output, ">$args[0]BWM.cfg") 
@@ -34,6 +35,11 @@ while(<$DEEConfigFile>)
 	chomp;
 	my $line = $_;
 	$line =~ s/\r//g;
+	if($line =~ m/runName (\w+)/)
+	{
+		$runName = $1;
+		print "Run Name is $runName\n";
+	}
 	if($line =~ m/genInteractionGraph false/)
 	{
 		print "genInteractionGraph was false\n";
@@ -69,8 +75,11 @@ if(!$eCutoff)
 {
 	print $output "eInteractionCutoff 0.2\n";
 }
-print $output "prunedRotFile $args[0]_pruneInfo.obj\n";
-print $output "branchDfile $args[0]bd\n";
+print $output "prunedRotFile $runName\_pruneInfo.obj\n";
+print $output "branchDfile $runName\_bd\n";
+print "prunedRotFile $runName\_pruneInfo.obj\n";
+print "branchDfile $runName\_bd\n";
+print $output "addWT true\n";
 # change pdb and run names
 open (my $systemConfigFile, "<System.cfg")
 	or die "Unable to open System.cfg.\n";
@@ -87,6 +96,12 @@ while(<$systemConfigFile>)
 	{
 		$energyMatrixName = \1;
 		print "Energy matrix is called $energyMatrixName\n";
+	}
+	if($line =~/strandMutNums (\d+)/)
+	{
+		$as = $1;
+		print $output "numInAs $as\n";
+		print "numInAS: $as\n";
 	}
 	print $output $line;
 }
