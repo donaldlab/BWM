@@ -6656,7 +6656,7 @@ public class KSParser
 		            int curAAind1 = rs.strandRot[strand].getIndexOfNthAllowable(mp.strandMut[strand][curRes],curAA);
 		            if(curAAind1 < 0)
 		            {
-		                System.out.println("WHAT?");
+		                //System.out.println("WHAT?");
 		                continue;
 		            }
 		            for (int curRot=0; curRot< rs.strandRot[strand].rl.getNumRotForAAtype(curAAind1); curRot++) {
@@ -6741,7 +6741,7 @@ public class KSParser
     		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
     		    lastEnergy = energy;
     		    TreeEdge.printHeap = false;
-    		    String confString = actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "");
+    		    String confString = actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "", rs.getMinMatrix());
     
                         long end = System.currentTimeMillis();
                         long time = end - start;
