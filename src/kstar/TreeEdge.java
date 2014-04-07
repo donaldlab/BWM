@@ -273,7 +273,7 @@ public class TreeEdge implements Serializable{
             newConf.energy = en[1] + energy_ll;
             if(leftChild != null)
                 newConf.leftEnergy = energy_ll;
-            //if(conformationHeap.size() < 2)
+            if(conformationHeap.size() < 2)
                 conformationHeap.add(newConf);
 
             if(conformationHeap.size() < 1)
@@ -1003,6 +1003,20 @@ public class TreeEdge implements Serializable{
                 rightSolutionOffset.put(leftConf.toString(), index + 1);
                 secondaryHeap.add(leftConf);
                 reinsert = true;
+            }
+            
+            if((secondaryHeap.dirty || secondaryHeap.size() < 1) && leftEdge.moreConformations(bestPosAARotOld, leftM)) 
+            {
+                /* Acquire new left conformation for the heap */
+                RotTypeMap[] bestPosAARotLeft = Arrays.copyOf(bestPosAARotOld, bestPosAARot.length);
+                
+                double newLeftEnergy = leftEdge.peekEnergy(bestPosAARotLeft, leftM);
+                leftEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotLeft, leftM);
+                Conf newLeftConf = new Conf(bestPosAARotLeft, newLeftEnergy);
+                newLeftConf.updateLeftEnergy(rightConfs.get(0).energy);
+                secondaryHeap.cleanNode = newLeftConf;
+                secondaryHeap.add(newLeftConf);
+                secondaryHeap.dirty = false;
             }
 
             if(secondaryHeap.size() > 0)
