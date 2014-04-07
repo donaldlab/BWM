@@ -4608,7 +4608,7 @@ public class KSParser
 ///////////////////////////////////////////////////////////////////////////
 	
 	private Object readObject(String inFile){
-		return readObject(inFile,true);
+		return readObject(inFile,false);
 	}
 	
 	private Object readObject(String inFile, boolean repeat){
@@ -4621,14 +4621,40 @@ public class KSParser
 				in.close();
 				done = true;
 			}
-			catch (Exception e){
-				//System.out.println(e.toString());
-				//System.out.println("ERROR: An exception occurred while reading from object file");
+			catch (ClassNotFoundException e){
+				System.out.println(e);
+				e.printStackTrace();
+				System.out.print(e.getCause());
+				System.out.println("Your object is lying!");
+				System.out.println("Should have made a: "+PrunedRotamers.class.getName());
+				try{
+					Class.forName(PrunedRotamers.class.getName());
+				}
+				catch(Exception err)
+				{
+					System.out.println("Fail! D:");
+					err.printStackTrace();
+				}
+				System.out.println("ERROR ERROR ERROR ERROR ERROR");
+				System.out.println("ERROR ERROR ERROR ERROR ERROR");
+				System.out.println("ERROR ERROR ERROR ERROR ERROR");
+				if (repeat)
+					done = false;
+				else
+					done = true;
+					System.exit(-1);
+			}
+			catch (Exception e)
+			{
+				System.out.println(e);
+				e.printStackTrace();
+				System.out.println("ERROR: An exception occurred while reading from object file");
 				if (repeat)
 					done = false;
 				else
 					done = true;
 			}
+
 		}
 		return inObj;
 	}
@@ -4637,8 +4663,14 @@ public class KSParser
 		try{
 			FileOutputStream fout = new FileOutputStream(outFile);
 			ObjectOutputStream out = new ObjectOutputStream(fout);
+			System.out.println("Writing "+outObj.getClass().getName());
 			out.writeObject(outObj);
 			out.close();
+
+			ObjectInputStream in = new ObjectInputStream(new FileInputStream(outFile));
+			Object inObj = in.readObject();
+			in.close();
+			System.out.println("Got back "+inObj.getClass().getName());
 		}
 		catch (Exception e){
 			System.out.println(e.toString());
@@ -6509,6 +6541,7 @@ public class KSParser
 		logPS2.flush();logPS2.close();
 		
 		outputObject(prunedRotAtRes,runName+"_pruneInfo.obj");
+		prunedRotAtRes.writeObjects(runName);
 	}
 	
 	//Returns a molecule m1 that contains only the residues in molecule m that are specified by residueMap[] (molecul-relative residue indexing);
@@ -6586,7 +6619,8 @@ public class KSParser
 			useEref = true;
 		//boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
 
-		PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers<Boolean>)readObject(sParams.getValue("PRUNEDROTFILE"),false);
+		//PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers<Boolean>)readObject(sParams.getValue("PRUNEDROTFILE"),false);
+		PrunedRotamers<Boolean> prunedRotAtResObject = PrunedRotamers.createFromFiles(sParams.getValue("RUNNAME"));
 		String bdFile = sParams.getValue("BRANCHDFILE", runName+"_bd");
 		
 		MolParameters mp = loadMolecule(sParams, curStrForMatrix);
@@ -6729,9 +6763,9 @@ public class KSParser
     		//actualRootEdge.populateLeftHeaps();
     //		actualRootEdge.generateFirstRightConformation();
     		int rank = 0;
-    		double lastEnergy = -1000;
+    		double lastEnergy = -100000;
     		long startall = System.currentTimeMillis();
-    		while(rank < 5000)
+    		while(rank < 10000)
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
@@ -6766,9 +6800,9 @@ public class KSParser
             sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
             
             handleDoDEE(s);
+            System.out.println("Dead-End Elimination Complete. Generating Branch Decomposition...");
             String runName = (String)sParams.getValue("RUNNAME");
             String[] args = new String[]{runName, runName+"_bd"};
-            System.out.println("Dead-End Elimination Complete. Generating Branch Decomposition...");
             BranchDecomposition.BranchDecomposition.main(args);
             long start = System.currentTimeMillis();
             System.out.println("Branch Decomposition generated. Calculating GMEC...");

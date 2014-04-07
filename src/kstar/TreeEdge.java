@@ -537,7 +537,11 @@ public class TreeEdge implements Serializable{
         if(e.getrtm() == null)
         {
             if(e.lambda.size() < 1 && e.M.size() > 0)
+			{
                 e.copyParentRTM();
+				System.out.println("Getting new RTM for:");
+				e.printTree("");
+			}
             else 
                 System.out.println("Whoa!");
         }
@@ -569,6 +573,13 @@ public class TreeEdge implements Serializable{
                     int r = rtm[j][curState[j]].rot;
 
                     RotTypeMap ertm[] = e.getrtm()[i];
+					if(ertm == null)
+					{
+						System.out.println("AHHHH NULL RTM "+e.getrtm()+", "+e.getM());
+						e.printTree("");
+					}
+					
+						
                     for (int k=0; k<ertm.length; k++){
                         if ( (ertm[k].pos==p) && (ertm[k].aa==a) && (ertm[k].rot==r) ){ //found state for vertex eM[i]
                             eMstate[i] = k;
@@ -1199,7 +1210,7 @@ public class TreeEdge implements Serializable{
                     if(lambda.size() < 1)
                     {
                         /* TODO: THIS IS A HACK? */
-                        //copyParentRTM();
+                        copyParentRTM();
                         //M = parent.M;
                         //lambda = parent.lambda;
                         //L = parent.L;
@@ -1266,7 +1277,7 @@ public class TreeEdge implements Serializable{
         {
             for(int parentIndex = 0; parentIndex < parentM.length; parentIndex++)
             {
-                if(parentM[parentIndex] == MArray[m])
+                if(parentM[parentIndex] - MArray[m] == 0 || parentM[parentIndex] == MArray[m])
                 {
                     newRTM[m] = parentRTM[parentIndex];
                 }

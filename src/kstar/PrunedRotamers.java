@@ -53,6 +53,7 @@ package kstar;
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 import java.io.Serializable;
+import java.io.*;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 
@@ -64,6 +65,12 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 	
 	public PrunedRotamers(int numMutable, int[][] strandMut, RotamerSearch rs, T initVal){
 		prunedRot = initializePrunedRot(numMutable, strandMut, rs, initVal);
+	}
+
+	private PrunedRotamers(T[][][] prunedRotMatrix, int[] strandOffsetIndexArray)
+	{
+		strandOffsetIndex = strandOffsetIndexArray;
+		prunedRot = prunedRotMatrix;
 	}
 	
 	public PrunedRotamers(PrunedRotamers<?> pr, Object initVal){
@@ -179,7 +186,129 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 	public void set(Index3 i, T val){
 		prunedRot[i.pos][i.aa][i.rot] = val;
 	}
-	
+
+	public void writeObjects(String fileHeader)
+	{
+		writeObject(strandOffsetIndex, fileHeader+"offsetIndex");
+		boolean[][][] outPruned = toPrimitive((Object[][][])prunedRot);
+		writeObject(outPruned, fileHeader+"pruneMatrix");
+	}
+
+	public boolean[][][] toPrimitive(Object[][][] prunedRot)
+	{
+		boolean[][][] out = new boolean[prunedRot.length][][];
+		for(int i = 0; i < prunedRot.length; i++)
+		{
+			if(prunedRot[i] == null)
+				continue;
+			out[i] = new boolean[prunedRot[i].length][];
+			for(int j = 0; j < prunedRot[i].length; j++)
+			{
+				if(prunedRot[i][j] == null)
+					continue;
+				out[i][j] = new boolean[prunedRot[i][j].length];
+				for(int k = 0; k < prunedRot[i][j].length; k++)
+				{
+					if(prunedRot[i][j][k] == null)
+						continue;
+					out[i][j][k] = (boolean)prunedRot[i][j][k];
+				}
+			}
+		}
+		return out;
+
+	}
+
+	public static Boolean[][][] toObject(boolean[][][] prunedRot)
+	{
+		Boolean[][][] out = new Boolean[prunedRot.length][][];
+		for(int i = 0; i < prunedRot.length; i++)
+		{
+			if(prunedRot[i] == null)
+				continue;
+			out[i] = new Boolean[prunedRot[i].length][];
+			for(int j = 0; j < prunedRot[i].length; j++)
+			{
+				if(prunedRot[i][j] == null)
+					continue;
+				out[i][j] = new Boolean[prunedRot[i][j].length];
+				for(int k = 0; k < prunedRot[i][j].length; k++)
+				{
+					out[i][j][k] = prunedRot[i][j][k];
+				}
+			}
+		}
+		return out;
+
+	}
+
+	public void writeObject(Object outObj, String outFile)
+	{
+		try{
+			FileOutputStream fout = new FileOutputStream(outFile);
+			ObjectOutputStream out = new ObjectOutputStream(fout);
+			System.out.println("Writing "+outObj.getClass().getName());
+			out.writeObject(outObj);
+			out.close();
+
+			ObjectInputStream in = new ObjectInputStream(new FileInputStream(outFile));
+			Object inObj = in.readObject();
+			in.close();
+			System.out.println("Got back "+inObj.getClass().getName());
+		}
+		catch (Exception e){
+			System.out.println(e.toString());
+			System.out.println("ERROR: An exception occurred while writing object file");
+			System.exit(0);
+		}
+	}
+
+	public static PrunedRotamers<Boolean> createFromFiles(String fileHeader)
+	{
+		int[] strandOffsetIndex = (int[])readObjects(fileHeader+"offsetIndex");
+		boolean[][][] prunedRot = (boolean[][][])readObjects(fileHeader+"pruneMatrix");
+		Boolean[][][] prunedRotObj = toObject(prunedRot);
+		return new PrunedRotamers<Boolean>(prunedRotObj, strandOffsetIndex);
+	}
+
+	public static Object readObjects(String inFile)
+	{
+		Object inObj = null;
+		boolean done = false;
+		try{
+			ObjectInputStream in = new ObjectInputStream(new FileInputStream(inFile));
+			inObj = in.readObject();
+			in.close();
+			done = true;
+		}
+		catch (ClassNotFoundException e){
+			System.out.println(e);
+			e.printStackTrace();
+			System.out.print(e.getCause());
+			System.out.println("Your object is lying!");
+			System.out.println("Should have made a: "+PrunedRotamers.class.getName());
+			try{
+				Class.forName(PrunedRotamers.class.getName());
+			}
+			catch(Exception err)
+			{
+				System.out.println("Fail! D:");
+				err.printStackTrace();
+			}
+			System.out.println("ERROR ERROR ERROR ERROR ERROR");
+			System.out.println("ERROR ERROR ERROR ERROR ERROR");
+			System.out.println("ERROR ERROR ERROR ERROR ERROR");
+			System.exit(-1);
+		}
+		catch (Exception e)
+		{
+			System.out.println(e);
+			e.printStackTrace();
+			System.out.println("ERROR: An exception occurred while reading from object file");
+		}
+
+		return inObj;
+	}
 }
 
 class PrunedRotIterator<T> implements Iterator<RotInfo<T>> {
