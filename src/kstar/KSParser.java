@@ -6402,12 +6402,14 @@ public class KSParser
 	//		ligand interactions are also computed if a ligand is present
 	private void genInteractionGraph(int numMutable, RotamerSearch rs, PrunedRotamers<Boolean> prunedRotAtRes, String runName, int strandMut[][], float eInteractionCutoff, float distCutoff, Molecule m, 
 			boolean usePairSt, float pairSt, int mutRes2Strand[],int mutRes2StrandMutIndex[]) {
+		System.out.println("Generating Sparse Graph...");
 		
 		if (eInteractionCutoff<0.0f) //the cutoff should be non-negative, since we are comparing absolute values of energies against it
 			eInteractionCutoff = 0.0f;
 		
 		float dist[][] = new float[numMutable][numMutable];
 		float eInteraction[][] = new float[numMutable][numMutable];		
+		float eInteractionBounds[][] = new float[numMutable][numMutable];		
 		for (int i=0; i<numMutable; i++){
 			for (int j=0; j<numMutable; j++){
 				dist[i][j] = (float)Math.pow(10, 38);
@@ -6433,6 +6435,8 @@ public class KSParser
 		
 				int AAindex1 = rs.strandRot[stri].getIndexOfNthAllowable(strResNumi,q1);
 				rs.strandRot[stri].changeResidueType(m,0,rs.strandRot[stri].rl.getAAName(AAindex1),true,true);
+				float eInteractionMax = Float.MIN_VALUE;
+				float eInteractionMin = Float.MAX_VALUE;
 		
 					int numRot1 = rs.getNumRot( stri, strResNumi, AAindex1);
 					
@@ -6469,6 +6473,9 @@ public class KSParser
 											float d = m.strand[stri].residue[strResNumi].getDist(m.strand[strj].residue[strResNumj],true);
 											dist[i][j] = Math.min(dist[i][j],d);
 											dist[j][i] = Math.min(dist[j][i],d);
+											eInteractionMax = Math.max(eInteractionMax, pairE);
+											eInteractionMin = Math.min(eInteractionMin, pairE);
+											eInteractionBounds[i][j] = Math.max(eInteractionBounds[i][j], eInteractionMax - eInteractionMin);
 											
 											if ( (!usePairSt) || (pairE<=pairSt) ) {
 												eInteraction[i][j] = Math.max(eInteraction[i][j],Math.abs(pairE));
@@ -6513,6 +6520,7 @@ public class KSParser
 		logPS2.println("PIG:0 "+runName); //output in Pigale-compatible ASCII format
 		
 		//Output data
+		float error = 0;
 		for (int i=0; i<numMutable; i++){
 			int stri = mutRes2Strand[i];
 			int strResNumi = strandMut[stri][mutRes2StrandMutIndex[i]];
@@ -6526,6 +6534,9 @@ public class KSParser
 				logPS.println(pdbResNum1+" "+pdbResNum2+" "+dist[i][j]+" "+eInteraction[i][j]);
 				if ( (dist[i][j]<=distCutoff) && (eInteraction[i][j]>eInteractionCutoff) ) //these two residues interact
 					logPS2.println(pdbResNum1+" "+pdbResNum2);
+				else 
+					error += eInteractionBounds[i][j];
+
 			}
 			/*if (ligPresent){
 				int pdbResNum2 = m.strand[ligStrNum].residue[0].getResNumber();
@@ -6542,6 +6553,7 @@ public class KSParser
 		
 		outputObject(prunedRotAtRes,runName+"_pruneInfo.obj");
 		prunedRotAtRes.writeObjects(runName);
+		System.out.println("Error bounds: "+error);
 	}
 	
 	//Returns a molecule m1 that contains only the residues in molecule m that are specified by residueMap[] (molecul-relative residue indexing);
@@ -6765,12 +6777,15 @@ public class KSParser
     		int rank = 0;
     		double lastEnergy = -100000;
     		long startall = System.currentTimeMillis();
-    		while(rank < 10000)
+    		double firstEnergy = actualRootEdge.nextBestEnergy();
+    		double nextEnergy = firstEnergy;
+    		while(rank < 10000000 && nextEnergy - firstEnergy < 50)
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
     		double energy = actualRootEdge.nextBestEnergy();
-                System.out.println("=========================================Rank "+rank+" energy "+energy+"=======================================================");
+			nextEnergy = energy;
+                System.out.println("=========================================Rank "+rank+" energy "+energy+" , diff "+(nextEnergy-firstEnergy)+"===========================================");
     		    if(energy < lastEnergy)
     		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
     		    lastEnergy = energy;

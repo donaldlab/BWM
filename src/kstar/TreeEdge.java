@@ -135,15 +135,15 @@ public class TreeEdge implements Serializable{
             L.addAll(c.getrc().getCofEdge().getL()); //add the L set of the right edge
         }
 
-        Fset = new LinkedHashSet<TreeEdge>();
-        computeFset(c);
-        initializeMatrices();
         
-        if(!lambda.isEmpty())
+        if(!lambda.isEmpty() || rightChild != null)
         {
             isLambdaEdge=true; // initialising the matrices and calculating the Fset since it is a lambda edge
             
             rtm = new RotTypeMap[M.size()+lambda.size()][];
+			Fset = new LinkedHashSet<TreeEdge>();
+			computeFset(c);
+			initializeMatrices();
 
         }
         else
@@ -161,12 +161,23 @@ public class TreeEdge implements Serializable{
                 size *= numStates[i];
             }
         }
+		printTree("");
+		System.out.println("initializing matrix with "+size+" states...");
         A = new int[size][lambda.size()];
         A2 = new ArrayList<PriorityQueue<Conf>>(size);
+		System.out.println("Basic matrix generated.");
+		int numQueue = 0;
+		int pow = 0;
         while(A2.size() < size)
         {
+			numQueue++;
             PriorityQueue<Conf> newQueue = new PriorityQueue<Conf>(1, comparator);
             A2.add(newQueue);
+			if(numQueue%Math.pow(10,pow)==0)
+			{
+				System.out.println(numQueue);
+				pow++;
+			}
         }
         energy = new float[size];
 
@@ -176,6 +187,8 @@ public class TreeEdge implements Serializable{
                 A[i][j] = -1;
             }
         }
+
+		System.out.println("initialized matrix with "+size+" states.");
     }
 
     public LinkedHashSet<Integer> getL(){
@@ -273,7 +286,7 @@ public class TreeEdge implements Serializable{
             newConf.energy = en[1] + energy_ll;
             if(leftChild != null)
                 newConf.leftEnergy = energy_ll;
-            if(conformationHeap.size() < 2)
+            //if(conformationHeap.size() < 2)
                 conformationHeap.add(newConf);
 
             if(conformationHeap.size() < 1)
@@ -1050,7 +1063,7 @@ public class TreeEdge implements Serializable{
         if(curNewBest < curBest)
         {
             System.err.println("Out of order. Terminating...");
-            System.exit(-1);
+            //System.exit(-1);
         }
         }
         
