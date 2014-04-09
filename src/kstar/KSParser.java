@@ -6431,12 +6431,12 @@ public class KSParser
 		for (int i=0; i<numMutable; i++){
 			int stri = mutRes2Strand[i];
 			int strResNumi = strandMut[stri][mutRes2StrandMutIndex[i]];
+
+			System.out.print("Position "+i+":");
 			for(int q1=0;q1<rs.strandRot[stri].getNumAllowable(strResNumi);q1++) {
 		
 				int AAindex1 = rs.strandRot[stri].getIndexOfNthAllowable(strResNumi,q1);
 				rs.strandRot[stri].changeResidueType(m,0,rs.strandRot[stri].rl.getAAName(AAindex1),true,true);
-				float eInteractionMax = Float.MIN_VALUE;
-				float eInteractionMin = Float.MAX_VALUE;
 		
 					int numRot1 = rs.getNumRot( stri, strResNumi, AAindex1);
 					
@@ -6458,7 +6458,8 @@ public class KSParser
 									rs.strandRot[strj].changeResidueType(m,strResNumj,rs.strandRot[strj].rl.getAAName(AAindex2),true,true);
 									
 									int numRot2 = rs.getNumRot( strj, strResNumj, AAindex2 );
-									
+									float eInteractionMax = -100000f;
+									float eInteractionMin = 1000000f;
 									for (int r2=0; r2<numRot2; r2++){
 										
 										if (!prunedRotAtRes.get(j,AAindex2,r2)){
@@ -6473,18 +6474,23 @@ public class KSParser
 											float d = m.strand[stri].residue[strResNumi].getDist(m.strand[strj].residue[strResNumj],true);
 											dist[i][j] = Math.min(dist[i][j],d);
 											dist[j][i] = Math.min(dist[j][i],d);
-											eInteractionMax = Math.max(eInteractionMax, pairE);
-											eInteractionMin = Math.min(eInteractionMin, pairE);
-											eInteractionBounds[i][j] = Math.max(eInteractionBounds[i][j], eInteractionMax - eInteractionMin);
+											
 											
 											if ( (!usePairSt) || (pairE<=pairSt) ) {
 												eInteraction[i][j] = Math.max(eInteraction[i][j],Math.abs(pairE));
 												eInteraction[j][i] = Math.max(eInteraction[j][i],Math.abs(pairE));
+												eInteractionMax = Math.max(eInteractionMax, pairE);
+												eInteractionMin = Math.min(eInteractionMin, pairE);
+												eInteractionBounds[i][j] = Math.max(eInteractionBounds[i][j], eInteractionMax - eInteractionMin);
+												if(eInteractionBounds[i][j] > 100)
+													System.out.println("Bug.? "+eInteractionBounds[i][j]+": "+i+", "+j+", ("+eInteractionMax+"-"+eInteractionMin);
 											}
 										}
 									}							
 								}
+								System.out.print(" "+j);
 							}
+							System.out.println();
 							
 							/*if (ligPresent) {
 								
@@ -6535,7 +6541,10 @@ public class KSParser
 				if ( (dist[i][j]<=distCutoff) && (eInteraction[i][j]>eInteractionCutoff) ) //these two residues interact
 					logPS2.println(pdbResNum1+" "+pdbResNum2);
 				else 
+				{
+					System.out.println("Cutting ("+i+","+j+"): distance "+dist[i][j]+", energy "+eInteraction[i][j]+", bounds "+eInteractionBounds[i][j]);
 					error += eInteractionBounds[i][j];
+				}
 
 			}
 			/*if (ligPresent){
@@ -6779,7 +6788,7 @@ public class KSParser
     		long startall = System.currentTimeMillis();
     		double firstEnergy = actualRootEdge.nextBestEnergy();
     		double nextEnergy = firstEnergy;
-    		while(rank < 10000000 && nextEnergy - firstEnergy < 50)
+    		while(rank < 10000000 && nextEnergy - firstEnergy < 2)
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
