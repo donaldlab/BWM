@@ -6428,10 +6428,17 @@ public class KSParser
 			}
 		}*/
 		
+		float[] eInteractionMax = new float[numMutable];
+		float[] eInteractionMin = new float[numMutable];
 		for (int i=0; i<numMutable; i++){
 			int stri = mutRes2Strand[i];
 			int strResNumi = strandMut[stri][mutRes2StrandMutIndex[i]];
 
+			for(int x = 0; x < eInteractionMax.length; x++)
+			{
+				eInteractionMax[x] = -100000f;
+				eInteractionMin[x] = 100000f;
+			}
 			System.out.print("Position "+i+":");
 			for(int q1=0;q1<rs.strandRot[stri].getNumAllowable(strResNumi);q1++) {
 		
@@ -6440,14 +6447,15 @@ public class KSParser
 		
 					int numRot1 = rs.getNumRot( stri, strResNumi, AAindex1);
 					
+
 					for (int r1=0; r1<numRot1; r1++){
 						
 						if (!prunedRotAtRes.get(i,AAindex1,r1)){ //rotamer not pruned
 
-                                                        if(rs.doPerturbations)
-                                                            ((StrandRCs)rs.strandRot[stri]).applyRC(m, strResNumi, r1);
-                                                        else
-                                                            rs.strandRot[stri].applyRotamer(m, strResNumi, r1);
+							if(rs.doPerturbations)
+								((StrandRCs)rs.strandRot[stri]).applyRC(m, strResNumi, r1);
+							else
+								rs.strandRot[stri].applyRotamer(m, strResNumi, r1);
 								
 							for (int j=i+1; j<numMutable; j++){				
 								int strj = mutRes2Strand[j];
@@ -6458,18 +6466,16 @@ public class KSParser
 									rs.strandRot[strj].changeResidueType(m,strResNumj,rs.strandRot[strj].rl.getAAName(AAindex2),true,true);
 									
 									int numRot2 = rs.getNumRot( strj, strResNumj, AAindex2 );
-									float eInteractionMax = -100000f;
-									float eInteractionMin = 1000000f;
 									for (int r2=0; r2<numRot2; r2++){
 										
 										if (!prunedRotAtRes.get(j,AAindex2,r2)){
 											
 											float pairE = rs.getMinMatrix().getPairwiseE( i, AAindex1, r1, j, AAindex2, r2 );
 
-                                                                                        if(rs.doPerturbations)
-                                                                                            ((StrandRCs)rs.strandRot[strj]).applyRC( m, strResNumj, r2 );
-                                                                                        else
-                                                                                            rs.strandRot[strj].applyRotamer(m, strResNumj, r2);
+											if(rs.doPerturbations)
+												((StrandRCs)rs.strandRot[strj]).applyRC( m, strResNumj, r2 );
+											else
+												rs.strandRot[strj].applyRotamer(m, strResNumj, r2);
 											
 											float d = m.strand[stri].residue[strResNumi].getDist(m.strand[strj].residue[strResNumj],true);
 											dist[i][j] = Math.min(dist[i][j],d);
@@ -6479,11 +6485,8 @@ public class KSParser
 											if ( (!usePairSt) || (pairE<=pairSt) ) {
 												eInteraction[i][j] = Math.max(eInteraction[i][j],Math.abs(pairE));
 												eInteraction[j][i] = Math.max(eInteraction[j][i],Math.abs(pairE));
-												eInteractionMax = Math.max(eInteractionMax, pairE);
-												eInteractionMin = Math.min(eInteractionMin, pairE);
-												eInteractionBounds[i][j] = Math.max(eInteractionBounds[i][j], eInteractionMax - eInteractionMin);
-												if(eInteractionBounds[i][j] > 100)
-													System.out.println("Bug.? "+eInteractionBounds[i][j]+": "+i+", "+j+", ("+eInteractionMax+"-"+eInteractionMin);
+												eInteractionMax[j] = Math.max(eInteractionMax[j], pairE);
+												eInteractionMin[j] = Math.min(eInteractionMin[j], pairE);
 											}
 										}
 									}							
@@ -6518,6 +6521,12 @@ public class KSParser
 						}
 					}	
 				}
+					for(int j = 0; j < numMutable; j++)
+					{
+						float bounds = eInteractionMax[j] - eInteractionMin[j];
+						eInteractionBounds[i][j] = bounds;
+						eInteractionBounds[j][i] = bounds;
+					}
 				}
 		
 		PrintStream logPS = setupOutputFile(runName+".log");
