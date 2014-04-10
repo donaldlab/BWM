@@ -6521,7 +6521,7 @@ public class KSParser
 						}
 					}	
 				}
-					for(int j = 0; j < numMutable; j++)
+					for(int j = i+1; j < numMutable; j++)
 					{
 						float bounds = eInteractionMax[j] - eInteractionMin[j];
 						eInteractionBounds[i][j] = bounds;
@@ -6797,7 +6797,7 @@ public class KSParser
     		long startall = System.currentTimeMillis();
     		double firstEnergy = actualRootEdge.nextBestEnergy();
     		double nextEnergy = firstEnergy;
-    		while(rank < 10000000 && nextEnergy - firstEnergy < 2)
+    		while(rank < 10000000 && nextEnergy - firstEnergy < 12)
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
