@@ -66,7 +66,7 @@ if(!$genGraph)
 print $output "prunedRotFile $runName\_pruneInfo.obj\n";
 print "prunedRotFile $runName\_pruneInfo.obj\n";
 print $output "addWT true\n";
-print $output "initew 0\n";
+print $output "initew 0.5\n";
 print $output "ERefMatrixName $args[0]_ERef\n";
 # change pdb and run names
 open (my $systemConfigFile, "<System.cfg")

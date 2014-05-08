@@ -6631,6 +6631,7 @@ public class KSParser
 		
 		int sysStrNum = 0;
     	int ligStrNum = 1;
+		long startfull = System.currentTimeMillis();
 		
 		// Read System parameters for the reference structure
 		ParamSet sParams = new ParamSet();
@@ -6797,12 +6798,13 @@ public class KSParser
     		long startall = System.currentTimeMillis();
     		double firstEnergy = actualRootEdge.nextBestEnergy();
     		double nextEnergy = firstEnergy;
-    		while(rank < 10000000 && nextEnergy - firstEnergy < 12)
+    		while(rank < 10000000 && nextEnergy - firstEnergy < 40)
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
     		double energy = actualRootEdge.nextBestEnergy();
 			nextEnergy = energy;
+			firstEnergy = Math.min(nextEnergy, firstEnergy);
                 System.out.println("=========================================Rank "+rank+" energy "+energy+" , diff "+(nextEnergy-firstEnergy)+"===========================================");
     		    if(energy < lastEnergy)
     		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
@@ -6818,6 +6820,8 @@ public class KSParser
                     long end = System.currentTimeMillis();
                     long time = end - startall;
                     System.out.println("Total time taken to enumerate all conformations n ms: "+time);
+				long fulltime = end - startfull;
+				System.out.println("Total time taken to find and guarantee GMEC: "+fulltime);
     		
     		
     	}
