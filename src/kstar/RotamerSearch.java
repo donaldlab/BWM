@@ -4025,7 +4025,7 @@ public class RotamerSearch implements Serializable
 			}
 		}
 		
-		
+				
 		//Set-up the A* search					
 		MSAStar MSAStarSearch = new MSAStar(treeLevels,numRotForResNonPruned,arpMatrixRed,null,
                         splitFlagsRed,tripleFlagsRed,doPerturbations);
@@ -4078,8 +4078,7 @@ public class RotamerSearch implements Serializable
 			//debugPS.print("curConf: ");for(int i=0;i<treeLevels;i++)debugPS.print(curConf[i]+" ");debugPS.println();
 			//debugPS.flush();
 			
-			
-			
+					
 			for (int curRotCheck=0; curRotCheck<treeLevels; curRotCheck++){//check if the conformation is valid
 				if (curConf[curRotCheck]==-1){ // no valid conformations remaining
 					/*CommucObj.ConfInfo tempConf[] = new CommucObj.ConfInfo[numConfsEvaluated];
@@ -4326,11 +4325,16 @@ public class RotamerSearch implements Serializable
                                                 m.revertPertParamsToCurState();
 				}
 				else if (computeEVEnergy){ //no minimization, so traditional DEE
-					minE = calcTotalSnapshotEnergy(); //the sum of the precomputed energy terms
-					unMinE = minE;
+					System.out.println("Coming here as this is just rigid DEE");
+					//minE = calcTotalSnapshotEnergy(); //the sum of the precomputed energy terms
+					//unMinE = minE;
+					// SJ - as this is rigid, we don't need to calculate the energies again
+					minE = minELowerBound;
+					unMinE = minELowerBound;		
 					m.updateCoordinates();
 				}
-
+					if(doMinimization){ // SJ - the erefs and entropy terms are supposed to be added only if the energy
+						                // is being calculated again, which is only the case when doing minimization
 					float totEref = 0.0f;
 					float totEntropy = 0.0f;
 					if (useEref)
@@ -4338,7 +4342,7 @@ public class RotamerSearch implements Serializable
 					if (EnvironmentVars.useEntropy)
 						totEntropy = getTotSeqEntropy(strandMut);
 					unMinE -= totEref;
-					minE -= totEref;
+					minE -= totEref;}
 				
 				updateBestE(minE); //for the halting condition
 				////////////////////////////////////////////////////////////////////////////////////////////

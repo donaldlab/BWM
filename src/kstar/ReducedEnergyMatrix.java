@@ -57,9 +57,12 @@ package kstar;
 public class ReducedEnergyMatrix {
 
     private float RedEmat[][];
-    // the min energy matrix: the last column contains the intra-energy for each rotamer; the last row
+       // the min energy matrix: the last column contains the intra-energy for each rotamer; the last row
     // contains the shell-residue energy for each rotamer
 
+      private boolean doSparse = false; //SJ, added to keep track of sparse graphs
+      private InteractionGraph G = null;
+      private int RotPosIndex[] = null; // corresponds to the residue position of the particular rotamer
     
     int numTotalNodes;//the total number of possible rotamers for the given mutation
 
@@ -70,11 +73,22 @@ public class ReducedEnergyMatrix {
         RedEmat = a;
     }
 
+    //SJ, when making reduced matrix and alos using sparse energies
+    public ReducedEnergyMatrix(float[][] a, boolean sparse, InteractionGraph g, int[] rotindex){
+        RedEmat = a;
+        doSparse=sparse;
+    	G=g;
+    	RotPosIndex=rotindex;
+    }
+    
     public float getPairwiseE(int index1, int index2){
+    	if(doSparse && !G.edgeExists(RotPosIndex[index1], RotPosIndex[index2])) //SJ, return 0 if doing sparse energies and edge between residues does not exist
+    		return 0;
+    	
         return RedEmat[index1][index2];
     }
-
-    public float getIntraE(int index){//the intra-energy is in the last column
+    
+      public float getIntraE(int index){//the intra-energy is in the last column
         return RedEmat[index][numTotalNodes];
     }
 

@@ -74,6 +74,8 @@ package kstar;
 public class PairwiseEnergyMatrix {
 
         float eMatrix[][][][][][] = null;
+        boolean doSparse = false; // SJ, for keeping track of when to use sparse energies
+        InteractionGraph G = null; // SJ, the sparse interaction graph
 
 	/* 
 	 * Initialize the pairwise energy matrices: each matrix has 6 dimensions;
@@ -207,6 +209,9 @@ public class PairwiseEnergyMatrix {
         }
 
         public float getPairwiseE(int res1, int AA1, int rot1, int res2, int AA2, int rot2){
+        	if(doSparse && !G.edgeExists(res1, res2)) //SJ, return 0 if doing sparse energies and edge between residues does not exist
+        		return 0;
+        	
             return eMatrix[res1][AA1][rot1][res2][AA2][rot2];
         }
 
@@ -408,7 +413,9 @@ public class PairwiseEnergyMatrix {
                 }
 
 
-
+                if(doSparse)
+                	return new ReducedEnergyMatrix(arpMatrixRed, doSparse, G, indicesEMatrixPos );
+                	
                 return new ReducedEnergyMatrix(arpMatrixRed);
 
         }
