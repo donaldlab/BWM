@@ -138,7 +138,7 @@ public class TreeEdge implements Serializable{
         
         if(!lambda.isEmpty() || rightChild != null)
         {
-            isLambdaEdge=true; // initialising the matrices and calculating the Fset since it is a lambda edge
+            isLambdaEdge=!lambda.isEmpty();  // initialising the matrices and calculating the Fset since it is a lambda edge
             
             rtm = new RotTypeMap[M.size()+lambda.size()][];
 			Fset = new LinkedHashSet<TreeEdge>();
@@ -264,11 +264,6 @@ public class TreeEdge implements Serializable{
             float total_energy=0;
             total_energy=en[0]+energy_ll;
             
-            if(lambda.contains(84))
-            {
-                System.out.println("Buggy baby.");
-            }
-
             if(A2.size() <= computeIndexInA(curState))
             {
                 A2.add(new PriorityQueue<Conf>());
@@ -293,7 +288,6 @@ public class TreeEdge implements Serializable{
                 System.exit(-1);
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
-
                 bestEnergy[0] = total_energy;
                 energy_store[0]=energy_ll+en[1];
                 System.arraycopy(curState, 0, bestState, 0, curState.length);
@@ -373,6 +367,11 @@ public class TreeEdge implements Serializable{
                 else
                 {
                     storeBestStateLambda(bestState, arrayM, energy_store[0]); //store the best state for each vertex in lambda, for the current state assignment in M
+                }
+                if(energy_store[0] > 100)
+                {
+                    System.err.println("Energy too large. Terminating.");
+                    System.exit(-1);
                 }
 
                 bestEnergy[0] = Float.MAX_VALUE;
@@ -586,11 +585,17 @@ public class TreeEdge implements Serializable{
                     int r = rtm[j][curState[j]].rot;
 
                     RotTypeMap ertm[] = e.getrtm()[i];
-					if(ertm == null)
-					{
-						System.out.println("AHHHH NULL RTM "+e.getrtm()+", "+e.getM());
-						e.printTree("");
-					}
+                    if(ertm == null)
+                        if(e.rightChild != null)
+                        {
+                            e.copyParentRTM();
+                            ertm = e.getrtm()[i];
+                        }
+                        else
+                        {
+                            System.out.println("AHHHH NULL RTM "+e.getrtm()+", "+e.getM());
+                            e.printTree("");
+                        }
 					
 						
                     for (int k=0; k<ertm.length; k++){
@@ -621,6 +626,7 @@ public class TreeEdge implements Serializable{
         en[0] =eMatrix.getShellShellE(); //Add shell shell energy
         shellShellEnergy = en[0];
         int numPos = M.size() + lambda.size();
+
         for(int i=0;i<numPos;i++){
 
             pi=rtm[i][curState[i]].pos;
@@ -632,9 +638,9 @@ public class TreeEdge implements Serializable{
 				en[1]+=eMatrix[pi][ai][ri][pi][0][0];
                  */
                 en[1]+=eMatrix.getShellRotE(pi, ai, ri);
-
                 en[1]+=eMatrix.getIntraE(pi, ai, ri);
             }
+
             /*
 			en[0]+=eMatrix[pi][ai][ri][pi][0][1]; //add the self energy of the rotamer of the lambda residue
 			en[0]+=eMatrix[pi][ai][ri][pi][0][0];
@@ -648,21 +654,84 @@ public class TreeEdge implements Serializable{
                 aj=rtm[j][curState[j]].aa;
                 rj=rtm[j][curState[j]].rot;
 
+
                 if(G.edgeExists(molResMap[pi],molResMap[pj])){  // if edge exists between residues in the interaction graph
 
                     if(j<M.size()) //intreacting between M set
                         //en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
                         en[0]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
-                    else if(j>=M.size()){ //interaction between lambda set or M and lambda set
+                    else 
+                    { //interaction between lambda set or M and lambda set
                         //en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
                         en[0]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
                         //en[1]+=eMatrix[pi][ai][ri][pj][aj][rj];
                         en[1]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
+
                     }
                 }
             }
 
-        }	
+        }
+
+
+    }
+    
+    private void AnalyzeEnergy(int curState[],PairwiseEnergyMatrix eMatrix,Molecule m, InteractionGraph G, float en[]){
+
+        int pi=0,ai=0,ri=0,pj=0,aj=0,rj=0;
+        en[0] =eMatrix.getShellShellE(); //Add shell shell energy
+        shellShellEnergy = en[0];
+        int numPos = M.size() + lambda.size();
+
+        for(int i=0;i<numPos;i++){
+
+            pi=rtm[i][curState[i]].pos;
+            ai=rtm[i][curState[i]].aa;
+            ri=rtm[i][curState[i]].rot;
+            if(i>=M.size()){
+                /*
+                                en[1]+=eMatrix[pi][ai][ri][pi][0][1]; //add the self energy of the rotamer of the lambda residue
+                                en[1]+=eMatrix[pi][ai][ri][pi][0][0];
+                 */
+                en[1]+=eMatrix.getShellRotE(pi, ai, ri);
+                en[1]+=eMatrix.getIntraE(pi, ai, ri);
+            }
+
+            /*
+                        en[0]+=eMatrix[pi][ai][ri][pi][0][1]; //add the self energy of the rotamer of the lambda residue
+                        en[0]+=eMatrix[pi][ai][ri][pi][0][0];
+             */
+            en[0]+=eMatrix.getShellRotE(pi, ai, ri);
+            en[0]+=eMatrix.getIntraE(pi, ai, ri);
+            System.out.println("Intra energy for "+i+" is "+(en[0] - eMatrix.getShellShellE()));
+
+            for(int j=i+1;j<numPos;j++){
+
+                pj=rtm[j][curState[j]].pos;
+                aj=rtm[j][curState[j]].aa;
+                rj=rtm[j][curState[j]].rot;
+
+
+                if(G.edgeExists(molResMap[pi],molResMap[pj])){  // if edge exists between residues in the interaction graph
+
+                    if(j<M.size()) //intreacting between M set
+                        //en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
+                        en[0]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
+                    else 
+                    { //interaction between lambda set or M and lambda set
+                        //en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
+                        en[0]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
+                        //en[1]+=eMatrix[pi][ai][ri][pj][aj][rj];
+                        en[1]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
+
+                    }
+                    System.out.println(i+", "+j+" "+" is "+eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj));
+                }
+            }
+
+        }
+        System.out.println("In conclusion: "+en[0]);
+
 
     }
 
