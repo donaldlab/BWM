@@ -6,6 +6,8 @@ public class InteractionGraph {
 
 	private int v[] = null; //the vertex set (molecule-relative residue numbering, not pdb numbering)
 	private boolean e[][] = null; //the edge set
+	private float maxEnergy[][] = null; // SJ, added for keeping the max abs energy value between pair of residues
+	private float minDistance[][] = null; // SJ, added for keeping track of the min distance between pair of residues
 	
 	private int numAddedV = 0; //the number of vertices currently added to v[]
 	
@@ -13,6 +15,8 @@ public class InteractionGraph {
 		
 		v = new int[numV];
 		e = new boolean[numV][numV];
+		maxEnergy = new float[numV][numV]; // SJ
+		minDistance = new float[numV][numV];
 		numAddedV = 0;
 	}
 	
@@ -34,6 +38,28 @@ public class InteractionGraph {
 		
 		e[xInd][yInd] = true;
 		e[yInd][xInd] = true;
+	}
+	
+	//SJ, Deletes the edge between the vertices x and y
+	public void deleteEdge (int x, int y){
+		
+		int xInd = findVind(x);
+		int yInd = findVind(y);
+		
+		e[xInd][yInd] = false;
+		e[yInd][xInd] = false;
+	}
+	
+	// SJ, adds the minDistance and maxEnergy for vertices x and y
+	public void addDistEner (int x, int y, float dist, float ener){
+		
+		int xInd = findVind(x);
+		int yInd = findVind(y);
+		
+		minDistance[xInd][yInd] = dist;
+		minDistance[yInd][xInd] = dist;
+		maxEnergy[xInd][yInd] = ener;
+		maxEnergy[yInd][xInd] = ener;
 	}
 	
 	//Determines is an edge exists between vertices x and y (molecule-relative residue numbering)
