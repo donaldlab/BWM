@@ -138,7 +138,7 @@ public class TreeEdge implements Serializable{
         
         if(!lambda.isEmpty() || rightChild != null)
         {
-            isLambdaEdge=!lambda.isEmpty(); // initialising the matrices and calculating the Fset since it is a lambda edge
+            isLambdaEdge=!lambda.isEmpty();  // initialising the matrices and calculating the Fset since it is a lambda edge
             
             rtm = new RotTypeMap[M.size()+lambda.size()][];
 			Fset = new LinkedHashSet<TreeEdge>();
