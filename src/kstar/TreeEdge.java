@@ -272,16 +272,18 @@ public class TreeEdge implements Serializable{
 
             PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
             Conf newConf = new Conf(curState.clone(), 0, rtm);
+			/*
             if(newConf.toString().length() < 3 && lambda.size() > 0)
             {
                 System.err.println("Empty heap should not be empty.");
                 System.exit(-1);
             }
+			*/
             newConf.selfEnergy = en[1];
             newConf.energy = en[1] + energy_ll;
             if(leftChild != null)
                 newConf.leftEnergy = energy_ll;
-            //if(conformationHeap.size() < 2)
+            //if(conformationHeap.size() < 1)
                 conformationHeap.add(newConf);
 
             if(conformationHeap.size() < 1)
@@ -843,6 +845,11 @@ public class TreeEdge implements Serializable{
             System.exit(1);
         }
 
+		if(molResMap.length > L.size())
+		{
+			System.out.println("The resulting graph is split into more than two disconnected subgraphs.");
+			System.exit(0);
+		}
         // the energy matrix and the A matrix will only have one entry 	
         RotTypeMap bestPosAARot[] = new RotTypeMap[molResMap.length]; // creating a variable to store the best energy returned by the Btrack Procedure, molresMap
         // length is equal to the number of residues being designed
@@ -866,6 +873,11 @@ public class TreeEdge implements Serializable{
     }
 
     public String outputBestStateE2(Molecule m, RotamerLibrary rl, String ligType, PairwiseEnergyMatrix matrix){
+		if(molResMap.length > L.size())
+		{
+			System.out.println("The resulting graph is split into more than two disconnected subgraphs.");
+			System.exit(0);
+		}
 
         if (!isRootEdge) {
             System.out.println("ERROR: cannot output best state for non-root edges");
