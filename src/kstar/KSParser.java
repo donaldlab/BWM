@@ -6679,7 +6679,7 @@ public class KSParser
 		sParams.addParamsFromFile(getToken(s,2)); //read system parameters
 		sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
 		
-		int numInAS = (new Integer((String)sParams.getValue("NUMINAS"))).intValue();
+		int numInAS = (new Integer((String)sParams.getValue("STRANDMUTNUMS"))).intValue();
 	        String runName = (String)sParams.getValue("RUNNAME");
 		String eMatrixNameMin = (String)sParams.getValue("MINENERGYMATRIXNAME", runName+"minM");
                 String eMatrixNameMax = (String)sParams.getValue("MAXENERGYMATRIXNAME", runName+"maxM");
@@ -6716,7 +6716,7 @@ public class KSParser
 		
 		
 		//Set the allowable AAs for each AS residue
-		boolean addWT = (new Boolean((String)sParams.getValue("ADDWT"))).booleanValue();
+		boolean addWT = (new Boolean((String)sParams.getValue("ADDWT", "true"))).booleanValue();
                 int molStrand = 0;
                 for (int strNum=0; strNum<mp.numOfStrands; strNum++){
                         if(mp.strandPresent[strNum]){
@@ -6839,7 +6839,7 @@ public class KSParser
     		long startall = System.currentTimeMillis();
     		double firstEnergy = actualRootEdge.nextBestEnergy();
     		double nextEnergy = firstEnergy;
-    		while(rank < 10000000 && nextEnergy - firstEnergy < 40)
+    		while(rank < 1000 && nextEnergy - firstEnergy < 40)
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
