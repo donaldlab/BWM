@@ -6756,8 +6756,8 @@ public class KSParser
 		int numUnprunedRot[] = new int[numRotForRes.length];
 		for(int strand = 0; strand < mp.strandsPresent; strand++){
 
-		    for (int curRes=0; curRes<mp.numberMutable; curRes++){                      
-		        int curPruned = 0;
+		    for (int curRes=0; curRes<mp.numberMutable; curRes++){ 
+		    	int curPruned = 0;
 		        for(int curAA=0;curAA<grl[strand].getNumAAallowed();curAA++){
 		            int curAAind1 = rs.strandRot[strand].getIndexOfNthAllowable(mp.strandMut[strand][curRes],curAA);
 		            if(curAAind1 < 0)
@@ -6765,10 +6765,12 @@ public class KSParser
 		                //System.out.println("WHAT?");
 		                continue;
 		            }
-		            for (int curRot=0; curRot< rs.strandRot[strand].rl.getNumRotForAAtype(curAAind1); curRot++) {
+		            int numRotamers = rs.getNumRot(strand, curRes, curAAind1);
+		            for (int curRot=0; curRot< numRotamers; curRot++) {
+		            	
 		                if (prunedRotAtResObject.get(strand, curRes, curAAind1, curRot)) //cur rot is pruned (pruned rotamers are necessarily in the cur set of allowed AAs)
 		                    curPruned++;
-		            }                       
+	                }                       
 		        }
 		        numUnprunedRot[curRes] = numRotForRes[curRes] - curPruned;
 		    }
