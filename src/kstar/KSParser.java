@@ -2847,6 +2847,7 @@ public class KSParser
 		boolean genInteractionGraph = (new Boolean((String)sParams.getValue("GENINTERACTIONGRAPH","false"))).booleanValue();
 		float distCutoff=0;
 		float eInteractionCutoff=0;
+		double sparseGraphError=0; // SJ, the error bound between GMEC and SparseGMEC
 		boolean doSparseAStar = false; // SJ - to check if Sparse A* has to be done or not.
                 if(genInteractionGraph){
 		  distCutoff = (new Float((String)sParams.getValue("DISTCUTOFF"))).floatValue();
@@ -3229,14 +3230,15 @@ public class KSParser
 
 			if (!doDACS){ //DACS will not be performed
 				
-				if (genInteractionGraph && !doSparseAStar) //SJ - generate interaction graph and quit if doSparseAStar is false
-					genInteractionGraph(mp.numberMutable, rs, prunedRotAtRes, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex , false);
+				if (genInteractionGraph && !doSparseAStar) //SJ - generate interaction graph and quit if doSparseAStar is false, also added the return of error
+					sparseGraphError=genInteractionGraph(mp.numberMutable, rs, prunedRotAtRes, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex , false);
 				
 				else { //perform A* search to enumerate conformations
 					
-					if(doSparseAStar) // SJ - generate interaction graph and also change energy matrix if doSparseAStar is true, and continue with enumeration
-						genInteractionGraph(mp.numberMutable, rs, prunedRotAtRes, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex,true);
-					
+					if(doSparseAStar){ // SJ - generate interaction graph and also change energy matrix if doSparseAStar is true, and continue with enumeration
+						sparseGraphError=genInteractionGraph(mp.numberMutable, rs, prunedRotAtRes, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex,true);
+					initEw += sparseGraphError; // SJ - so that SparseA* returns all conformations within error from sparseGMEC   
+					}
 					double bestScore = Math.pow(10,38); //for DEE/A*, the initial best score is the highest possible
 					
 					// 2010: A* now returns a new value for Ew.  Note that right now useMinDEEPruningEw
@@ -6407,9 +6409,9 @@ public class KSParser
 	//		computes the minimum distance and minimum energy (absolute value) for each residue pair in residueMap[], 
 	//		considering all possible unpruned rotamers for the given residues;
 	//		ligand interactions are also computed if a ligand is present
-	private void genInteractionGraph(int numMutable, RotamerSearch rs, PrunedRotamers<Boolean> prunedRotAtRes, String runName, int strandMut[][], float eInteractionCutoff, float distCutoff, Molecule m, 
+	private double genInteractionGraph(int numMutable, RotamerSearch rs, PrunedRotamers<Boolean> prunedRotAtRes, String runName, int strandMut[][], float eInteractionCutoff, float distCutoff, Molecule m, 
 			boolean usePairSt, float pairSt, int mutRes2Strand[],int mutRes2StrandMutIndex[], boolean doSparseAStar) {
-			// SJ - added the last argument to check if we are doing Sparse AStar
+			// SJ - added the last argument to check if we are doing Sparse AStar, also added return of error bounds 
 		System.out.println("Generating Sparse Graph...");
 		
 		if (eInteractionCutoff<0.0f) //the cutoff should be non-negative, since we are comparing absolute values of energies against it
@@ -6455,8 +6457,7 @@ public class KSParser
 			for(int q1=0;q1<rs.strandRot[stri].getNumAllowable(strResNumi);q1++) {
 		
 				int AAindex1 = rs.strandRot[stri].getIndexOfNthAllowable(strResNumi,q1);
-				rs.strandRot[stri].changeResidueType(m,0,rs.strandRot[stri].rl.getAAName(AAindex1),true,true);
-		
+				rs.strandRot[stri].changeResidueType(m,strResNumi,rs.strandRot[stri].rl.getAAName(AAindex1),true,true); // SJ - 2nd argument from 0 to strResNumi
 					int numRot1 = rs.getNumRot( stri, strResNumi, AAindex1);
 					
 
@@ -6613,6 +6614,7 @@ public class KSParser
 			prunedRotAtRes.writeObjects(runName);
 		}
 		    System.out.println("Error bounds: "+error);
+			return error; // SJ - returning the error bounds
 	}
 	
 	//Returns a molecule m1 that contains only the residues in molecule m that are specified by residueMap[] (molecul-relative residue indexing);
