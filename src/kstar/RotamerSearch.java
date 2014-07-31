@@ -4226,9 +4226,15 @@ public class RotamerSearch implements Serializable
 			// Energy computation
 			float unMinE = 0.0f;
 			float minE = 0.0f;
-				
+			float full_Or_sparseE = 0.0f; //SJ - for getting the full energy/aparse energy of the conformations for SparseA*/A* runs			
+	
 			float minELowerBound = computeBestRotEnergyBound(/*numTotalRotamers,rotamerIndexOffset*/);
 			
+			if(arpMatrix.doSparse){
+				arpMatrix.doSparse = !arpMatrix.doSparse; // SJ - to get fullE/SparseE for the conformations - set doSparse to the opposite of what is running
+				full_Or_sparseE = computeBestRotEnergyBound(); 
+				arpMatrix.doSparse = !arpMatrix.doSparse; // SJ - reinstate doSparse flag;
+			}
 			//debugPS.println("minELowerBound: "+minELowerBound);debugPS.flush();
 			
 			
@@ -4325,7 +4331,6 @@ public class RotamerSearch implements Serializable
                                                 m.revertPertParamsToCurState();
 				}
 				else if (computeEVEnergy){ //no minimization, so traditional DEE
-					System.out.println("Coming here as this is just rigid DEE");
 					//minE = calcTotalSnapshotEnergy(); //the sum of the precomputed energy terms
 					//unMinE = minE;
 					// SJ - as this is rigid, we don't need to calculate the energies again
@@ -4403,6 +4408,8 @@ public class RotamerSearch implements Serializable
 						if (doMinimization)
 							logPS.print("minBound: "+minELowerBound+" ");
 						logPS.print("bestE: "+getBestE());
+						if(arpMatrix.doSparse)
+							logPS.print(" fullE: " +full_Or_sparseE);// SJ - printing the full energy
 						logPS.println();
 						//if (numConfsOutput%100==0) //flush only every 100 confs, since output is relatively *very* computationally expensive
 							logPS.flush();
