@@ -2970,6 +2970,7 @@ public class KSParser
 			loadPairwiseEnergyMatrices(sParams,rs,runNameEMatrixMin,doMinimize,runNameEMatrixMax,curStrForMatrix);
 			System.out.println("done");
 			
+
 			
 			/////////////////////////////////////////////////////////////
 			// DEE section
@@ -3007,6 +3008,34 @@ public class KSParser
 			}
 			if(EnvironmentVars.useEntropy)
 				rs.addEntropyTerm(doMinimize, mp.strandMut);
+			
+			//Hack to generate the graph without rerunning DEE begins here--I will rewrite this 
+			//into a separate method sometime.
+			//-JJ
+			
+			
+				
+			if(genInteractionGraph)
+			{
+				System.out.println("Checking for previous pruned object info...");
+				PrunedRotamers<Boolean> loadedPruneObject = null;
+				try 
+				{
+					loadedPruneObject = PrunedRotamers.createFromFiles(sParams.getValue("RUNNAME"));
+					System.out.println("Checking for previous pruned object info...");
+					if(loadedPruneObject != null)
+					{
+					sparseGraphError=genInteractionGraph(mp.numberMutable, rs, loadedPruneObject, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex , false, true);
+					return;
+					}
+				}
+				catch (Exception e)
+				{
+					System.out.println("No previous pruning data found. Performing DEE first.");
+				}
+			}
+			
+			
 		
 			PrunedRotamers<Boolean> prunedRotAtRes = null; // SJ - so that pruned info can be taken into account
 
@@ -3248,12 +3277,12 @@ public class KSParser
 			if (!doDACS){ //DACS will not be performed
 				
 				if (genInteractionGraph && !doSparseAStar) //SJ - generate interaction graph and quit if doSparseAStar is false, also added the return of error
-					sparseGraphError=genInteractionGraph(mp.numberMutable, rs, prunedRotAtRes, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex , false);
+					sparseGraphError=genInteractionGraph(mp.numberMutable, rs, prunedRotAtRes, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex , false, false);
 				
 				else { //perform A* search to enumerate conformations
 					
 					if(doSparseAStar){ // SJ - generate interaction graph and also change energy matrix if doSparseAStar is true, and continue with enumeration
-						sparseGraphError=genInteractionGraph(mp.numberMutable, rs, prunedRotAtRes, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex,true);
+						sparseGraphError=genInteractionGraph(mp.numberMutable, rs, prunedRotAtRes, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex,true, false);
 					initEw += sparseGraphError; // SJ - so that SparseA* returns all conformations within error from sparseGMEC   
 					}
 					double bestScore = Math.pow(10,38); //for DEE/A*, the initial best score is the highest possible
@@ -6427,7 +6456,7 @@ public class KSParser
 	//		considering all possible unpruned rotamers for the given residues;
 	//		ligand interactions are also computed if a ligand is present
 	private double genInteractionGraph(int numMutable, RotamerSearch rs, PrunedRotamers<Boolean> prunedRotAtRes, String runName, int strandMut[][], float eInteractionCutoff, float distCutoff, Molecule m, 
-			boolean usePairSt, float pairSt, int mutRes2Strand[],int mutRes2StrandMutIndex[], boolean doSparseAStar) {
+			boolean usePairSt, float pairSt, int mutRes2Strand[],int mutRes2StrandMutIndex[], boolean doSparseAStar, boolean loadedPruneObjectSuccessfully) {
 			// SJ - added the last argument to check if we are doing Sparse AStar, also added return of error bounds 
 		System.out.println("Generating Sparse Graph...");
 		
@@ -6571,6 +6600,7 @@ public class KSParser
 		
 		//Output data
 		float error = 0;
+		boolean[] residuePresent = new boolean[numMutable];
 		for (int i=0; i<numMutable; i++){
 						
 			int stri = mutRes2Strand[i];
@@ -6586,6 +6616,8 @@ public class KSParser
 				rs.getMinMatrix().G.addDistEner(i, j, dist[i][j], eInteraction[i][j]); // SJ, adding the minDist and maxEner for this residue pair
 				if ( (dist[i][j]<=distCutoff) && (eInteraction[i][j]>eInteractionCutoff) ){//these two residues interact
 					logPS2.println(pdbResNum1+" "+pdbResNum2);
+					residuePresent[i] = true;
+					residuePresent[j] = true;
 					rs.getMinMatrix().G.addEdge(i,j);//SJ, adding the edge between i and j in the graph
 				}
 				else 
@@ -6620,13 +6652,25 @@ public class KSParser
 					logPS2.println(pdbResNum1+" "+pdbResNum2);
 			}*/
 		}
+
+		for(int i =0; i < numMutable; i++)
+		{
+			int stri = mutRes2Strand[i];
+			int strResNumi = strandMut[stri][mutRes2StrandMutIndex[i]];
+			int pdbResNum1 = m.strand[stri].residue[strResNumi].getResNumber();
+			if(!residuePresent[i])
+				logPS2.println(pdbResNum1+" "+pdbResNum1);
+		}
+
 		logPS2.println("0 0");
 		
 		logPS.flush();logPS.close();
 		logPS2.flush();logPS2.close();
+		System.out.println("Beginning output: "+loadedPruneObjectSuccessfully);
 		
-		if(!doSparseAStar) // SJ - write the pruned rotamers only if Sparse AStar is not carried out.
+		if(!doSparseAStar && !loadedPruneObjectSuccessfully) // SJ - write the pruned rotamers only if Sparse AStar is not carried out.
 		{
+			System.out.println("Graph generation run without existing prune objects.");
 			outputObject(prunedRotAtRes,runName+"_pruneInfo.obj");
 			prunedRotAtRes.writeObjects(runName);
 		}
@@ -6860,7 +6904,7 @@ public class KSParser
     		long startall = System.currentTimeMillis();
     		double firstEnergy = actualRootEdge.nextBestEnergy();
     		double nextEnergy = firstEnergy;
-    		while(rank < 1000 && nextEnergy - firstEnergy < 40)
+    		while(rank < 10000 && nextEnergy - firstEnergy < 40)
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
