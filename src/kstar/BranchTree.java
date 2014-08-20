@@ -173,7 +173,7 @@ public class BranchTree implements Serializable {
 			
 			te[i] = new TreeEdge(teNode1, teNode2, teM, numUnprunedRot, molResidueMap, invResidueMap, sysStrandNum, false);
 		}
-		
+
 		//Transform the branch decomposition into a rooted tree
 		transformRootedTree(tn, te, numUnprunedRot, molResidueMap, invResidueMap, sysStrandNum);
 		

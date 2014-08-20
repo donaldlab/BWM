@@ -6866,39 +6866,8 @@ public class KSParser
 		actualRootEdge.printTree("");
 		actualRootEdge.printTreeMol("");
 		
-		/* New BWM Enumeration section */
-		/*
-		BWMSolutionSpace space = new BWMSolutionSpace(prunedRotAtResObject, 
-				new EnergyFunction(rs.getMinMatrix(), bt.getGraph()), mp.mutRes2Strand, 
-				mp.strandMut, mp.mutRes2StrandMutIndex, bt.getRoot().getCofEdge().getInvResMap(), grl[sysStrNum]);
-		TreeNode start = bt.getRoot().getlc();
-		BWMAStarNode AStarRoot = new BWMAStarNode(space.getEmptyConformation());
-		BWMAStarNode.CreateTree2(start, AStarRoot, space.getEmptyConformation(), AStarRoot.getChildren(), space, 0, start.getCofEdge().getPositionList());
-		bt.setEnumerationObjects(AStarRoot, space);
-		//AStarRoot.remainingConformations();
-		//AStarRoot.printTree("");
-		int rank = 0;
-		double lastScore = -500;
-		
-		int lastRemaining = AStarRoot.totalPossibleCombinations();
-		while(AStarRoot.moreConformations()&& rank < 100){
-		    rank++;
-		    Conformation out = AStarRoot.getNextConformation();
-    		    if(lastScore > out.score())
-                        {
-                            System.out.println("WRONG ORDER");
-                        }
-                       
-    		    lastScore = out.score();
-    		    System.out.println("Result "+rank+": "+ out + ", "+out.score());
-    
-                        
-    		}
-    		*/
     		
     		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
-    		//actualRootEdge.populateLeftHeaps();
-    //		actualRootEdge.generateFirstRightConformation();
     		int rank = 0;
     		double lastEnergy = -100000;
     		long startall = System.currentTimeMillis();
@@ -6915,7 +6884,9 @@ public class KSParser
     		    if(energy < lastEnergy)
     		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
     		    lastEnergy = energy;
-    		    TreeEdge.printHeap = false;
+    		    TreeEdge.printHeap = rank > 205 && rank < 207;
+    		    if(rank == 284)
+    		    	System.out.println("Begin break.");
     		    String confString = actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "", rs.getMinMatrix());
     
                         long end = System.currentTimeMillis();

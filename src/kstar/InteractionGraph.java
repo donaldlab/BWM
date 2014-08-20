@@ -88,4 +88,18 @@ public class InteractionGraph {
 		
 		return gv;
 	}
+	
+	public String toString()
+	{ 
+		String out = "";
+		for(int i = 0; i < e.length; i++)
+		{
+			for(int j = 0; j < e[i].length; j++)
+			{
+				if(e[i][j])
+					out+= "("+i+","+j+")\n";
+			}
+		}
+		return out;
+	}
 }

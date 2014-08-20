@@ -495,12 +495,10 @@ public class BWMAStarNode implements Comparable<BWMAStarNode> {
                     nextHeap = newNode.rightChildren;
                     newNode.branching = true;
                 }
-                CreateTree2(nextRightEdge, newNode, newNode.partialConformation, nextHeap, s, 0, nextRightEdge.getCofEdge().getPositionList());
             }
             
             if(nextLeftEdge != null)
             {
-                CreateTree2(nextLeftEdge, newNode, newNode.partialConformation, newNode.children, s, 0, nextLeftEdge.getCofEdge().getPositionList());
             }
             
             if(nextLeftEdge != null && nextRightEdge != null)

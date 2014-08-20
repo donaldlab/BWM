@@ -37,17 +37,10 @@ public class BWMStarNodeTest {
             lambda2.add(i+choices);
             lambda3.add(i+2*choices);
         }
-        TreeEdge edge = new TreeEdge(0, 1, new LinkedHashSet<Integer>(), null, null, null, 0, false);
-        edge.setPositions(lambda);
-        TreeEdge edge2 = new TreeEdge(0, 1, lambda, null, null, null, 0, false);
-        edge2.setPositions(lambda2);
-        TreeEdge edge3 = new TreeEdge(0, 1, lambda, null, null, null, 0, false);
-        edge3.setPositions(lambda3);
+
         
         
-        root.setCofEdge(edge);
-        lchild.setCofEdge(edge2);
-        rchild.setCofEdge(edge3);
+
         root.setLc(lchild);
         root.setRc(rchild);
         SolutionSpace space = new TestSolutionSpace(10, 2);

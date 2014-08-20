@@ -10,4 +10,15 @@ public class RotTypeMap {
 		aa = a;
 		rot = r;
 	}
+	
+	public boolean equals(Object o)
+	{
+		RotTypeMap other = (RotTypeMap)o;
+		return other.aa == aa && other.pos == pos && other.rot == rot;
+	}
+	
+	public String toString()
+	{
+		return "("+pos+":"+aa+"-"+rot+")";
+	}
 }

@@ -34,8 +34,6 @@ public class BDAStarTest {
 			leftLambda.add(i + currentIndex*CHOICES);
 			rightLambda.add(i + (currentIndex+1)*CHOICES);
 		}
-		leftEdge.setPositions(leftLambda);
-		rightEdge.setPositions(rightLambda);
 		leftChild.setCofEdge(leftEdge);
 		rightChild.setCofEdge(rightEdge);
 		root.setLc(leftChild);
@@ -58,7 +56,6 @@ public class BDAStarTest {
             testLambda.add(i);
         }
     	TreeEdge testRootEdge = new TreeEdge(0,1,testLambda,null,null,null,0,false);
-    	testRootEdge.setPositions(testLambda);
     	testRoot.setCofEdge(testRootEdge);
     	
     	BuildBalancedTree(testRoot, 3, 0, 1);
@@ -66,7 +63,6 @@ public class BDAStarTest {
 
         SolutionSpace space = new TestSolutionSpace(10, 2);
         BWMAStarNode rootNode = new BWMAStarNode(space.getEmptyConformation());
-        BWMAStarNode.CreateTree2(testRoot, rootNode, space.getEmptyConformation(), rootNode.getChildren(), space, 0, testRoot.getCofEdge().getPositionList());
         
         rootNode.resort();
         System.out.println("Done!");
