@@ -363,7 +363,6 @@ public class TreeEdge implements Serializable{
             curState[depth] = -1;
 
             if ( depth==M.size() ){//done with the lambda states for the current state assignment in M, so update A[] and energy[]
-                /** The self-balancing happens automatically here so long as we work bottom-up, which is the case! */
                 if(isRootEdge) // as you will never look up the A matrix for the root, i.e it will never be in the F set of any edge, we can store the actual energy
                 {
                     storeBestStateLambda(bestState, arrayM, bestEnergy[0]); //store the best state for each vertex in lambda, for the current state assignment in M
@@ -1135,7 +1134,9 @@ public class TreeEdge implements Serializable{
         
         if(printHeap)
             outputInitialDebugData(bestPosAARot, outHeap);
-
+        
+        if(outHeap.size() > 1 && lambda.size() < 1)
+            System.out.println("Impossibiruuuu");
         debugPrint("Begin. Polling heap...");
         Conf nextState = outHeap.poll();
         /* Add lambda to the solution */
@@ -1162,10 +1163,10 @@ public class TreeEdge implements Serializable{
                 int[] rightM = getMstateForEdgeCurState(rightMLambda, rightEdge);
                 getNewRightconf(bestPosAARotOld, rightEdge, rightConfs, rightM);
             }
-            if("[47,57,60][]".equals(""+leftEdge.L+leftEdge.lambda))
-            	printHeap = true;
             debugPrint("Getting secondary heap from "+leftEdge.L+leftEdge.lambda+"...");
             LazyHeap<Conf> secondaryHeap = getSecondaryHeap(bestPosAARotOld, leftM);
+            if(leftChild.getCofEdge().lambda.size() < 1 && secondaryHeap.size() > 1)
+                System.out.println("IMPOSSIBIRU!?!?!!");
             if(secondaryHeap.size() > 0 && Math.abs(secondaryHeap.peek().selfEnergy + 15.438) < 0.001)
             {
             	System.out.println("Activating debug on "+secondaryHeap.peek()+", energy "+secondaryHeap.peek().selfEnergy);
@@ -1184,6 +1185,8 @@ public class TreeEdge implements Serializable{
                 secondaryHeap.cleanNode = newLeftConf;
                 secondaryHeap.add(newLeftConf);
                 secondaryHeap.dirty = false;
+                if(leftChild.getCofEdge().lambda.size() < 1 && secondaryHeap.size() > 1)
+                    System.out.println("IMPOSSIBIRU!?!?!!");
             }
             
             /* Maintain cleanliness */
@@ -1256,6 +1259,8 @@ public class TreeEdge implements Serializable{
                 secondaryHeap.cleanNode = newLeftConf;
                 secondaryHeap.add(newLeftConf);
                 secondaryHeap.dirty = false;
+                if(leftChild.getCofEdge().lambda.size() < 1 && secondaryHeap.size() > 1)
+                    System.out.println("IMPOSSIBIRU!?!?!!");
             }
 
             if(secondaryHeap.size() > 0)
@@ -1416,7 +1421,6 @@ public class TreeEdge implements Serializable{
     private PriorityQueue<Conf> getHeap(RotTypeMap[] bestPosAARot, int[] bestState, String id)
     {
         String curString = RTMToPrefix(bestPosAARot)+id;
-
         if(!leftHeapMap.containsKey(curString))
         {
         	PriorityQueue<Conf> newHeap = new PriorityQueue<Conf>();
@@ -1436,7 +1440,7 @@ public class TreeEdge implements Serializable{
                         int[] rightM = getMstateForEdgeCurState(bestState, rightChild.getCofEdge());
                         double nextLeftEnergy = leftChild.getCofEdge().peekEnergy(bestPosAARot, leftM);
 
-                        double nextRightEnergy = leftChild.getCofEdge().peekEnergy(bestPosAARot, rightM);
+                        double nextRightEnergy = rightChild.getCofEdge().peekEnergy(bestPosAARot, rightM);
                         newConf.updateLeftEnergy(nextLeftEnergy + nextRightEnergy);
                         newHeap.add(newConf);
                     }
@@ -1447,6 +1451,8 @@ public class TreeEdge implements Serializable{
                         System.exit(-1);
                     }
                 }
+                if(lambda.size() < 1 && outHeap.size() > 1)
+                    System.out.println("IMPOSSIBIRU!?");
                 checkHeap(outHeap);
 
                 for(Conf c : outHeap)
@@ -1509,7 +1515,7 @@ public class TreeEdge implements Serializable{
     {
         //System.err.println("UNFINISHED CODE. TERMINATE.");
         //System.exit(-1);
-        String curString = RTMToPrefixLambda(bestPosAARot);
+        String curString = RTMToPrefixLambda(bestPosAARot)+hashCode();
         if(!secondaryHeapMap.containsKey(curString))
         {
             PriorityQueue<Conf> template = leftChild.getCofEdge().getHeap(bestPosAARot, bestState, ""+this.hashCode());
@@ -1517,6 +1523,8 @@ public class TreeEdge implements Serializable{
             secondaryHeapMap.put(curString, newHeap);
         }
         LazyHeap<Conf> out = secondaryHeapMap.get(curString);
+        if(leftChild.getCofEdge().lambda.size() < 1 && out.size() > 1)
+            System.out.println("IMPOSSIBIRU!?!?!!");
         //checkHeap(out);
         return out;
     }

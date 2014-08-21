@@ -6884,9 +6884,7 @@ public class KSParser
     		    if(energy < lastEnergy)
     		        System.err.println("OUT OF ORDER: "+lastEnergy+" > "+energy);
     		    lastEnergy = energy;
-    		    TreeEdge.printHeap = rank > 205 && rank < 207;
-    		    if(rank == 284)
-    		    	System.out.println("Begin break.");
+    		    TreeEdge.printHeap = false;
     		    String confString = actualRootEdge.outputBestStateE2(mp.m, grl[sysStrNum], "", rs.getMinMatrix());
     
                         long end = System.currentTimeMillis();
