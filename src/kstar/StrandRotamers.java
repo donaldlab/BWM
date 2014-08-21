@@ -666,15 +666,8 @@ public class StrandRotamers implements Serializable {
 		setAtomCoord(CNew,COld);
 		setAtomCoord(ONew,OOld);
 
-                if( localResidue.nterm == false && (newResPro || ( oldResPro && addHydrogens )) ){
-                    if(localResidue.nterm == true)
-                    {
-                        System.out.println("This seems to die.");
-                    }
-                    if(HOld == null || NOld == null)
-                    {
-                        System.err.println("We're about to crash.");
-                    }
+                if( newResPro || ( oldResPro && addHydrogens ) ){
+                    
                     float NVec[] = rm.subtract(HOld.coord, NOld.coord);//N- to H or CD bond vector
                     NVec = rm.scale(NVec, newNHLength/rm.norm(NVec) );
                     HNew.coord = rm.add(NVec, NNew.coord);
@@ -864,11 +857,7 @@ public class StrandRotamers implements Serializable {
 	private Atom [] getBBatoms(Residue res){
 		
 		Atom at[] = new Atom[6];
-		if(res.fullName.equals("ARG A   3") && res.moleculeResidueNumber == 0)
-		{
-		    System.out.println("Problem child alert!");
-		}
-		
+
 		for(int q=0;q<res.numberOfAtoms;q++) {
 			if (res.atom[q].name.equalsIgnoreCase("N"))
 				at[0] = res.atom[q];
@@ -882,11 +871,6 @@ public class StrandRotamers implements Serializable {
 				at[4] = res.atom[q];
 			else if (res.atom[q].name.equalsIgnoreCase("CB"))
 				at[5] = res.atom[q];
-		}
-		
-		if(at[4] == null)
-		{
-		    System.err.println("Missing H?");
 		}
 		
 		return at;
