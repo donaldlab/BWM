@@ -3015,7 +3015,7 @@ public class KSParser
 			
 			
 				
-			if(genInteractionGraph)
+			/*if(genInteractionGraph)
 			{
 				System.out.println("Checking for previous pruned object info...");
 				PrunedRotamers<Boolean> loadedPruneObject = null;
@@ -3033,7 +3033,7 @@ public class KSParser
 				{
 					System.out.println("No previous pruning data found. Performing DEE first.");
 				}
-			}
+			}*/
 			
 			
 		
