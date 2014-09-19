@@ -6599,7 +6599,8 @@ public class KSParser
 			rs.getMinMatrix().G.addV(i); //SJ, adding the vertices to the graph
 		
 		//Output data
-		float error = 0;
+		float relativeError = 0;
+		float absoluteError = 0;
 		boolean[] residuePresent = new boolean[numMutable];
 		for (int i=0; i<numMutable; i++){
 						
@@ -6623,7 +6624,8 @@ public class KSParser
 				else 
 				{
 					System.out.println("Cutting ("+i+","+j+"): distance "+dist[i][j]+", energy "+eInteraction[i][j]+", bounds "+eInteractionBounds[i][j]);
-					error += eInteractionBounds[i][j];
+					relativeError += eInteractionBounds[i][j];
+					absoluteError += eInteraction[i][j];
 										
 					/*if(doSparseAStar) // SJ - if Sparse AStar has to be performed, change the energy Matrix. 
 				      { // Make the energy of all non-interacting pairs as zero.
@@ -6674,8 +6676,9 @@ public class KSParser
 			outputObject(prunedRotAtRes,runName+"_pruneInfo.obj");
 			prunedRotAtRes.writeObjects(runName);
 		}
-		    System.out.println("Error bounds: "+error);
-			return error; // SJ - returning the error bounds
+		    System.out.println("Relative Error bounds: "+relativeError);
+		    System.out.println("Absolute Error bounds: "+absoluteError);
+			return relativeError; // SJ - returning the error bounds
 	}
 	
 	//Returns a molecule m1 that contains only the residues in molecule m that are specified by residueMap[] (molecul-relative residue indexing);
@@ -6871,9 +6874,11 @@ public class KSParser
     		int rank = 0;
     		double lastEnergy = -100000;
     		long startall = System.currentTimeMillis();
+			long preprocessTime = startall- startfull;
+			System.out.println("BWM preprocess time: "+preprocessTime);
     		double firstEnergy = actualRootEdge.nextBestEnergy();
     		double nextEnergy = firstEnergy;
-    		while(rank < 10000 && nextEnergy - firstEnergy < 40)
+    		while(rank < 10000 && nextEnergy - firstEnergy < 5 && actualRootEdge.moreRootConformations())
     		{
     	                long start = System.currentTimeMillis();
     		    rank++;
@@ -6915,7 +6920,12 @@ public class KSParser
             System.out.println("Dead-End Elimination Complete. Generating Branch Decomposition...");
             String runName = (String)sParams.getValue("RUNNAME");
             String[] args = new String[]{runName, runName+"_bd"};
+            long startBD = System.currentTimeMillis();
             BranchDecomposition.BranchDecomposition.main(args);
+			long endBD = System.currentTimeMillis();
+			long BDTime = endBD - startBD;
+
+            System.out.println("Branch Decomposition generation time: "+BDTime);
             long start = System.currentTimeMillis();
             System.out.println("Branch Decomposition generated. Calculating GMEC...");
             handleCompBranchDGMEC(s, true);
