@@ -3012,9 +3012,7 @@ public class KSParser
 			//Hack to generate the graph without rerunning DEE begins here--I will rewrite this 
 			//into a separate method sometime.
 			//-JJ
-			
-			
-				
+		/*	
 			if(genInteractionGraph)
 			{
 				System.out.println("Checking for previous pruned object info...");
@@ -3036,6 +3034,7 @@ public class KSParser
 				}
 			}
 			
+			*/
 			
 		
 			PrunedRotamers<Boolean> prunedRotAtRes = null; // SJ - so that pruned info can be taken into account
