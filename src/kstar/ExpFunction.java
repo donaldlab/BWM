@@ -74,7 +74,7 @@ public class ExpFunction {
 	final int maxPrecision = 8; //the number of decimal digits to which the BigDecimal numbers must be accurate
 
 	//constructor
-	ExpFunction(){
+	public ExpFunction(){
 	}
 	
 	//Computes exp(x) using BigDecimal arithmetic for large x or the standard Math.exp() function for small x;

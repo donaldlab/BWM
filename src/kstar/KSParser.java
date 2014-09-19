@@ -3015,7 +3015,7 @@ public class KSParser
 			
 			
 				
-			/*if(genInteractionGraph)
+			if(genInteractionGraph)
 			{
 				System.out.println("Checking for previous pruned object info...");
 				PrunedRotamers<Boolean> loadedPruneObject = null;
@@ -3026,14 +3026,15 @@ public class KSParser
 					if(loadedPruneObject != null)
 					{
 					sparseGraphError=genInteractionGraph(mp.numberMutable, rs, loadedPruneObject, runName, mp.strandMut, eInteractionCutoff, distCutoff, mp.m, preprocPairs, pairSt,mp.mutRes2Strand,mp.mutRes2StrandMutIndex , false, true);
-					return;
+					if(!doSparseAStar)
+						return;
 					}
 				}
 				catch (Exception e)
 				{
 					System.out.println("No previous pruning data found. Performing DEE first.");
 				}
-			}*/
+			}
 			
 			
 		
