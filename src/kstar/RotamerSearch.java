@@ -110,7 +110,7 @@ public class RotamerSearch implements Serializable
 	// If the debug flag is set to true then additional debug statements are
 	//  printed to standard out.
 	public static final boolean debug = true;
-	final double constRT = 1.9891/1000.0 * 298.15;   // in kCal / kelvin-mole (the T value here should be consistent with T in EEF1)
+	public final static double constRT = 1.9891/1000.0 * 298.15;   // in kCal / kelvin-mole (the T value here should be consistent with T in EEF1)
 	
 	Molecule m;		// the molecule
 	Amber96ext a96ff;	// the forcefield and energy function to use for energy evaluation etc...
