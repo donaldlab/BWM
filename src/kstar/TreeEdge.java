@@ -371,11 +371,6 @@ public class TreeEdge implements Serializable{
                 {
                     storeBestStateLambda(bestState, arrayM, energy_store[0]); //store the best state for each vertex in lambda, for the current state assignment in M
                 }
-                if(energy_store[0] > 100)
-                {
-                    System.err.println("Energy too large. Terminating.");
-                    System.exit(-1);
-                }
 
                 bestEnergy[0] = Float.MAX_VALUE;
                 energy_store[0] = Float.MAX_VALUE;
@@ -788,39 +783,66 @@ public class TreeEdge implements Serializable{
     {
     	prefix+="-"+lambda+":";
     	HashSet<String> prunedEdges = new HashSet<String>();
-    	prunedEdges.add("0,6");
-    	prunedEdges.add("0,7");
-    	prunedEdges.add("0,8");
-    	prunedEdges.add("0,9");
-    	prunedEdges.add("1,2");
-    	prunedEdges.add("1,3");
-    	prunedEdges.add("1,6");
-    	prunedEdges.add("1,7");
-    	prunedEdges.add("1,8");
-    	prunedEdges.add("1,9");
-    	prunedEdges.add("2,4");
-    	prunedEdges.add("2,6");
-    	prunedEdges.add("2,7");
-    	prunedEdges.add("2,8");
-    	prunedEdges.add("2,9");
-    	prunedEdges.add("3,4");
-    	prunedEdges.add("3,6");
-    	prunedEdges.add("3,7");
-    	prunedEdges.add("3,8");
-    	prunedEdges.add("3,9");
-    	prunedEdges.add("4,5");
-    	prunedEdges.add("4,6");
-    	prunedEdges.add("4,7");
-    	prunedEdges.add("4,8");
-    	prunedEdges.add("4,9");
-    	prunedEdges.add("5,8");
-    	prunedEdges.add("5,9");
-    	prunedEdges.add("6,7");
-    	prunedEdges.add("6,8");
-    	prunedEdges.add("6,9");
-    	prunedEdges.add("7,9");
-    	prunedEdges.add("8,9");
-
+		prunedEdges.add("0,1");
+		prunedEdges.add("0,2");
+		prunedEdges.add("0,3");
+		prunedEdges.add("0,4");
+		prunedEdges.add("0,5");
+		prunedEdges.add("0,6");
+		prunedEdges.add("0,7");
+		prunedEdges.add("0,8");
+		prunedEdges.add("0,9");
+		prunedEdges.add("0,10");
+		prunedEdges.add("0,12");
+		prunedEdges.add("0,13");
+		prunedEdges.add("1,3");
+		prunedEdges.add("1,4");
+		prunedEdges.add("1,5");
+		prunedEdges.add("1,6");
+		prunedEdges.add("1,7");
+		prunedEdges.add("1,8");
+		prunedEdges.add("1,9");
+		prunedEdges.add("1,10");
+		prunedEdges.add("1,11");
+		prunedEdges.add("1,12");
+		prunedEdges.add("1,13");
+		prunedEdges.add("2,4");
+		prunedEdges.add("2,5");
+		prunedEdges.add("2,6");
+		prunedEdges.add("2,7");
+		prunedEdges.add("2,8");
+		prunedEdges.add("2,9");
+		prunedEdges.add("2,10");
+		prunedEdges.add("2,11");
+		prunedEdges.add("2,12");
+		prunedEdges.add("3,6");
+		prunedEdges.add("3,7");
+		prunedEdges.add("3,8");
+		prunedEdges.add("3,9");
+		prunedEdges.add("3,10");
+		prunedEdges.add("3,11");
+		prunedEdges.add("3,12");
+		prunedEdges.add("4,7");
+		prunedEdges.add("4,8");
+		prunedEdges.add("4,9");
+		prunedEdges.add("4,10");
+		prunedEdges.add("4,11");
+		prunedEdges.add("5,7");
+		prunedEdges.add("5,8");
+		prunedEdges.add("5,9");
+		prunedEdges.add("6,7");
+		prunedEdges.add("7,8");
+		prunedEdges.add("7,9");
+		prunedEdges.add("7,10");
+		prunedEdges.add("7,11");
+		prunedEdges.add("7,12");
+		prunedEdges.add("7,13");
+		prunedEdges.add("8,10");
+		prunedEdges.add("8,11");
+		prunedEdges.add("8,12");
+		prunedEdges.add("8,13");
+		prunedEdges.add("9,12");
+		prunedEdges.add("10,13");
 
         int pi=0,ai=0,ri=0,pj=0,aj=0,rj=0;
         double energy = 0;//energyMatrix.getShellShellE(); //Add shell shell energy
@@ -1027,6 +1049,20 @@ public class TreeEdge implements Serializable{
         return RTMToString(bestPosAARot);
     }
 
+	public boolean moreRootConformations()
+	{
+		if(!isRootEdge)
+		{
+			System.err.println("Calling root-only method from non-root node, terminating.");
+			System.exit(-1);
+		}
+        RotTypeMap bestPosAARot[] = new RotTypeMap[molResMap.length]; // creating a variable to store the best energy returned by the Btrack Procedure, molresMap
+        // length is equal to the number of residues being designed
+        int[] bestState = new int[]{};
+        return !getHeap(bestPosAARot, bestState, ""+this.hashCode()).isEmpty();
+		
+	}
+
     public double nextBestEnergy()
     {
         RotTypeMap bestPosAARot[] = new RotTypeMap[molResMap.length]; // creating a variable to store the best energy returned by the Btrack Procedure, molresMap
@@ -1167,11 +1203,6 @@ public class TreeEdge implements Serializable{
             LazyHeap<Conf> secondaryHeap = getSecondaryHeap(bestPosAARotOld, leftM);
             if(leftChild.getCofEdge().lambda.size() < 1 && secondaryHeap.size() > 1)
                 System.out.println("IMPOSSIBIRU!?!?!!");
-            if(secondaryHeap.size() > 0 && Math.abs(secondaryHeap.peek().selfEnergy + 15.438) < 0.001)
-            {
-            	System.out.println("Activating debug on "+secondaryHeap.peek()+", energy "+secondaryHeap.peek().selfEnergy);
-            	printHeap = true;
-            }
             if((secondaryHeap.dirty || secondaryHeap.size() < 1) && leftEdge.moreConformations(bestPosAARotOld, leftM)) 
             {
             	debugPrint("Populating heap with new conformation...");
@@ -1358,15 +1389,17 @@ public class TreeEdge implements Serializable{
 		rightEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotRight, rightM);
 		RightConf newRight = new RightConf(bestPosAARotRight, newRightEnergy);
 		rightConfs.add(newRight);
-		System.out.println("New right conformation: "+RTMToString(bestPosAARotRight)+", energy "+newRight.energy);
-		System.out.println("Right conf list:");
 		if(printHeap)
-		for(RightConf conf : rightConfs)
 		{
-			System.out.println(conf+", energy "+conf.energy+", full energy "+debugConformationEnergy(conf.fullConformation, energyMatrix));
-			//checkConformation(conf.fullConformation, energyMatrix,"");
+			System.out.println("New right conformation: "+RTMToString(bestPosAARotRight)+", energy "+newRight.energy);
+			System.out.println("Right conf list:");
+			for(RightConf conf : rightConfs)
+			{
+				System.out.println(conf+", energy "+conf.energy+", full energy "+debugConformationEnergy(conf.fullConformation, energyMatrix));
+				//checkConformation(conf.fullConformation, energyMatrix,"");
+			}
 		}
-		if(printHeap && rightEdge.peekEnergy(bestPosAARotRight, rightM) > -130)
+		if(printHeap)
 			System.out.println("Next best energy is "+rightEdge.peekEnergy(bestPosAARotRight, rightM));
 	}
 

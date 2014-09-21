@@ -157,7 +157,7 @@ public class ParamSet implements Serializable {
 	public String getValue(String paramName){
 		int ind = getParamInd(paramName);
 		if (ind>=0)
-			return values[ind];
+			return values[ind].trim();
 		else {		
 			System.out.println("ERROR: Parameter "+paramName+" not found");
 			System.exit(1);

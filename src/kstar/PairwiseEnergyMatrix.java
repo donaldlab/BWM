@@ -73,7 +73,7 @@ package kstar;
 */
 public class PairwiseEnergyMatrix {
 
-        float eMatrix[][][][][][] = null;
+        public float eMatrix[][][][][][] = null;
         boolean doSparse = false; // SJ, for keeping track of when to use sparse energies
         InteractionGraph G = null; // SJ, the sparse interaction graph
 

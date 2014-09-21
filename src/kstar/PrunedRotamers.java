@@ -211,7 +211,7 @@ public class PrunedRotamers<T> implements Iterable<RotInfo<T>>, Serializable {
 				{
 					if(prunedRot[i][j][k] == null)
 						continue;
-					out[i][j][k] = (boolean)prunedRot[i][j][k];
+					out[i][j][k] = (Boolean)(prunedRot[i][j][k]);
 				}
 			}
 		}
