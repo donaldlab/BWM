@@ -21,9 +21,25 @@ public class ComputeKStarScore {
 
 	public static void main (String[] args)
 	{
+		/* Go through all files */
+		String path = args[0];
+		File directory = new File(path);
+		File[] files = directory .listFiles();
+		Set<String> BWMFileNames = new HashSet<String>();
+		for(int i = 0; i < files.length; i++)
+		{
+			if(files[i].name.contains("BWM"))
+			BWMFileNames.add(files[i].name);
+		}
+		/* If it's an AStar conf file, look for the BWM* conf file with the same sequence. */
+		/* compute the scores of both and output to the CSV file. */
+	}
+
+
+	public static String compareKStarScores(String sequence, String AStarFileName, String BWMFileName)
+	{
+		String output = "Error reading "+sequence+", "+AStarFileName+", "+BWMFileName;
 		/* Open the file */
-		String BWMfileName = args[0];
-		String AStarfileName = args[1];
 		try
 		{
 			BufferedReader BWMReader = new BufferedReader(new FileReader(BWMfileName));
@@ -49,6 +65,8 @@ public class ComputeKStarScore {
 			}
 			System.out.println("Computed A* score: "+printBigNum(AStarPartitionFunctionScore,5)
 					+", BWM* Score: "+printBigNum(BWMPartitionFunctionScore,5));
+			output = sequence+", "+printBigNum(AStarPartitionFunctionScore,5)
+					+", "+printBigNum(BWMPartitionFunctionScore,5);
 			BWMReader.close();
 			AStarReader.close();
 		} 
@@ -56,6 +74,7 @@ public class ComputeKStarScore {
 		{
 			e.printStackTrace();
 		}
+		return output;
 		
 	}
 
