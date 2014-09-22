@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import kstar.ExpFunction;
 import kstar.RotamerSearch;
 /***
@@ -18,7 +19,7 @@ import kstar.RotamerSearch;
  *
  */
 public class ComputeKStarScore {
-	
+	public static final BigDecimal hundred = new BigDecimal(100);
 	
 
 	public static void main (String[] args)
@@ -41,7 +42,7 @@ public class ComputeKStarScore {
 		        String AStarFileName = files[i].getName();
 		        String BWMFileName = AStarFileName.replace("AStar", "BWM");
 		        if(BWMFileNames.contains(BWMFileName))
-		            compareKStarScores(BWMFileName.replace("c_BWM", ""), path+"/"+AStarFileName, path+"/"+BWMFileName);
+		            System.out.println(compareKStarScores(BWMFileName.replace("c_BWM_", ""), path+"/"+AStarFileName, path+"/"+BWMFileName));
 		    }
 		}
 		/* compute the scores of both and output to the CSV file. */
@@ -75,10 +76,10 @@ public class ComputeKStarScore {
 				BigDecimal BWMConfScore = ef.exp(-BWMEnergy/RotamerSearch.constRT);
 				BWMPartitionFunctionScore = AStarPartitionFunctionScore.add(BWMConfScore);
 			}
-			System.out.println("Computed A* score: "+printBigNum(AStarPartitionFunctionScore,5)
-					+", BWM* Score: "+printBigNum(BWMPartitionFunctionScore,5));
-			output = sequence+", "+printBigNum(AStarPartitionFunctionScore,5)
-					+", "+printBigNum(BWMPartitionFunctionScore,5);
+			BigDecimal percentError = AStarPartitionFunctionScore.subtract(BWMPartitionFunctionScore).abs().divide(AStarPartitionFunctionScore, new MathContext(5)).multiply(hundred);
+			output = sequence+", "+printBigNum(AStarPartitionFunctionScore,3)
+				+", "+printBigNum(BWMPartitionFunctionScore,3)  
+				+", "+printBigNum(percentError, 3)+"%";
 			BWMReader.close();
 			AStarReader.close();
 		} 
