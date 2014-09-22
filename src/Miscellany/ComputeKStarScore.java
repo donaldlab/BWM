@@ -1,13 +1,15 @@
 package Miscellany;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.io.Serializable;
 import java.math.BigDecimal;
-
 import kstar.ExpFunction;
 import kstar.RotamerSearch;
 /***
@@ -28,10 +30,20 @@ public class ComputeKStarScore {
 		Set<String> BWMFileNames = new HashSet<String>();
 		for(int i = 0; i < files.length; i++)
 		{
-			if(files[i].name.contains("BWM"))
-			BWMFileNames.add(files[i].name);
+			if(files[i].getName().contains("BWM"))
+			    BWMFileNames.add(files[i].getName());
 		}
 		/* If it's an AStar conf file, look for the BWM* conf file with the same sequence. */
+		for(int i = 0; i < files.length; i++)
+		{
+		    if(files[i].getName().contains("AStar"))
+		    {
+		        String AStarFileName = files[i].getName();
+		        String BWMFileName = AStarFileName.replace("AStar", "BWM");
+		        if(BWMFileNames.contains(BWMFileName))
+		            compareKStarScores(BWMFileName.replace("c_BWM", ""), path+"/"+AStarFileName, path+"/"+BWMFileName);
+		    }
+		}
 		/* compute the scores of both and output to the CSV file. */
 	}
 
@@ -42,8 +54,8 @@ public class ComputeKStarScore {
 		/* Open the file */
 		try
 		{
-			BufferedReader BWMReader = new BufferedReader(new FileReader(BWMfileName));
-			BufferedReader AStarReader = new BufferedReader(new FileReader(AStarfileName));
+			BufferedReader BWMReader = new BufferedReader(new FileReader(BWMFileName));
+			BufferedReader AStarReader = new BufferedReader(new FileReader(AStarFileName));
 			
 			BigDecimal BWMPartitionFunctionScore = new BigDecimal(0.0);
 			BigDecimal AStarPartitionFunctionScore = new BigDecimal(0.0);
