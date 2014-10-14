@@ -123,12 +123,14 @@ public class ComputeKStarScore {
 			{
 				String AStarLine = AStarReader.readLine();
 				String[] AStarTokens = AStarLine.split(" ");
-				AStarConformationList.add(ConfFromTokens(AStarTokens));
-				AStarConformations.add(ConfFromTokens(AStarTokens));
+				String AStarConf = ConfFromAStarTokens(AStarTokens);
+				AStarConformationList.add(AStarConf);
+				AStarConformations.add(AStarConf);
 				String BWMLine = BWMReader.readLine();
 				String[] BWMStarTokens = BWMLine.split(" ");
-				BWMStarConformationList.add(ConfFromTokens(BWMStarTokens));
-				BWMStarConformations.add(ConfFromTokens(BWMStarTokens));
+				String BWMStarConf = ConfFromBWMTokens(BWMStarTokens);
+				BWMStarConformationList.add(BWMStarConf);
+				BWMStarConformations.add(BWMStarConf);
 
 				double AStarEnergy = Double.valueOf(AStarTokens[AStarTokens.length -3]);
 				BigDecimal AStarConfScore = ef.exp(-AStarEnergy/RotamerSearch.constRT);
@@ -188,15 +190,25 @@ public class ComputeKStarScore {
 		
 	}
 
-	public static String ConfFromTokens(String[] tokens)
+	public static String ConfFromBWMTokens(String[] tokens)
 	{
 		String output = "";
-		for(int i = 1; i < tokens.length-1; i++)
+		for(int i = 1; i < tokens.length-2; i++)
 		{
 			output+=tokens[i]+" ";
 		}
 		return output;
 	}
+	
+	public static String ConfFromAStarTokens(String[] tokens)
+	        {
+	                String output = "";
+	                for(int i = 1; i < tokens.length-6; i++)
+	                {
+	                        output+=tokens[i]+" ";
+	                }
+	                return output;
+	        }
 	
 	public static String printBigNum(BigDecimal bd, int sigDigits){
         int numDigits = (bd.toPlainString()).indexOf('.');
