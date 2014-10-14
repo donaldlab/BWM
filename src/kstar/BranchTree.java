@@ -87,16 +87,20 @@ public class BranchTree implements Serializable {
 	
 	public void computeLambdaSets(TreeNode node)
 	{
+		computeLambdaSets(node, true);
+	}
+	public void computeLambdaSets(TreeNode node, boolean initMatrices)
+	{
 		TreeNode lc = node.getlc();
 		if (lc!=null) //traverse left subtree first
-			computeLambdaSets(lc);
+			computeLambdaSets(lc, initMatrices);
 		
 		TreeNode rc = node.getrc();
 		if (rc!=null) //then traverse right subtree
-			computeLambdaSets(rc);
+			computeLambdaSets(rc, initMatrices);
 		
 		if(node.getCofEdge() != null)
-			node.getCofEdge().compLlambda();
+			node.getCofEdge().compLlambda(initMatrices);
 	}
 	
 	public void outputBestStateE(Molecule m, StrandRotamers ligRot, RotamerLibrary rl, RotamerLibrary grl)

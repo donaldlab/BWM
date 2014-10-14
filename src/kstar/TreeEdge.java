@@ -63,6 +63,7 @@ public class TreeEdge implements Serializable{
     private double firstRightEnergy;
 
     static boolean printHeap = false;
+    static boolean EnumerateEnsembles = false;
     HashMap<String, Integer> confsEnumerated = new HashMap<String, Integer>();
     Set<String> stringSet = new HashSet<String>();
     private static Map<String, Integer> heapHashCodes = new HashMap<String, Integer>();
@@ -104,8 +105,11 @@ public class TreeEdge implements Serializable{
         solutionSpace = space;
     }
 
-    //Computes the L and lambda sets for this edge; must be called only after p and c have been assigned for all edges
     public void compLlambda(){
+		compLlambda(true);
+	}
+    //Computes the L and lambda sets for this edge; must be called only after p and c have been assigned for all edges
+    public void compLlambda(boolean initMatrices){
 
         TreeNode clc = c.getlc();
         if(clc==null)//child is leaf tree node, so the L set is the difference between the M set and the two graph vertices for the child
@@ -145,7 +149,8 @@ public class TreeEdge implements Serializable{
             rtm = new RotTypeMap[M.size()+lambda.size()][];
 			Fset = new LinkedHashSet<TreeEdge>();
 			computeFset(c);
-			initializeMatrices();
+			if(initMatrices)
+				initializeMatrices();
 
         }
         else
@@ -166,21 +171,24 @@ public class TreeEdge implements Serializable{
 		printTree("");
 		System.out.println("initializing matrix with "+size+" states...");
         A = new int[size][lambda.size()];
-        A2 = new ArrayList<PriorityQueue<Conf>>(size);
-		System.out.println("Basic matrix generated.");
-		int numQueue = 0;
-		int pow = 0;
-        while(A2.size() < size)
-        {
-			numQueue++;
-            PriorityQueue<Conf> newQueue = new PriorityQueue<Conf>(1, comparator);
-            A2.add(newQueue);
-			if(numQueue%Math.pow(10,pow)==0)
+		if(EnumerateEnsembles)
+		{
+			A2 = new ArrayList<PriorityQueue<Conf>>(size);
+			System.out.println("Basic matrix generated.");
+			int numQueue = 0;
+			int pow = 0;
+			while(A2.size() < size)
 			{
-				System.out.println(numQueue);
-				pow++;
+				numQueue++;
+				PriorityQueue<Conf> newQueue = new PriorityQueue<Conf>(1, comparator);
+				A2.add(newQueue);
+				if(numQueue%Math.pow(10,pow)==0)
+				{
+					System.out.println(numQueue);
+					pow++;
+				}
 			}
-        }
+		}
         energy = new float[size];
         
         for (int i=0; i<size; i++){
@@ -266,30 +274,33 @@ public class TreeEdge implements Serializable{
             float total_energy=0;
             total_energy=en[0]+energy_ll;
             
-            if(A2.size() <= computeIndexInA(curState))
-            {
-                A2.add(new PriorityQueue<Conf>());
-            }
-            
+			if(EnumerateEnsembles)
+			{
+				if(A2.size() <= computeIndexInA(curState))
+				{
+					A2.add(new PriorityQueue<Conf>());
+				}
+				
 
-            PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
-            Conf newConf = new Conf(curState.clone(), 0, rtm);
-			/*
-            if(newConf.toString().length() < 3 && lambda.size() > 0)
-            {
-                System.err.println("Empty heap should not be empty.");
-                System.exit(-1);
-            }
-			*/
-            newConf.selfEnergy = en[1];
-            newConf.energy = en[1] + energy_ll;
-            if(leftChild != null)
-                newConf.leftEnergy = energy_ll;
-            //if(conformationHeap.size() < 1)
-                conformationHeap.add(newConf);
+				PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
+				Conf newConf = new Conf(curState.clone(), 0, rtm);
+				/*
+				if(newConf.toString().length() < 3 && lambda.size() > 0)
+				{
+					System.err.println("Empty heap should not be empty.");
+					System.exit(-1);
+				}
+				*/
+				newConf.selfEnergy = en[1];
+				newConf.energy = en[1] + energy_ll;
+				if(leftChild != null)
+					newConf.leftEnergy = energy_ll;
+				//if(conformationHeap.size() < 1)
+					conformationHeap.add(newConf);
 
-            if(conformationHeap.size() < 1)
-                System.exit(-1);
+				if(conformationHeap.size() < 1)
+					System.exit(-1);
+			}
 
             if ( (total_energy<bestEnergy[0]) || (bestEnergy[0]==Float.MAX_VALUE) ) { //new best energy, so update to the current state assignment
                 bestEnergy[0] = total_energy;

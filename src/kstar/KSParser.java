@@ -3012,7 +3012,7 @@ public class KSParser
 			//Hack to generate the graph without rerunning DEE begins here--I will rewrite this 
 			//into a separate method sometime.
 			//-JJ
-		/*	
+			
 			if(genInteractionGraph)
 			{
 				System.out.println("Checking for previous pruned object info...");
@@ -3034,7 +3034,6 @@ public class KSParser
 				}
 			}
 			
-			*/
 			
 		
 			PrunedRotamers<Boolean> prunedRotAtRes = null; // SJ - so that pruned info can be taken into account
@@ -6450,6 +6449,232 @@ public class KSParser
 		}
 		saveMolecule(m1,runName+".pdb",0.0f);
 	}
+
+	private void optimizeInteractionGraph( int numMutable, RotamerSearch rs, PrunedRotamers<Boolean> prunedRotAtRes, String runName, int strandMut[][], float eInteractionCutoff, float distCutoff, Molecule m, 
+			boolean usePairSt, float pairSt, int mutRes2Strand[],int mutRes2StrandMutIndex[], boolean doSparseAStar, boolean loadedPruneObjectSuccessfully) {
+			// SJ - added the last argument to check if we are doing Sparse AStar, also added return of error bounds 
+		System.out.println("Generating Sparse Graph...");
+		
+		if (eInteractionCutoff<0.0f) //the cutoff should be non-negative, since we are comparing absolute values of energies against it
+		{
+			eInteractionCutoff = 0.0f;
+			System.out.println("Given Interaction Energy Cutoff is negative. Seeting it to 0");//SJ
+		}
+		
+			
+		float dist[][] = new float[numMutable][numMutable];
+		float eInteraction[][] = new float[numMutable][numMutable];		
+		float eInteractionBounds[][] = new float[numMutable][numMutable];		
+		for (int i=0; i<numMutable; i++){
+			for (int j=0; j<numMutable; j++){
+				dist[i][j] = (float)Math.pow(10, 38);
+				eInteraction[i][j] = 0.0f;
+			}
+		}
+		
+		/*float ligDist[] = null;
+		float ligE[] = null;
+		if (ligPresent){
+			ligDist = new float[numInAS];
+			ligE = new float[numInAS];
+			for (int i=0; i<numInAS; i++){
+				ligDist[i] = (float)Math.pow(10, 38);
+				ligE[i] = 0.0f;
+			}
+		}*/
+		
+		float[] eInteractionMax = new float[numMutable];
+		float[] eInteractionMin = new float[numMutable];
+		for (int i=0; i<numMutable; i++){
+			int stri = mutRes2Strand[i];
+			int strResNumi = strandMut[stri][mutRes2StrandMutIndex[i]];
+
+			for(int x = 0; x < eInteractionMax.length; x++)
+			{
+				eInteractionMax[x] = -100000f;
+				eInteractionMin[x] = 100000f;
+			}
+			System.out.print("Position "+i+":");
+			for(int q1=0;q1<rs.strandRot[stri].getNumAllowable(strResNumi);q1++) {
+		
+				int AAindex1 = rs.strandRot[stri].getIndexOfNthAllowable(strResNumi,q1);
+				rs.strandRot[stri].changeResidueType(m,strResNumi,rs.strandRot[stri].rl.getAAName(AAindex1),true,true); // SJ - 2nd argument from 0 to strResNumi
+					int numRot1 = rs.getNumRot( stri, strResNumi, AAindex1);
+					
+
+					for (int r1=0; r1<numRot1; r1++){
+						
+						if (!prunedRotAtRes.get(i,AAindex1,r1)){ //rotamer not pruned
+
+							if(rs.doPerturbations)
+								((StrandRCs)rs.strandRot[stri]).applyRC(m, strResNumi, r1);
+							else
+								rs.strandRot[stri].applyRotamer(m, strResNumi, r1);
+								
+							for (int j=i+1; j<numMutable; j++){				
+								int strj = mutRes2Strand[j];
+								int strResNumj = strandMut[strj][mutRes2StrandMutIndex[j]];
+								for(int q2=0;q2<rs.strandRot[strj].getNumAllowable(strResNumj);q2++) {
+									
+									int AAindex2 = rs.strandRot[strj].getIndexOfNthAllowable(strResNumj,q2);
+									rs.strandRot[strj].changeResidueType(m,strResNumj,rs.strandRot[strj].rl.getAAName(AAindex2),true,true);
+									
+									int numRot2 = rs.getNumRot( strj, strResNumj, AAindex2 );
+									for (int r2=0; r2<numRot2; r2++){
+										
+										if (!prunedRotAtRes.get(j,AAindex2,r2)){
+											
+											float pairE = rs.getMinMatrix().getPairwiseE( i, AAindex1, r1, j, AAindex2, r2 );
+
+											if(rs.doPerturbations)
+												((StrandRCs)rs.strandRot[strj]).applyRC( m, strResNumj, r2 );
+											else
+												rs.strandRot[strj].applyRotamer(m, strResNumj, r2);
+											
+											float d = m.strand[stri].residue[strResNumi].getDist(m.strand[strj].residue[strResNumj],true);
+											dist[i][j] = Math.min(dist[i][j],d);
+											dist[j][i] = Math.min(dist[j][i],d);
+											
+											
+											if ( (!usePairSt) || (pairE<=pairSt) ) {
+												eInteraction[i][j] = Math.max(eInteraction[i][j],Math.abs(pairE));
+												eInteraction[j][i] = Math.max(eInteraction[j][i],Math.abs(pairE));
+												eInteractionMax[j] = Math.max(eInteractionMax[j], pairE);
+												eInteractionMin[j] = Math.min(eInteractionMin[j], pairE);
+											}
+										}
+									}							
+								}
+								System.out.print(" "+j);
+							}
+							System.out.println();
+							
+							/*if (ligPresent) {
+								
+								int AAindex2 = grl.getAARotamerIndex(ligType);
+								
+								int numRot2 = grl.getNumRotForAAtype(AAindex2);
+								if (numRot2==0)
+									numRot2 = 1;
+								
+								for (int r2=0; r2<numRot2; r2++){
+									
+									if (!prunedRotAtRes[numInAS*totalNumRotamers + r2]){
+										
+										rs.ligROT.applyRotamer(m, 0, r2);
+										
+										float d = m.strand[sysStrNum].residue[residueMap[i]].getDist(m.strand[ligStrNum].residue[0],true);
+										ligDist[i] = Math.min(ligDist[i],d);
+										
+										float pairE = rs.getMinMatrix()[numInAS][AAindex2][r2][i][AAindex1][r1];
+										if ( (!usePairSt) || (pairE<=pairSt) )
+											ligE[i] = Math.max(ligE[i],Math.abs(pairE));
+									}
+								}
+							}*/
+						}
+					}	
+				}
+					for(int j = i+1; j < numMutable; j++)
+					{
+						float bounds = eInteractionMax[j] - eInteractionMin[j];
+						eInteractionBounds[i][j] = bounds;
+						eInteractionBounds[j][i] = bounds;
+					}
+				}
+		
+		PrintStream logPS = setupOutputFile(runName+".log");
+		PrintStream logPS2 = setupOutputFile(runName);
+		
+		logPS2.println("PIG:0 "+runName); //output in Pigale-compatible ASCII format
+		
+		rs.getMinMatrix().G = new InteractionGraph(numMutable); //SJ, to create the interaction graph in the energy matrix object
+		rs.getMinMatrix().doSparse = true;
+		for(int i=0; i<numMutable; i++)
+			rs.getMinMatrix().G.addV(i); //SJ, adding the vertices to the graph
+		
+		//Output data
+		float relativeError = 0;
+		float absoluteError = 0;
+		boolean[] residuePresent = new boolean[numMutable];
+		for (int i=0; i<numMutable; i++){
+						
+			int stri = mutRes2Strand[i];
+			int strResNumi = strandMut[stri][mutRes2StrandMutIndex[i]];
+				
+			int pdbResNum1 = m.strand[stri].residue[strResNumi].getResNumber();
+			for (int j=i+1; j<numMutable; j++){
+				int strj = mutRes2Strand[j];
+				int strResNumj = strandMut[strj][mutRes2StrandMutIndex[j]];
+				int pdbResNum2 = m.strand[strj].residue[strResNumj].getResNumber();
+				
+				logPS.println(pdbResNum1+" "+pdbResNum2+" "+dist[i][j]+" "+eInteraction[i][j]);
+				rs.getMinMatrix().G.addDistEner(i, j, dist[i][j], eInteraction[i][j]); // SJ, adding the minDist and maxEner for this residue pair
+				if ( (dist[i][j]<=distCutoff) && (eInteraction[i][j]>eInteractionCutoff) ){//these two residues interact
+					logPS2.println(pdbResNum1+" "+pdbResNum2);
+					residuePresent[i] = true;
+					residuePresent[j] = true;
+					rs.getMinMatrix().G.addEdge(i,j);//SJ, adding the edge between i and j in the graph
+				}
+				else 
+				{
+					System.out.println("Cutting ("+i+","+j+"): distance "+dist[i][j]+", energy "+eInteraction[i][j]+", bounds "+eInteractionBounds[i][j]);
+					relativeError += eInteractionBounds[i][j];
+					absoluteError += eInteraction[i][j];
+										
+					/*if(doSparseAStar) // SJ - if Sparse AStar has to be performed, change the energy Matrix. 
+				      { // Make the energy of all non-interacting pairs as zero.
+				    	  for(int q1=0;q1<rs.strandRot[stri].getNumAllowable(strResNumi);q1++) {
+				    			int AAindex1 = rs.strandRot[stri].getIndexOfNthAllowable(strResNumi,q1);
+								int numRot1 = rs.getNumRot( stri, strResNumi, AAindex1);
+								for (int r1=0; r1<numRot1; r1++){
+									for(int q2=0;q2<rs.strandRot[strj].getNumAllowable(strResNumj);q2++) {
+										int AAindex2 = rs.strandRot[strj].getIndexOfNthAllowable(strResNumj,q2);
+										int numRot2 = rs.getNumRot( strj, strResNumj, AAindex2 );
+										for (int r2=0; r2<numRot2; r2++){
+											rs.getMinMatrix().setPairwiseE( i, AAindex1, r1, j, AAindex2, r2, 0.0f); // SJ - set the pairwise interaction energy to zero
+										}
+									}
+								}
+				    	  } 
+				      }*/
+				}
+
+			}
+			/*if (ligPresent){
+				int pdbResNum2 = m.strand[ligStrNum].residue[0].getResNumber();
+				
+				logPS.println(pdbResNum1+" "+pdbResNum2+" "+ligDist[i]+" "+ligE[i]);
+				if ( (ligDist[i]<=distCutoff) && (ligE[i]>eInteractionCutoff) )
+					logPS2.println(pdbResNum1+" "+pdbResNum2);
+			}*/
+		}
+
+		for(int i =0; i < numMutable; i++)
+		{
+			int stri = mutRes2Strand[i];
+			int strResNumi = strandMut[stri][mutRes2StrandMutIndex[i]];
+			int pdbResNum1 = m.strand[stri].residue[strResNumi].getResNumber();
+			if(!residuePresent[i])
+				logPS2.println(pdbResNum1+" "+pdbResNum1);
+		}
+
+		logPS2.println("0 0");
+		
+		logPS.flush();logPS.close();
+		logPS2.flush();logPS2.close();
+		System.out.println("Beginning output: "+loadedPruneObjectSuccessfully);
+		
+		if(!doSparseAStar && !loadedPruneObjectSuccessfully) // SJ - write the pruned rotamers only if Sparse AStar is not carried out.
+		{
+			System.out.println("Graph generation run without existing prune objects.");
+			outputObject(prunedRotAtRes,runName+"_pruneInfo.obj");
+			prunedRotAtRes.writeObjects(runName);
+		}
+		    System.out.println("Relative Error bounds: "+relativeError);
+		    System.out.println("Absolute Error bounds: "+absoluteError);
+			return; // SJ - returning the error bounds
+	}
 	
 	//Computes the information necessary to generate a residue interaction graph for the given system;
 	//		computes the minimum distance and minimum energy (absolute value) for each residue pair in residueMap[], 
@@ -6861,15 +7086,17 @@ public class KSParser
 		}*/
 		
 		BranchTree bt = new BranchTree(bdFile,mp.m,numUnprunedRot,mp.strandMut[sysStrNum],mp.pdbRes2StrandMutIndex[sysStrNum],sysStrNum,numInAS,false);
-		bt.computeLambdaSets(bt.getRoot());
+		System.out.println("Computing JUST the lambda sets...");
+		bt.computeLambdaSets(bt.getRoot(),false);
+		System.out.println("Done computing JUST the lambda sets...");
 		TreeNode realRoot = bt.getRoot().getlc();
 		TreeEdge actualRootEdge = realRoot.getCofEdge();
 		bt.getRoot().printTree("");
 		actualRootEdge.compactTree();
 		actualRootEdge.printTree("");
 		actualRootEdge.printTreeMol("");
-		
-    		
+
+		TreeEdge.EnumerateEnsembles= false;
     		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
     		int rank = 0;
     		double lastEnergy = -100000;
@@ -6878,6 +7105,11 @@ public class KSParser
 			System.out.println("BWM preprocess time: "+preprocessTime);
     		double firstEnergy = actualRootEdge.nextBestEnergy();
     		double nextEnergy = firstEnergy;
+			if(!TreeEdge.EnumerateEnsembles)
+			{
+				actualRootEdge.outputBestStateE(mp.m, grl[sysStrNum], "");
+				return;
+			}
     		while(rank < 10000 && nextEnergy - firstEnergy < 5 && actualRootEdge.moreRootConformations())
     		{
     	                long start = System.currentTimeMillis();
