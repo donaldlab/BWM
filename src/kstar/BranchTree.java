@@ -102,7 +102,7 @@ public class BranchTree implements Serializable {
 		if(node.getCofEdge() != null)
 			node.getCofEdge().compLlambda(initMatrices);
 	}
-	
+
 	public void outputBestStateE(Molecule m, StrandRotamers ligRot, RotamerLibrary rl, RotamerLibrary grl)
 	{
 		String ligType = null;

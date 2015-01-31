@@ -4154,6 +4154,7 @@ public class RotamerSearch implements Serializable
 			//Extract and apply the rotamers of the current conformation
 			int curAS = 0;	
 			int curRot = 0;
+			// Commented out to see if A* will run faster for rigid A*. 10/24/2014. Undo once the experiment is done. - JJ
 			for(int str=0;str<numberOfStrands;str++){
 				for (int i=0; i<strandMut[str].length; i++){
 					//if (curResToASMap[curLevel]!=-1){//make a change only to the AS residues: use the native type for the other residues

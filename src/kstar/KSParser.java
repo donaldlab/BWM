@@ -3050,6 +3050,7 @@ public class KSParser
 			}
 			else{				
 				prunedRotAtRes = new PrunedRotamers<Boolean>(mp.numberMutable,mp.strandMut,rs,false);
+				}
 			
 		//	PrunedRotamers<Boolean> prunedRotAtRes = new PrunedRotamers<Boolean>(mp.numberMutable,mp.strandMut,rs,false);
 		//	
@@ -3262,7 +3263,6 @@ public class KSParser
 				System.out.println("Num pruned rot this run: "+numPrunedRotThisRun);
 				System.out.println("Num pruned pairs this run: "+numPrunedPairsThisRun);
 				System.out.println();
-			}
 			}
 			long pruneTime = System.currentTimeMillis();
 
@@ -7027,11 +7027,6 @@ public class KSParser
     		//eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.strandRot,mp.strandMut,null,mp.numberMutable,mp.mutRes2Strand,mp.mutRes2StrandMutIndex);
     		rs.addEref(eRef, doMinimize, mp.strandMut);
     	}
-    	else {
-        	System.out.print("Calculating energy matrix...");
-            //loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin+".dat",false,null);
-            System.out.println("done");
-    	}
 		int numRotForRes[] = compNumRotForRes(numInAS, rs, mp.strandMut, mp.mutRes2Strand, mp.mutRes2StrandMutIndex);
 		
 		
@@ -7095,8 +7090,11 @@ public class KSParser
 		actualRootEdge.compactTree();
 		actualRootEdge.printTree("");
 		actualRootEdge.printTreeMol("");
+		long TESS = actualRootEdge.computeTESS();
+		System.out.println("TESS: "+TESS);
 
-		TreeEdge.EnumerateEnsembles= false;
+
+		TreeEdge.EnumerateEnsembles= true;
     		bt.traverseTree(rs.strandRot[sysStrNum], null, mp.m, grl[sysStrNum], null, prunedRotAtResObject, grl[sysStrNum].getTotalNumRotamers(), grl[sysStrNum].getRotamerIndexOffset(), rs.getMinMatrix());
     		int rank = 0;
     		double lastEnergy = -100000;

@@ -309,7 +309,7 @@ public class MSAStar {
 				}	
 			}
 		}
-		
+		System.out.println("Total internal nodes expanded: "+numExpanded);	
 		return curConf;
 	}
 	

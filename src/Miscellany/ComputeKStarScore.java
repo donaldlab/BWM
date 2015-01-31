@@ -142,7 +142,6 @@ public class ComputeKStarScore {
 				BigDecimal BWMConfScore = ef.exp(-BWMEnergy/RotamerSearch.constRT);
 				BWMStarScores.add(BWMConfScore);
 				BWMStarEnergies.add(BWMEnergy);
-				AStarPartitionFunctionScore = AStarPartitionFunctionScore.add(AStarConfScore);
 				BWMStarPartitionFunctionScore = BWMStarPartitionFunctionScore.add(BWMConfScore);
 				numConfs++;
 			}
@@ -171,7 +170,7 @@ public class ComputeKStarScore {
 				String BWMStarConf = BWMStarConformationList.get(i);
 				double BWMStarEnergy = BWMStarEnergies.get(i);
 				BigDecimal BWMStarConfScore = BWMStarScores.get(i);
-				double BWMStarPercent = BWMStarConfScore.divide(BWMStarPartitionFunctionScore, MathContext.DECIMAL32).doubleValue(); 
+				double BWMStarPercent = BWMStarConfScore.divide(AStarPartitionFunctionScore, MathContext.DECIMAL32).doubleValue(); 
 				System.out.println(sequence+", "+BWMStarEnergy+","+printBigNum(BWMStarConfScore,3)+","+printBigNum(BWMStarPartitionFunctionScore,3)+", "+BWMStarPercent);
 				if(!AStarConformations.contains(BWMStarConf))
 				{

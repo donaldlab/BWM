@@ -31,10 +31,7 @@ public class TreeEdge implements Serializable{
     private LinkedHashSet<Integer> M = null; //the M set (vertices have molecule index-relative numbering)
     private LinkedHashSet<Integer> L = null; //the L set (vertices have molecule index-relative numbering)
     private LinkedHashSet<Integer> lambda = null; //the lambda set (vertices have molecule index-relative numbering)
-    private LinkedHashSet<Integer> leftL = null;
-    private LinkedHashSet<Integer> rightL = null;
 
-    private LinkedHashSet<Integer> leftOnlyL = null;
 
     private LinkedHashSet<TreeEdge> Fset = null; // list to contain the F set of the edges
 
@@ -105,6 +102,25 @@ public class TreeEdge implements Serializable{
         solutionSpace = space;
     }
 
+	public long computeTESS()
+	{
+		long leftTESS = 0;
+		if(leftChild != null)
+			leftTESS = leftChild.getCofEdge().computeTESS();
+		long rightTESS = 0;
+		if(rightChild !=null)
+			rightTESS = rightChild.getCofEdge().computeTESS();
+		long selfTESS = 1;
+        for (int i=0; i<numStates.length; i++){
+            if (M.contains(molResMap[i]) || lambda.contains(molResMap[i])){
+                selfTESS *= numStates[i];
+            }
+        }
+
+		return leftTESS + rightTESS + selfTESS;
+
+	}
+
     public void compLlambda(){
 		compLlambda(true);
 	}
@@ -118,9 +134,6 @@ public class TreeEdge implements Serializable{
             L.add(c.getv1());
             L.add(c.getv2());
             L.removeAll(M);
-            leftL = L;
-            leftOnlyL = leftL;
-            rightL = L;
             lambda = new LinkedHashSet<Integer>(L); // as the lambda set and L set for a leaf node would be the same
         }
 
@@ -132,11 +145,6 @@ public class TreeEdge implements Serializable{
             lambda.removeAll(M); //the difference between the M set for this edge and the uMc set is equal to the lambda set
 
             L = new LinkedHashSet<Integer>(lambda);
-            leftL = new LinkedHashSet<Integer>();
-            leftOnlyL = new LinkedHashSet<Integer>(lambda);
-            rightL = new LinkedHashSet<Integer>();
-            leftL.addAll(clc.getCofEdge().getleftOnlyL());
-            rightL.addAll(c.getrc().getCofEdge().getL());
             L.addAll(clc.getCofEdge().getL()); //add the L set of the left edge
             L.addAll(c.getrc().getCofEdge().getL()); //add the L set of the right edge
         }
@@ -169,12 +177,12 @@ public class TreeEdge implements Serializable{
             }
         }
 		printTree("");
-		System.out.println("initializing matrix with "+size+" states...");
+		debugPrint("initializing matrix with "+size+" states...");
         A = new int[size][lambda.size()];
 		if(EnumerateEnsembles)
 		{
 			A2 = new ArrayList<PriorityQueue<Conf>>(size);
-			System.out.println("Basic matrix generated.");
+			debugPrint("Basic matrix generated.");
 			int numQueue = 0;
 			int pow = 0;
 			while(A2.size() < size)
@@ -184,7 +192,7 @@ public class TreeEdge implements Serializable{
 				A2.add(newQueue);
 				if(numQueue%Math.pow(10,pow)==0)
 				{
-					System.out.println(numQueue);
+					debugPrint(numQueue);
 					pow++;
 				}
 			}
@@ -198,15 +206,11 @@ public class TreeEdge implements Serializable{
             }
         }
 
-		System.out.println("initialized matrix with "+size+" states.");
+		debugPrint("initialized matrix with "+size+" states.");
     }
 
     public LinkedHashSet<Integer> getL(){
         return L;
-    }
-
-    public LinkedHashSet<Integer> getleftOnlyL(){
-        return leftOnlyL;
     }
 
     public LinkedHashSet<Integer> getM(){
@@ -243,7 +247,7 @@ public class TreeEdge implements Serializable{
         Object arrayLambda[] = lambda.toArray();
 
         int curState[] = new int[maxDepth];
-        int bestState[] = new int[maxDepth]; //This becomes a heap if we port directly.
+        int bestState[] = new int[maxDepth];
         for (int i=0; i<maxDepth; i++){
             curState[i] = -1;
             bestState[i] = -1;
@@ -284,19 +288,12 @@ public class TreeEdge implements Serializable{
 
 				PriorityQueue<Conf> conformationHeap = A2.get(computeIndexInA(curState));
 				Conf newConf = new Conf(curState.clone(), 0, rtm);
-				/*
-				if(newConf.toString().length() < 3 && lambda.size() > 0)
-				{
-					System.err.println("Empty heap should not be empty.");
-					System.exit(-1);
-				}
-				*/
+
 				newConf.selfEnergy = en[1];
 				newConf.energy = en[1] + energy_ll;
 				if(leftChild != null)
 					newConf.leftEnergy = energy_ll;
-				//if(conformationHeap.size() < 1)
-					conformationHeap.add(newConf);
+				conformationHeap.add(newConf);
 
 				if(conformationHeap.size() < 1)
 					System.exit(-1);
@@ -493,6 +490,16 @@ public class TreeEdge implements Serializable{
                     out+=""+heap+"\n";
             }
         }
+		long numConfs = 1;
+		for(int i : getM())
+		{
+			numConfs*=numStates[invResMap[i]];	
+		}
+		for(int i : getLambda())
+		{
+			numConfs*=numStates[invResMap[i]];	
+		}
+		out+=" Conformations: "+numConfs;
         System.out.println(out);
         if(leftChild != null)
             leftChild.getCofEdge().printTree(prefix+"+L--");
@@ -602,7 +609,7 @@ public class TreeEdge implements Serializable{
                         }
                         else
                         {
-                            System.out.println("AHHHH NULL RTM "+e.getrtm()+", "+e.getM());
+                            System.out.println("Null RoyTypeMap "+e.getrtm()+", "+e.getM());
                             e.printTree("");
                         }
 					
@@ -642,18 +649,10 @@ public class TreeEdge implements Serializable{
             ai=rtm[i][curState[i]].aa;
             ri=rtm[i][curState[i]].rot;
             if(i>=M.size()){
-                /*
-				en[1]+=eMatrix[pi][ai][ri][pi][0][1]; //add the self energy of the rotamer of the lambda residue
-				en[1]+=eMatrix[pi][ai][ri][pi][0][0];
-                 */
                 en[1]+=eMatrix.getShellRotE(pi, ai, ri);
                 en[1]+=eMatrix.getIntraE(pi, ai, ri);
             }
 
-            /*
-			en[0]+=eMatrix[pi][ai][ri][pi][0][1]; //add the self energy of the rotamer of the lambda residue
-			en[0]+=eMatrix[pi][ai][ri][pi][0][0];
-             */
             en[0]+=eMatrix.getShellRotE(pi, ai, ri);
             en[0]+=eMatrix.getIntraE(pi, ai, ri);
 
@@ -667,13 +666,10 @@ public class TreeEdge implements Serializable{
                 if(G.edgeExists(molResMap[pi],molResMap[pj])){  // if edge exists between residues in the interaction graph
 
                     if(j<M.size()) //intreacting between M set
-                        //en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
                         en[0]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
                     else 
                     { //interaction between lambda set or M and lambda set
-                        //en[0]+=eMatrix[pi][ai][ri][pj][aj][rj];
                         en[0]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
-                        //en[1]+=eMatrix[pi][ai][ri][pj][aj][rj];
                         en[1]+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
 
                     }
@@ -711,195 +707,6 @@ public class TreeEdge implements Serializable{
 
         }       
         return energy;
-    }
-    
-    private double debugConformationEnergy(RotTypeMap[] curState, PairwiseEnergyMatrix energyMatrix)
-    {
-    	HashSet<String> prunedEdges = new HashSet<String>();
-    	prunedEdges.add("0,6");
-    	prunedEdges.add("0,7");
-    	prunedEdges.add("0,8");
-    	prunedEdges.add("0,9");
-    	prunedEdges.add("1,2");
-    	prunedEdges.add("1,3");
-    	prunedEdges.add("1,6");
-    	prunedEdges.add("1,7");
-    	prunedEdges.add("1,8");
-    	prunedEdges.add("1,9");
-    	prunedEdges.add("2,4");
-    	prunedEdges.add("2,6");
-    	prunedEdges.add("2,7");
-    	prunedEdges.add("2,8");
-    	prunedEdges.add("2,9");
-    	prunedEdges.add("3,4");
-    	prunedEdges.add("3,6");
-    	prunedEdges.add("3,7");
-    	prunedEdges.add("3,8");
-    	prunedEdges.add("3,9");
-    	prunedEdges.add("4,5");
-    	prunedEdges.add("4,6");
-    	prunedEdges.add("4,7");
-    	prunedEdges.add("4,8");
-    	prunedEdges.add("4,9");
-    	prunedEdges.add("5,8");
-    	prunedEdges.add("5,9");
-    	prunedEdges.add("6,7");
-    	prunedEdges.add("6,8");
-    	prunedEdges.add("6,9");
-    	prunedEdges.add("7,9");
-    	prunedEdges.add("8,9");
-
-
-        int pi=0,ai=0,ri=0,pj=0,aj=0,rj=0;
-        double energy = 0;//energyMatrix.getShellShellE(); //Add shell shell energy
-        double sparseDifference = 0;
-        if(curState == null)
-        	return 0;
-        int numPos = curState.length;
-        for(int i=0;i<numPos;i++){
-        	if(curState[i] == null) 
-        		continue;
-            pi=curState[i].pos;
-            ai=curState[i].aa;
-            ri=curState[i].rot;
-            if(!L.contains(molResMap[i]) || lambda.contains(molResMap[i]))
-            	continue;
-            energy+=energyMatrix.getShellRotE(pi, ai, ri);
-            energy+=energyMatrix.getIntraE(pi, ai, ri);
-        
-            for(int j=i+1;j<numPos;j++){
-            	if(curState[j] == null)
-            		continue;
-            	if(lambda.contains(molResMap[j]))
-            		continue;
-            	if(!M.contains(molResMap[j]) && !L.contains(molResMap[j]))
-            		continue;
-                pj=curState[j].pos;
-                aj=curState[j].aa;
-                rj=curState[j].rot;
-        		double checkEnergy = energyMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
-        		if(prunedEdges.contains(i+","+j))
-        		{
-        			sparseDifference += checkEnergy;
-        		}
-
-                energy+=energyMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
-            }
-
-        }
-        return energy;
-    }
-
-    private void checkConformation(RotTypeMap[] curState, PairwiseEnergyMatrix energyMatrix, String prefix)
-    {
-    	prefix+="-"+lambda+":";
-    	HashSet<String> prunedEdges = new HashSet<String>();
-		prunedEdges.add("0,1");
-		prunedEdges.add("0,2");
-		prunedEdges.add("0,3");
-		prunedEdges.add("0,4");
-		prunedEdges.add("0,5");
-		prunedEdges.add("0,6");
-		prunedEdges.add("0,7");
-		prunedEdges.add("0,8");
-		prunedEdges.add("0,9");
-		prunedEdges.add("0,10");
-		prunedEdges.add("0,12");
-		prunedEdges.add("0,13");
-		prunedEdges.add("1,3");
-		prunedEdges.add("1,4");
-		prunedEdges.add("1,5");
-		prunedEdges.add("1,6");
-		prunedEdges.add("1,7");
-		prunedEdges.add("1,8");
-		prunedEdges.add("1,9");
-		prunedEdges.add("1,10");
-		prunedEdges.add("1,11");
-		prunedEdges.add("1,12");
-		prunedEdges.add("1,13");
-		prunedEdges.add("2,4");
-		prunedEdges.add("2,5");
-		prunedEdges.add("2,6");
-		prunedEdges.add("2,7");
-		prunedEdges.add("2,8");
-		prunedEdges.add("2,9");
-		prunedEdges.add("2,10");
-		prunedEdges.add("2,11");
-		prunedEdges.add("2,12");
-		prunedEdges.add("3,6");
-		prunedEdges.add("3,7");
-		prunedEdges.add("3,8");
-		prunedEdges.add("3,9");
-		prunedEdges.add("3,10");
-		prunedEdges.add("3,11");
-		prunedEdges.add("3,12");
-		prunedEdges.add("4,7");
-		prunedEdges.add("4,8");
-		prunedEdges.add("4,9");
-		prunedEdges.add("4,10");
-		prunedEdges.add("4,11");
-		prunedEdges.add("5,7");
-		prunedEdges.add("5,8");
-		prunedEdges.add("5,9");
-		prunedEdges.add("6,7");
-		prunedEdges.add("7,8");
-		prunedEdges.add("7,9");
-		prunedEdges.add("7,10");
-		prunedEdges.add("7,11");
-		prunedEdges.add("7,12");
-		prunedEdges.add("7,13");
-		prunedEdges.add("8,10");
-		prunedEdges.add("8,11");
-		prunedEdges.add("8,12");
-		prunedEdges.add("8,13");
-		prunedEdges.add("9,12");
-		prunedEdges.add("10,13");
-
-        int pi=0,ai=0,ri=0,pj=0,aj=0,rj=0;
-        double energy = 0;//energyMatrix.getShellShellE(); //Add shell shell energy
-        System.out.println(prefix+"Shell: "+energy);
-        double sparseDifference = 0;
-        if(curState == null)
-        	return;
-        int numPos = curState.length;
-        for(int i=0;i<numPos;i++){
-        	if(curState[i] == null) 
-        		continue;
-            pi=curState[i].pos;
-            ai=curState[i].aa;
-            ri=curState[i].rot;
-            if(!L.contains(molResMap[i]) || lambda.contains(molResMap[i]))
-            	continue;
-            energy+=energyMatrix.getShellRotE(pi, ai, ri);
-            energy+=energyMatrix.getIntraE(pi, ai, ri);
-            System.out.println(prefix+"Intra "+i+(energyMatrix.getShellRotE(pi, ai, ri)+energyMatrix.getIntraE(pi, ai, ri))+": "+energy);
-
-            for(int j=i+1;j<numPos;j++){
-            	if(curState[j] == null)
-            		continue;
-            	if(lambda.contains(molResMap[j]))
-            		continue;
-            	if(!M.contains(molResMap[j]) && !L.contains(molResMap[j]))
-            		continue;
-                pj=curState[j].pos;
-                aj=curState[j].aa;
-                rj=curState[j].rot;
-        		double checkEnergy = energyMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
-        		if(prunedEdges.contains(i+","+j))
-        		{
-        			sparseDifference += checkEnergy;
-        		}
-
-                energy+=energyMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
-                System.out.println(prefix+"("+i+"-"+ai+"-"+ri+","+j+"-"+aj+"-"+rj+"): "+energyMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj)+"="+energy);
-            }
-
-        }
-        System.out.println(prefix+"Full Energy: "+energy+", Sparse difference: "+sparseDifference+", Sparse energy should be: "+(energy-sparseDifference));
-//        if(leftChild!=null)
-//        	leftChild.getCofEdge().checkConformation(curState, energyMatrix,prefix);
-//        if(rightChild!=null)
-//        	rightChild.getCofEdge().checkConformation(curState, energyMatrix,prefix);
     }
     
     //Compute the best state for each vertex in lambda, for the given state assignment in M
@@ -968,13 +775,6 @@ public class TreeEdge implements Serializable{
 
     //Finds the best energy and outputs the corresponding state, using the information for this edge;
     //	This must be called only for the root edge, since otherwise not all elements of aaRotPos[bestInd][][] are defined
-    //Modify this function and add what to do for rootedge in each and every function
-    /** This is the method you need to tweak to make things work.
-     * To wit:
-     * 1. Poll 
-     * 2. Rebalance
-     * 3. Process rightSide?
-     * */
     public void outputBestStateE(Molecule m, RotamerLibrary rl, String ligType){
 
         if (!isRootEdge) {
@@ -990,7 +790,6 @@ public class TreeEdge implements Serializable{
         // the energy matrix and the A matrix will only have one entry 	
         RotTypeMap bestPosAARot[] = new RotTypeMap[molResMap.length]; // creating a variable to store the best energy returned by the Btrack Procedure, molresMap
         // length is equal to the number of residues being designed
-        /** TODO: Backtrack entry point. */
         bTrackBestConf(bestPosAARot,A[0]);
         System.out.print("GMEC: ");
 
@@ -1030,14 +829,8 @@ public class TreeEdge implements Serializable{
         if(printHeap)
             System.out.println("Peek heap: "+resultEnergy);
         resultEnergy += shellShellEnergy;
-        bTrackBestConfRemoveEarlyNew(bestPosAARot, new int[]{});
+        nextBestConformation(bestPosAARot, new int[]{});
         double fullEnergy = evaluateConformation(bestPosAARot, matrix);
-        if(Math.abs(resultEnergy - fullEnergy) > 5)
-        {
-
-            checkConformation(bestPosAARot, matrix,"");
-        	System.out.println("Too much energy difference: "+fullEnergy+", "+resultEnergy);
-        }
         
         System.out.println("RTM result: energy "+fullEnergy+" "+RTMToString(bestPosAARot));
         System.out.print("GMEC: ");
@@ -1156,14 +949,13 @@ public class TreeEdge implements Serializable{
         return;
     }
     
-    private void debugPrint(String s)
+    private void debugPrint(Object s)
     {
     	if(printHeap)
     		System.out.println(s);
     }
 
     /**
-     * New Algorithm should:
      * 
      * 1. Take in current M conformation
      * 2. Populate result with best lambda conformation as a RotTypeMap[]
@@ -1171,9 +963,8 @@ public class TreeEdge implements Serializable{
      * 4. Reinsert the lambda conformation into the A2 heap
      * 5. Populate RotTypeMap[] nextBestConf with what's on top of the heap now. 
      * 
-     * @return
      */
-    public void bTrackBestConfRemoveEarlyNew(RotTypeMap bestPosAARot[], int[] bestState)
+    public void nextBestConformation(RotTypeMap bestPosAARot[], int[] bestState)
     {
         boolean reinsert = false;
         PriorityQueue<Conf> outHeap = getHeap(bestPosAARot, bestState, ""+this.hashCode());
@@ -1182,8 +973,6 @@ public class TreeEdge implements Serializable{
         if(printHeap)
             outputInitialDebugData(bestPosAARot, outHeap);
         
-        if(outHeap.size() > 1 && lambda.size() < 1)
-            System.out.println("Impossibiruuuu");
         debugPrint("Begin. Polling heap...");
         Conf nextState = outHeap.poll();
         /* Add lambda to the solution */
@@ -1201,7 +990,7 @@ public class TreeEdge implements Serializable{
             int[] leftM = getMstateForEdgeCurState(leftMLambda, leftEdge);
             TreeEdge rightEdge = rightChild.getCofEdge();
             
-            debugPrint("Getting right solutoins for "+RTMToString(bestPosAARot));
+            debugPrint("Getting right solutions for "+RTMToString(bestPosAARot));
             List<RightConf> rightConfs = getRightSolutions(bestPosAARot);
             if(rightConfs.size() < 1)
             {
@@ -1212,8 +1001,6 @@ public class TreeEdge implements Serializable{
             }
             debugPrint("Getting secondary heap from "+leftEdge.L+leftEdge.lambda+"...");
             LazyHeap<Conf> secondaryHeap = getSecondaryHeap(bestPosAARotOld, leftM);
-            if(leftChild.getCofEdge().lambda.size() < 1 && secondaryHeap.size() > 1)
-                System.out.println("IMPOSSIBIRU!?!?!!");
             if((secondaryHeap.dirty || secondaryHeap.size() < 1) && leftEdge.moreConformations(bestPosAARotOld, leftM)) 
             {
             	debugPrint("Populating heap with new conformation...");
@@ -1221,48 +1008,38 @@ public class TreeEdge implements Serializable{
                 RotTypeMap[] bestPosAARotLeft = Arrays.copyOf(bestPosAARotOld, bestPosAARot.length);
                 
                 double newLeftEnergy = leftEdge.peekEnergy(bestPosAARotLeft, leftM);
-                leftEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotLeft, leftM);
+                leftEdge.nextBestConformation(bestPosAARotLeft, leftM);
                 Conf newLeftConf = new Conf(bestPosAARotLeft, newLeftEnergy);
                 newLeftConf.updateLeftEnergy(rightConfs.get(0).energy);
                 secondaryHeap.cleanNode = newLeftConf;
                 secondaryHeap.add(newLeftConf);
                 secondaryHeap.dirty = false;
-                if(leftChild.getCofEdge().lambda.size() < 1 && secondaryHeap.size() > 1)
-                    System.out.println("IMPOSSIBIRU!?!?!!");
             }
             
-            /* Maintain cleanliness */
-    		PriorityQueue<Conf> copy = new PriorityQueue<Conf>();
+			if(printHeap)
+			{
+				/* Maintain cleanliness */
+				PriorityQueue<Conf> copy = new PriorityQueue<Conf>();
 
-    		for(Conf c : secondaryHeap)
-    		{
-    		    copy.add(c);
-    		}
+				for(Conf c : secondaryHeap)
+				{
+					copy.add(c);
+				}
 
-    		while(!copy.isEmpty())
-    		{
-    		    Conf c = copy.poll();
-    		    debugPrint(c+"$"+c.energy+", left "+c.leftEnergy+", self "+c.selfEnergy+", right "+c.rightEnergy);
-    		}
-            Conf leftConf = secondaryHeap.poll();
-            debugPrint("Polled left conformation from secondary heap: "+leftConf+", "+leftConf.energy);
+				while(!copy.isEmpty())
+				{
+					Conf c = copy.poll();
+					debugPrint(c+"$"+c.energy+", left "+c.leftEnergy+", self "+c.selfEnergy+", right "+c.rightEnergy);
+				}
 
-    		PriorityQueue<Conf> copy2 = new PriorityQueue<Conf>();
-
-    		for(Conf c : secondaryHeap)
-    		{
-    		    copy2.add(c);
-    		}
-
-    		while(!copy2.isEmpty())
-    		{
-    		    Conf c = copy2.poll();
-    		    debugPrint(c+"$"+c.energy+", left "+c.leftEnergy+", self "+c.selfEnergy+", right "+c.rightEnergy);
-    		}
-            leftConf.fillConf(bestPosAARot);
-            
-            if(leftConf == secondaryHeap.cleanNode)
-                secondaryHeap.dirty = true;
+			}
+			
+			Conf leftConf = secondaryHeap.poll();
+			debugPrint("Polled left conformation from secondary heap: "+leftConf+", "+leftConf.energy);
+			leftConf.fillConf(bestPosAARot);
+				
+			if(leftConf == secondaryHeap.cleanNode)
+				secondaryHeap.dirty = true;
             int index = getRightOffset(leftConf.toString());
             debugPrint("Right offset index is "+index);
 
@@ -1295,14 +1072,12 @@ public class TreeEdge implements Serializable{
                 RotTypeMap[] bestPosAARotLeft = Arrays.copyOf(bestPosAARotOld, bestPosAARot.length);
                 
                 double newLeftEnergy = leftEdge.peekEnergy(bestPosAARotLeft, leftM);
-                leftEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotLeft, leftM);
+                leftEdge.nextBestConformation(bestPosAARotLeft, leftM);
                 Conf newLeftConf = new Conf(bestPosAARotLeft, newLeftEnergy);
                 newLeftConf.updateLeftEnergy(rightConfs.get(0).energy);
                 secondaryHeap.cleanNode = newLeftConf;
                 secondaryHeap.add(newLeftConf);
                 secondaryHeap.dirty = false;
-                if(leftChild.getCofEdge().lambda.size() < 1 && secondaryHeap.size() > 1)
-                    System.out.println("IMPOSSIBIRU!?!?!!");
             }
 
             if(secondaryHeap.size() > 0)
@@ -1323,7 +1098,7 @@ public class TreeEdge implements Serializable{
             int[] leftM = getMstateForEdgeCurState(leftMLambda, leftEdge);
             if(leftM == null)
                 leftM = leftMLambda;
-            leftEdge.bTrackBestConfRemoveEarlyNew(bestPosAARot, leftM);        
+            leftEdge.nextBestConformation(bestPosAARot, leftM);        
             nextState.updateLeftEnergy(leftEdge.peekEnergy(bestPosAARot, leftM));
             debugPrint(nextState+" has new energy "+nextState.energy);
             reinsert = leftEdge.moreConformations(bestPosAARot, leftM);
@@ -1362,7 +1137,6 @@ public class TreeEdge implements Serializable{
 		    System.out.println(c+"$"+c.energy+", left "+c.leftEnergy+", self "+c.selfEnergy+", right "+c.rightEnergy);
 		}
 
-		//checkConformation(bestPosAARot, energyMatrix);
 		System.out.println("====================== end "+L+lambda+":"+curString+"========================");
 	}
 
@@ -1372,7 +1146,6 @@ public class TreeEdge implements Serializable{
 		String curString = RTMToString(bestPosAARot);
 		System.out.println("====================== start "+L+lambda+":"+curString+"========================");
 		PriorityQueue<Conf> copy = new PriorityQueue<Conf>();
-		//checkConformation(bestPosAARot, energyMatrix);
 		for(Conf c : outHeap)
 		{
 		    copy.add(c);
@@ -1397,7 +1170,7 @@ public class TreeEdge implements Serializable{
 		RotTypeMap[] bestPosAARotRight = Arrays.copyOf(bestPosAARotOld, bestPosAARotOld.length);
 		double newRightEnergy = rightEdge.peekEnergy(bestPosAARotRight, rightM);
 
-		rightEdge.bTrackBestConfRemoveEarlyNew(bestPosAARotRight, rightM);
+		rightEdge.nextBestConformation(bestPosAARotRight, rightM);
 		RightConf newRight = new RightConf(bestPosAARotRight, newRightEnergy);
 		rightConfs.add(newRight);
 		if(printHeap)
@@ -1406,8 +1179,7 @@ public class TreeEdge implements Serializable{
 			System.out.println("Right conf list:");
 			for(RightConf conf : rightConfs)
 			{
-				System.out.println(conf+", energy "+conf.energy+", full energy "+debugConformationEnergy(conf.fullConformation, energyMatrix));
-				//checkConformation(conf.fullConformation, energyMatrix,"");
+				System.out.println(conf+", energy "+conf.energy);
 			}
 		}
 		if(printHeap)
@@ -1429,7 +1201,7 @@ public class TreeEdge implements Serializable{
             Conf c = heap.peek();
             if(c.energy < lastEnergy)
             {
-                System.out.println("AHHHHH");
+                System.out.println("Heap out of order. Error.");
             }
             copy.add(c);
             lastEnergy = c.energy;
@@ -1452,16 +1224,6 @@ public class TreeEdge implements Serializable{
         return index;
     }
 
-    private String getLeftConfString(RotTypeMap[] bestPosAARot) {
-        RotTypeMap[] bestPosAARot2 = Arrays.copyOf(bestPosAARot, bestPosAARot.length);
-        for(int l : rightL)
-        {
-            bestPosAARot2[invResMap[l]] = null;
-        }
-        String leftConfString = RTMToString(bestPosAARot2);
-        return leftConfString;
-    }
-
     private PriorityQueue<Conf> getHeap(RotTypeMap[] bestPosAARot, int[] bestState, String id)
     {
         String curString = RTMToPrefix(bestPosAARot)+id;
@@ -1474,11 +1236,7 @@ public class TreeEdge implements Serializable{
                 {
                     if(lambda.size() < 1)
                     {
-                        /* TODO: THIS IS A HACK? */
                         copyParentRTM();
-                        //M = parent.M;
-                        //lambda = parent.lambda;
-                        //L = parent.L;
                         Conf newConf = new Conf(bestState, 0, rtm);
                         int[] leftM = getMstateForEdgeCurState(bestState, leftChild.getCofEdge());
                         int[] rightM = getMstateForEdgeCurState(bestState, rightChild.getCofEdge());
@@ -1495,8 +1253,6 @@ public class TreeEdge implements Serializable{
                         System.exit(-1);
                     }
                 }
-                if(lambda.size() < 1 && outHeap.size() > 1)
-                    System.out.println("IMPOSSIBIRU!?");
                 checkHeap(outHeap);
 
                 for(Conf c : outHeap)
@@ -1567,8 +1323,6 @@ public class TreeEdge implements Serializable{
             secondaryHeapMap.put(curString, newHeap);
         }
         LazyHeap<Conf> out = secondaryHeapMap.get(curString);
-        if(leftChild.getCofEdge().lambda.size() < 1 && out.size() > 1)
-            System.out.println("IMPOSSIBIRU!?!?!!");
         //checkHeap(out);
         return out;
     }
@@ -1599,7 +1353,6 @@ public class TreeEdge implements Serializable{
         for(RightConf conf : rightSolutions)
         {
         	System.out.println(conf+", energy "+conf.energy);
-        	//checkConformation(conf.fullConformation, energyMatrix,"");
         }
         }
         return rightSolutions;
@@ -1620,32 +1373,6 @@ public class TreeEdge implements Serializable{
         return heap.peek().energy;
     }
     
-
-    private String RTMToLString (RotTypeMap[] bestPosAARot) {
-        String output = "[";
-        //TODO: STORE THESE!!!
-        Integer[] MArray = M.toArray(new Integer[]{});
-        Integer[] LArray = leftL.toArray(new Integer[]{});
-        Integer[] outArray = new Integer[MArray.length + LArray.length];
-        for(int i = 0; i < MArray.length; i++)
-        {
-            outArray[i] = MArray[i]; 
-        }
-        for(int i = 0; i < LArray.length; i++)
-        {
-            outArray[i+MArray.length] = LArray[i];
-        }
-        Arrays.sort(outArray);
-        for(int i : outArray)
-        {
-            RotTypeMap current  = bestPosAARot[invResMap[i]];
-
-            if(current!=null)
-                output+= current.pos+":"+current.aa+"-"+current.rot+" ";
-        }
-        //System.out.println("Constructed "+output);
-        return output +"]";
-    }
 
     private String RTMToPrefix (RotTypeMap[] bestPosAARot) {
         String output = "[";
@@ -1736,7 +1463,7 @@ public class TreeEdge implements Serializable{
         
         private void reportError(int previous, int result)
         {
-            System.err.println("AAH!!! OVERWRITE "+previous+" with "+result);
+            System.err.println("Error. Overwriting "+previous+" with "+result);
             System.exit(-1);
         }
 
@@ -1786,9 +1513,10 @@ public class TreeEdge implements Serializable{
                     if(previous != null)
                     {
                         if (result.aa != previous.aa)
-                            System.out.println("AAH!!! OVERWRITE "+previous.aa+" with "+result.aa);
+                            System.out.println("Error. Overwriting "+previous.aa+" with "+result.aa);
+
                         if(result.rot != previous.rot)
-                            System.out.println("AAH!!! OVERWRITE "+previous.rot+" with "+result.rot);
+                            System.out.println("Error. Overwriting "+previous.rot+" with "+result.rot);
                     }
                     bestPosAARot[i] = conf[i];
 
@@ -1839,7 +1567,7 @@ public class TreeEdge implements Serializable{
 
         private void reportError(int previous, int result)
         {
-            System.err.println("AAH!!! OVERWRITE "+previous+" with "+result);
+            System.err.println("Error. Overwriting "+previous+" with "+result);
             System.exit(-1);
         }
         
