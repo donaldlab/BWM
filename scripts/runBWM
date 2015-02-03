@@ -4,4 +4,4 @@ print "Hello world!\n";
 $ENV{CLASSPATH} = "$ENV{CLASSPATH}:bin:src/BranchDecomposition/jmatharray.jar";
 $currentDirectory = getcwd();
 print "We're in $currentDirectory\n";
-system("java -Xmx60000M kstar/KStar -c config/KStar.cfg doBWM config/System.cfg config/GD.cfg");
+system("java -Xmx4000M kstar/KStar -c config/KStar.cfg doBWM System.cfg DEE.cfg");

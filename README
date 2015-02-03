@@ -18,3 +18,10 @@ java -Xmx1024M KStar doBranchDGMEC System.cfg GD.cfg >! logGD1amu.out
 
 
 For the doBranchDGMEC run, -Xmx may have to be increased significantly in some cases (e.g., 10000M-30000M).
+
+
+Additional commands:
+
+doBranchDGMEC 
+genSparseGraph
+prunedObjInfo - if DEE pruning objects have been computed previously, set to TRUE. Defaults to FALSE.

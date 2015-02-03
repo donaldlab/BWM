@@ -103,5 +103,5 @@ chdir("..");
 $ENV{CLASSPATH} = "$ENV{CLASSPATH}:bin:src/BranchDecomposition/jmatharray.jar";
 $currentDirectory = getcwd();
 print "We're in $currentDirectory\n";
-system("java -Xmx60000M kstar/KStar -t 12 -c config/KStar.cfg doDEE config/$args[0]System.cfg config/$args[0]BWM.cfg");
+system("java -Xmx2000M kstar/KStar -t 12 -c config/KStar.cfg doDEE config/$args[0]System.cfg config/$args[0]BWM.cfg");
 print "End\n";
