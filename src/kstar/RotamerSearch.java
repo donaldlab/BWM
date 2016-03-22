@@ -649,6 +649,35 @@ public class RotamerSearch implements Serializable
 
 		return bestE;
 	}
+
+	public void printOneAndTwoBodyEnergies(int[] ASAANums, int[] curStrRotNum) {
+		boolean fullOrSparse = arpMatrix.doSparse;
+		arpMatrix.doSparse = false;
+
+		float bestE = arpMatrix.getShellShellE(); // Add shell-shell energy
+		float missingEnergy = 0;
+		System.out.println("Shell-shell energy:"+bestE);
+	
+		for(int i=0;i<ASAANums.length;i++) {
+			double oneBody = arpMatrix.getIntraAndShellE(i, ASAANums[i], curStrRotNum[i]);
+			bestE += oneBody;//Add the intra-rotamer and shell energies for each rotamer
+			System.out.println("("+i+")"+" one body: "+oneBody);
+			for(int j=i+1;j<ASAANums.length;j++){ // Add the pairwise energies
+				InteractionGraph G = arpMatrix.G;
+				double twoBody = arpMatrix.getPairwiseE(i, ASAANums[i], curStrRotNum[i], j, ASAANums[j], curStrRotNum[j]);
+				if(G.edgeExists(i,j))
+					System.out.println("("+i+","+j+")"+" pairwise: "+twoBody);
+				else
+				{
+					System.out.println("OMITTED: ("+i+","+j+")"+" pairwise: "+twoBody);
+					missingEnergy += twoBody;
+				}
+				bestE += twoBody;
+			}
+		}
+		arpMatrix.doSparse = fullOrSparse;
+		System.out.println("Total energy: "+bestE+" Missing Energy: "+missingEnergy);
+	}
 //// END HELPER FUNCTION SECTION
 
 	
@@ -4217,8 +4246,6 @@ public class RotamerSearch implements Serializable
 
 			//debugPS.print("curRot: ");for(int i=0;i<numInAS;i++)debugPS.print(curASRotNum[i]+" ");debugPS.println(curLigRotNum);debugPS.flush();
 			
-			
-			
 			// After minimization do a m.updateCoordinates() to
 			//  resync the actualCoordinates which were changed
 			//  in the minimization procedure
@@ -4410,7 +4437,9 @@ public class RotamerSearch implements Serializable
 							logPS.print("minBound: "+minELowerBound+" ");
 						logPS.print("bestE: "+getBestE());
 						if(arpMatrix.doSparse)
+						{
 							logPS.print(" fullE: " +full_Or_sparseE);// SJ - printing the full energy
+						}
 						logPS.println();
 						//if (numConfsOutput%100==0) //flush only every 100 confs, since output is relatively *very* computationally expensive
 							logPS.flush();

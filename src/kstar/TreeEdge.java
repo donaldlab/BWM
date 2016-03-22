@@ -294,6 +294,10 @@ public class TreeEdge implements Serializable{
 				if(leftChild != null)
 					newConf.leftEnergy = energy_ll;
 				conformationHeap.add(newConf);
+				if(conformationHeap.size() > 3)
+				{
+					conformationHeap.poll();
+				}
 
 				if(conformationHeap.size() < 1)
 					System.exit(-1);
@@ -635,6 +639,45 @@ public class TreeEdge implements Serializable{
 
 
 
+    private void printOneAndTwoBodyEnergies(RotTypeMap rtm[],PairwiseEnergyMatrix eMatrix)
+	{
+
+        int pi=0,ai=0,ri=0,pj=0,aj=0,rj=0;
+        double energySum =eMatrix.getShellShellE(); //Add shell shell energy
+        int numPos = rtm.length;
+
+        for(int i=0;i<numPos;i++){
+
+            pi=rtm[i].pos;
+            ai=rtm[i].aa;
+            ri=rtm[i].rot;
+
+
+			double oneBody = eMatrix.getShellRotE(pi, ai, ri) + eMatrix.getIntraE(pi, ai, ri);
+            energySum+=oneBody;
+
+            for(int j=i+1;j<numPos;j++){
+
+                pj=rtm[j].pos;
+                aj=rtm[j].aa;
+                rj=rtm[j].rot;
+
+
+                if(lambda.contains(i) && (lambda.contains(i) || M.contains(j))){  // if edge exists between residues in the interaction graph
+					double twoBody = eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
+					System.out.println("("+pi+","+pj+"):"+twoBody);
+					energySum+=eMatrix.getPairwiseE(pi, ai, ri, pj, aj, rj);
+                }
+            }
+
+        }
+        if(leftChild != null)
+            leftChild.getCofEdge().printOneAndTwoBodyEnergies(rtm, eMatrix);
+        if(rightChild != null)
+            rightChild.getCofEdge().printOneAndTwoBodyEnergies(rtm, eMatrix);
+
+
+    }
 
     private void computeEforState(int curState[],PairwiseEnergyMatrix eMatrix,Molecule m, InteractionGraph G, float en[]){
 
@@ -831,6 +874,7 @@ public class TreeEdge implements Serializable{
         resultEnergy += shellShellEnergy;
         nextBestConformation(bestPosAARot, new int[]{});
         double fullEnergy = evaluateConformation(bestPosAARot, matrix);
+		printOneAndTwoBodyEnergies(bestPosAARot, matrix);
         
         System.out.println("RTM result: energy "+fullEnergy+" "+RTMToString(bestPosAARot));
         System.out.print("GMEC: ");

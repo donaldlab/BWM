@@ -302,6 +302,8 @@ public class KSParser
 			fixStruct(s);
                 else if (firstToken.equalsIgnoreCase("closeLoop"))
                         closeLoop(s, null);
+		else if (firstToken.equalsIgnoreCase("analyzeSparseEnergy"))
+				computeEnergyOfConformations(s);
                 
 		//exit from all slave nodes
 		cleanUpNodes();
@@ -2368,6 +2370,258 @@ public class KSParser
 ///////////////////////////////////////////////////////////////////////////
 //	End of MIN and MAX Pairwise Energy Precomputation
 ///////////////////////////////////////////////////////////////////////////
+
+	public void computeEnergyOfConformations(String s)
+	{
+
+		// Takes the following parameters
+		// 1: System parameter filename (string)
+		// 2: Mutation search parameter filename (string)
+
+		ParamSet sParams = new ParamSet();
+		sParams.addParamsFromFile(getToken(s,2)); //read system parameters
+		sParams.addParamsFromFile(getToken(s,3)); //read mutation search parameters
+
+		// Pull search parameters
+		String runName = (String)sParams.getValue("RUNNAME");
+		String confResFile = (String)sParams.getValue("CONFRESFILE", "c_"+runName);
+		int numResults = (new Integer((String)sParams.getValue("NUMRESULTS","1"))).intValue();
+		boolean minimizeBB = (new Boolean((String)sParams.getValue("MINIMIZEBB","false"))).booleanValue();
+
+		Perturbation.idealizeSC = (new Boolean((String)sParams.getValue("IDEALIZESIDECHAINS","true"))).booleanValue();
+		boolean doBackrubs = (new Boolean((String)sParams.getValue("DOBACKRUBS", "false"))).booleanValue();
+
+		boolean addWTRotsSomehow = (new Boolean((String)sParams.getValue("ADDWTROTS","false"))).booleanValue();
+		boolean addOrigRots = false, addWTRot = false;
+
+		String backrubFile ="";
+		if(doBackrubs){
+			backrubFile = (String)sParams.getValue("BACKRUBFILE");
+		}
+
+		int numInAS = (new Integer((String)sParams.getValue("STRANDMUTNUMS"))).intValue();
+		String eMatrixNameMin = (String)sParams.getValue("MINENERGYMATRIXNAME", runName+"minM");
+                String eMatrixNameMax = (String)sParams.getValue("MAXENERGYMATRIXNAME", runName+"maxM");
+                int curStrForMatrix = (new Integer((String)sParams.getValue("ONLYSINGLESTRAND","-1"))).intValue();
+                
+                
+		boolean useEref = (new Boolean((String)sParams.getValue("USEEREF","false"))).booleanValue();
+		//boolean prunedRotAtRes[] = (boolean [])readObject(sParams.getValue("PRUNEDROTFILE"),false);
+
+		//PrunedRotamers<Boolean> prunedRotAtResObject = (PrunedRotamers<Boolean>)readObject(sParams.getValue("PRUNEDROTFILE"),false);
+		PrunedRotamers<Boolean> prunedRotAtResObject = PrunedRotamers.createFromFiles(sParams.getValue("RUNNAME"));
+		String bdFile = sParams.getValue("BRANCHDFILE", runName+"_bd");
+		
+		MolParameters mp = loadMolecule(sParams, COMPLEX);
+                
+	
+		boolean useTriples = (new Boolean((String)sParams.getValue("USETRIPLES","false"))).booleanValue();
+		boolean useFlagsAStar = (new Boolean((String)sParams.getValue("USEFLAGSASTAR","false"))).booleanValue();
+
+
+		// DEEPer parameters
+		boolean doPerturbations = (new Boolean((String)sParams.getValue("DOPERTURBATIONS","false"))).booleanValue();//Triggers DEEPer
+		String pertFile = (String)sParams.getValue("PERTURBATIONFILE","defaultPerturbationFileName.pert");//Input file giving perturbation information
+		boolean minimizePerts = (new Boolean((String)sParams.getValue("MINIMIZEPERTURBATIONS","false"))).booleanValue();//Allow continuous minimization with respect to perturbation parameters
+		boolean doMinimize = (new Boolean((String)sParams.getValue("DOMINIMIZE", "false"))).booleanValue();
+		
+		if( addWTRotsSomehow ){
+			if(doPerturbations)//DEEPer allows adding WT rotamers only to the positions they came from, so do that if possible
+				addWTRot = true;
+			else//Otherwise just add them to the rotamer library
+				addOrigRots = true;
+		}
+		
+		RotamerSearch rs = new RotamerSearch(mp.m,mp.numberMutable, mp.strandsPresent, hElect, hVDW, hSteric, true,
+			true, 0.0f, stericThresh, softStericThresh, distDepDielect, dielectConst, doDihedE, doSolvationE, solvScale, softvdwMultiplier, grl,
+			doPerturbations, pertFile, minimizePerts, useTriples, useFlagsAStar);
+		
+		
+
+
+		Molecule m = mp.m;
+		int numberMutable = mp.numberMutable;
+		int strandsPresent = mp.strandsPresent;
+		String[][] strandLimits = mp.strandLimits;
+		boolean[] strandPresent = mp.strandPresent;
+		int[][] strandMut = mp.strandMut;
+		String[][] strandDefault = mp.strandDefault;
+		int numOfStrands = strandMut.length;
+		int mutRes2Strand[] = mp.mutRes2Strand;
+		int mutRes2StrandMutIndex[] = mp.mutRes2StrandMutIndex;
+		
+		if(addOrigRots)
+			RotamerLibrary.addOrigRots(strandMut, EnvironmentVars.aaRotLib, m);
+		
+		int numResidues = numberMutable;
+		
+		//Read the results file into the AA and rot matrices
+		String AAtypes[] = new String[numResults*numResidues];
+		int rotNums[] = new int[numResults*numResidues];
+		readRotResFile(confResFile,AAtypes,rotNums,numResults,numResidues);
+		String curSeq[] = new String[numberMutable];
+		int curSeqInd[] = new int[numberMutable];
+		int curRot[] = new int[numberMutable];
+		
+        loadPairwiseEnergyMatrices(sParams,rs,eMatrixNameMin,doMinimize,eMatrixNameMax,curStrForMatrix);        
+    	if (useEref) { //add the reference energies to the min (and max) intra-energies
+    		float eRef[][] = null;
+    		String eRefName = sParams.getValue("EREFMATRIXNAME", "Eref");
+    		eRef = RotamerSearch.loadErefMatrix(eRefName+".dat");
+    		//rs.loadPairwiseEnergyMatrices(eRefName+".dat", true);
+    		//eRef = getResEntropyEmatricesEref(useEref,rs.getMinMatrix(),rs.strandRot,mp.strandMut,null,mp.numberMutable,mp.mutRes2Strand,mp.mutRes2StrandMutIndex);
+    		rs.addEref(eRef, doMinimize, mp.strandMut);
+    	}
+				
+		int numSaved = 0;
+		for (int curResult=0; curResult<numResults; curResult++){
+
+
+                        if( doPerturbations && curResult>0 ){//Reload the molecule
+                            mp = loadMolecule(sParams, COMPLEX);
+                            m = mp.m;
+                        }
+
+
+			System.out.print("Starting minimization of result "+(curResult+1)+"..");
+			
+			Amber96ext a96ff = new Amber96ext(m, distDepDielect, dielectConst, doSolvationE, solvScale, softvdwMultiplier);
+			
+			StrandRotamers[] strandRot = new StrandRotamers[numOfStrands];
+			for(int i=0; i<numOfStrands;i++){
+                            if(doPerturbations)
+                                strandRot[i] = new StrandRCs(grl[i],m.strand[i]);
+                            else
+				strandRot[i] = new StrandRotamers(grl[i],m.strand[i]);
+			}
+			
+			//the starting index for the current result within AAtypes[] and rotNums[]
+			int startInd = numResidues*curResult;
+			a96ff.calculateTypesWithTemplates();
+		
+			int ctr = 0;
+			for(int str=0;str<numOfStrands;str++){	
+				for(int j=0;j<strandMut[str].length;j++){
+					curSeq[ctr] = AAtypes[startInd+ctr];
+					curSeqInd[ctr] = strandRot[str].rl.getAARotamerIndex(curSeq[ctr]);
+					strandRot[str].setAllowable(strandMut[str][j],curSeq[ctr]);
+
+                                        if( doPerturbations && addWTRot )//Store this before mutating anything
+                                            ((StrandRCs)strandRot[str]).storeWTRotamer(m, strandMut[str][j]);
+
+					if(m.strand[str].isProtein)
+						strandRot[str].changeResidueType(m,strandMut[str][j],curSeq[ctr],true,true);
+					m.strand[str].residue[strandMut[str][j]].flexible = true;
+					ctr++;
+				}
+			}
+			
+
+                        if(doPerturbations){//This has to be done after setting the allowables
+                            PertFileHandler.readPertFile(pertFile, m, strandRot);
+                            for(int str=0;str<numOfStrands;str++){
+                                ((StrandRCs)strandRot[str]).addUnperturbedRCs(addWTRot);
+                                ((StrandRCs)strandRot[str]).countRCs();
+                            }
+                        }
+
+			a96ff.calculateTypesWithTemplates();
+			a96ff.initializeCalculation();
+			a96ff.setNBEval(hElect,hVDW);
+			//TODO: Fix the energy function so we can set each strand
+			//a96ff.setLigandNum((new Integer((String)sParams.getValue("PDBLIGNUM"))).intValue());
+			
+			int curAA[] = new int[m.numberOfResidues];
+			for(int str=0;str<numOfStrands;str++){
+				for(int j=0;j<m.strand[str].numberOfResidues;j++){
+					int molResNum = m.strand[str].residue[j].moleculeResidueNumber;
+					curAA[molResNum] = strandRot[str].getIndexOfNthAllowable(j,0);
+				}
+			}
+			
+			SimpleMinimizer simpMin = null;
+			BBMinimizer bbMin = null;
+			BackrubMinimizer brMin = null;
+			if ( doMinimize && (!minimizeBB) ){
+                                if(doPerturbations)
+                                    simpMin = new PMinimizer(minimizePerts);
+                                else
+                                    simpMin = new SimpleMinimizer();
+				/*if(ligPresent)
+					simpMin.initialize(m,0,1,a96ff,sysLR,ligLR2,curAA,ligLR2.getIndexOfNthAllowable(0,0),doDihedE,rl,grl);
+				else*/
+				simpMin.initialize(m,numOfStrands,a96ff,strandRot,curAA,doDihedE);
+			}
+			else if (minimizeBB) {
+				if (!doBackrubs){
+					bbMin = new BBMinimizer();
+					/*if (ligPresent)
+						bbMin.initialize(m, a96ff, residueMap, sysStrNum, ligStrNum);
+					else*/
+					bbMin.initialize(m, a96ff, strandMut, numOfStrands);
+				}
+				else {
+					brMin = new BackrubMinimizer();
+					/*if (ligPresent)
+						brMin.initialize(m, a96ff, residueMap, sysStrNum, ligStrNum, backrubFile, hSteric, stericThresh);
+					else*/
+						brMin.initialize(m, a96ff, strandMut, backrubFile, hSteric, stericThresh,numOfStrands, true);
+				}
+			}
+
+                        //In DEEPer we will need to reload the molecule for each result instead of backing up
+                        //(the backup restoration would mess up the perturbations)
+                        if(!doPerturbations)
+                            m.backupAtomCoord();
+                        
+			//Apply the corresponding rotamers
+			ctr = 0;
+			rs.printOneAndTwoBodyEnergies(strandMut[0], curRot);
+			for(int str=0;str<numOfStrands;str++)	
+				for (int j=0; j<strandMut[str].length; j++){	
+					int molResNum = m.strand[str].residue[strandMut[str][j]].moleculeResidueNumber;
+
+                                        if(doPerturbations){
+                                                curRot[ctr] = rotNums[startInd+ctr];
+                                                boolean outcome = ((StrandRCs)strandRot[str]).applyRC(m, strandMut[str][j], curRot[ctr]);
+                                                if( ! outcome )
+                                                    System.err.println("Invalid RC:" + curRot[ctr] + " at position " + strandMut[str][j] + " of strand " + str );
+                                        }
+                                        else if(strandRot[str].rl.getNumRotForAAtype(curAA[molResNum]) != 0){//not GLY or ALA
+						curRot[ctr] = rotNums[startInd+ctr];
+						strandRot[str].applyRotamer(m, strandMut[str][j], curRot[ctr]);
+					}
+					ctr++;
+				}		
+			
+			double unMinE[] = a96ff.calculateTotalEnergy(m.actualCoordinates,-1); //the energy before minimization
+			if ( doMinimize && (!minimizeBB) )
+				simpMin.minimize(35);
+			else if (minimizeBB) {
+				if (!doBackrubs)
+					bbMin.minimizeFull(false);
+				else{
+					brMin.minimizeFull();
+				}
+			}
+			
+			double minE[] = a96ff.calculateTotalEnergy(m.actualCoordinates,-1); //the energy after minimization
+			if ((doMinimize)&&(!minimizeBB)&&(doDihedE)) //add dihedral energies
+				minE[0] += simpMin.computeDihedEnergy();
+			
+
+                        if(!doPerturbations){
+                            m.restoreAtomCoord();
+                            m.updateCoordinates();
+                        }
+			
+			if (minE[0]>unMinE[0])
+				minE = unMinE;
+			
+			System.out.println("done");
+		}
+		System.out.println("done");
+	}
 	
 ////////////////////////////////////////////////////////////////
 //	 Compute minimized-GMEC section
@@ -7101,13 +7355,13 @@ public class KSParser
     		long startall = System.currentTimeMillis();
 			long preprocessTime = startall- startfull;
 			System.out.println("BWM preprocess time: "+preprocessTime);
-    		double firstEnergy = actualRootEdge.nextBestEnergy();
-    		double nextEnergy = firstEnergy;
 			if(!TreeEdge.EnumerateEnsembles)
 			{
 				actualRootEdge.outputBestStateE(mp.m, grl[sysStrNum], "");
 				return;
 			}
+    		double firstEnergy = actualRootEdge.nextBestEnergy();
+    		double nextEnergy = firstEnergy;
     		while(rank < 10000 && nextEnergy - firstEnergy < 5 && actualRootEdge.moreRootConformations())
     		{
     	                long start = System.currentTimeMillis();
