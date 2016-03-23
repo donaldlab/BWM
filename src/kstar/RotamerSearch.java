@@ -271,6 +271,7 @@ public class RotamerSearch implements Serializable
 	int mutRes2Strand[] = null;
 	int mutRes2StrandMutIndex[] = null;
 	int numberMutable = 0;
+	int[][] strandMut = null;
 
 	boolean isTemplateOn = false;
 	
@@ -279,13 +280,13 @@ public class RotamerSearch implements Serializable
 	//  could be rewritten to be much tighter and more elegant.
 
 	// the constructor if you also have a ligand
-	RotamerSearch(Molecule theMolec, int numMut,int strandsPresent, boolean hE, 
+	RotamerSearch(Molecule theMolec, int[][] strMut, int numMut,int strandsPresent, boolean hE, 
 			boolean hV, boolean hS, boolean addH, boolean conRes, float eps, 
 			float stericThresh, float softStericThresh,	boolean ddDielect, 
 			double dielectC, boolean doDihedral, boolean doSolv,double solvScFactor, 
 			double vdwMult, RotamerLibrary[] rotamerLibraries,
                         boolean doPerts, String pFile, boolean minPerts, boolean useTrips, boolean flagsAStar) {
-		
+		strandMut = strMut;
 		hElect = hE;
 		hVDW = hV;
 		hSteric = hS;
@@ -648,6 +649,70 @@ public class RotamerSearch implements Serializable
 
 		return bestE;
 	}
+	
+	private void doubleCheckEnergies(double energyToCheck)
+	{
+		boolean fullOrSparse = arpMatrix.doSparse;
+		arpMatrix.doSparse = false;
+		float bestE = arpMatrix.getShellShellE(); // Add shell-shell energy
+		
+		for(int i=0;i<ASAANums.length;i++) {
+			float oneBody = arpMatrix.getIntraAndShellE(i, ASAANums[i], curStrRotNum[i]);
+		
+			bestE += oneBody; //Add the intra-rotamer and shell energies for each rotamer
+			for(int j=i+1;j<ASAANums.length;j++){ // Add the pairwise energies
+				float twoBody = arpMatrix.getPairwiseE(i, ASAANums[i], curStrRotNum[i], j, ASAANums[j], curStrRotNum[j]);
+				bestE += twoBody;
+			}
+		}
+		arpMatrix.doSparse = fullOrSparse;
+		if(bestE != energyToCheck)
+		{
+			System.err.println("Conformation energy has changed: "+bestE+"!="+energyToCheck);
+			System.exit(-1);
+		}
+	}
+	
+	public void printOneAndTwoBodyEnergies() {
+		
+		int[] designIndexToMoleculIndexMap = new int[ASAANums.length];
+		for(int i = 0; i < strandMut[0].length; i++)
+		{
+			designIndexToMoleculIndexMap[i] = m.mapMolResNumToPDBResNum(strandMut[0][i]);
+		}
+		
+		boolean fullOrSparse = arpMatrix.doSparse;
+		arpMatrix.doSparse = false;
+
+		float bestE = arpMatrix.getShellShellE(); // Add shell-shell energy
+		float missingEnergy = 0;
+		System.out.println("Shell-shell energy:"+bestE);
+	
+		for(int i=0;i<ASAANums.length;i++) {
+
+			int iMolIndex = designIndexToMoleculIndexMap[i];
+			float oneBody = arpMatrix.getIntraAndShellE(i, ASAANums[i], curStrRotNum[i]);
+			bestE += oneBody;//Add the intra-rotamer and shell energies for each rotamer
+			System.out.println("("+iMolIndex+")"+" one body: "+oneBody);
+			for(int j=i+1;j<ASAANums.length;j++){ // Add the pairwise energies
+				int jMolIndex = designIndexToMoleculIndexMap[j];
+				InteractionGraph G = arpMatrix.G;
+				if(G == null)
+					G = InteractionGraph.loadFromFile("3-26-full");
+				float twoBody = arpMatrix.getPairwiseE(i, ASAANums[i], curStrRotNum[i], j, ASAANums[j], curStrRotNum[j]);
+				if(G.edgeExists(iMolIndex,jMolIndex))
+					System.out.println("("+iMolIndex+","+jMolIndex+")"+" pairwise: "+twoBody);
+				else
+				{
+					System.out.println("OMITTED: ("+iMolIndex+","+jMolIndex+")"+" pairwise: "+twoBody);
+					missingEnergy += twoBody;
+				}
+				bestE += twoBody;
+			}
+		}
+		arpMatrix.doSparse = fullOrSparse;
+		System.out.println("Total energy: "+bestE+" Sparse Energy: "+(bestE-missingEnergy)+" Missing Energy: "+missingEnergy);
+	}
 
 	public void printOneAndTwoBodyEnergies(int[] designIndexToMoleculIndexMap, int[] ASAANums, int[] curStrRotNum) {
 		boolean fullOrSparse = arpMatrix.doSparse;
@@ -660,13 +725,13 @@ public class RotamerSearch implements Serializable
 		for(int i=0;i<ASAANums.length;i++) {
 
 			int iMolIndex = designIndexToMoleculIndexMap[i];
-			double oneBody = arpMatrix.getIntraAndShellE(i, ASAANums[i], curStrRotNum[i]);
+			float oneBody = arpMatrix.getIntraAndShellE(i, ASAANums[i], curStrRotNum[i]);
 			bestE += oneBody;//Add the intra-rotamer and shell energies for each rotamer
 			System.out.println("("+iMolIndex+")"+" one body: "+oneBody);
 			for(int j=i+1;j<ASAANums.length;j++){ // Add the pairwise energies
 				int jMolIndex = designIndexToMoleculIndexMap[j];
 				InteractionGraph G = arpMatrix.G;
-				double twoBody = arpMatrix.getPairwiseE(i, ASAANums[i], curStrRotNum[i], j, ASAANums[j], curStrRotNum[j]);
+				float twoBody = arpMatrix.getPairwiseE(i, ASAANums[i], curStrRotNum[i], j, ASAANums[j], curStrRotNum[j]);
 				if(G.edgeExists(iMolIndex,jMolIndex))
 					System.out.println("("+iMolIndex+","+jMolIndex+")"+" pairwise: "+twoBody);
 				else
@@ -2939,6 +3004,7 @@ public class RotamerSearch implements Serializable
 			
 			//Check the energy of the conformation and compute the score if necessary
 			double minELowerBound = (double)(computeBestRotEnergyBound(/*numTotalRotamers,rotamerIndexOffset*/));
+			doubleCheckEnergies(minELowerBound);
 			//double psi = Math.max(initial_q,partial_q);
 			BigDecimal psi = initial_q.max(partial_q.multiply(new BigDecimal(ro)));
 			
@@ -4259,10 +4325,11 @@ public class RotamerSearch implements Serializable
 			float full_Or_sparseE = 0.0f; //SJ - for getting the full energy/aparse energy of the conformations for SparseA*/A* runs			
 	
 			float minELowerBound = computeBestRotEnergyBound(/*numTotalRotamers,rotamerIndexOffset*/);
-			
+			printOneAndTwoBodyEnergies();
 			if(arpMatrix.doSparse){
 				arpMatrix.doSparse = !arpMatrix.doSparse; // SJ - to get fullE/SparseE for the conformations - set doSparse to the opposite of what is running
 				full_Or_sparseE = computeBestRotEnergyBound(); 
+				doubleCheckEnergies(full_Or_sparseE);
 				arpMatrix.doSparse = !arpMatrix.doSparse; // SJ - reinstate doSparse flag;
 			}
 			//debugPS.println("minELowerBound: "+minELowerBound);debugPS.flush();
