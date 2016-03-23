@@ -579,7 +579,6 @@ public class RotamerSearch implements Serializable
 	// Loads the min (minMatrix==true) or max (minMatrix==false) pairwise energy matrix
 	public void loadPairwiseEnergyMatrices(String allRotamerPairsEnergyName, boolean minMatrix) {
 
-
 		try{
 			ObjectInputStream in = new ObjectInputStream(new FileInputStream(allRotamerPairsEnergyName));
 			if (minMatrix){
@@ -650,7 +649,7 @@ public class RotamerSearch implements Serializable
 		return bestE;
 	}
 
-	public void printOneAndTwoBodyEnergies(int[] ASAANums, int[] curStrRotNum) {
+	public void printOneAndTwoBodyEnergies(int[] designIndexToMoleculIndexMap, int[] ASAANums, int[] curStrRotNum) {
 		boolean fullOrSparse = arpMatrix.doSparse;
 		arpMatrix.doSparse = false;
 
@@ -659,24 +658,27 @@ public class RotamerSearch implements Serializable
 		System.out.println("Shell-shell energy:"+bestE);
 	
 		for(int i=0;i<ASAANums.length;i++) {
+
+			int iMolIndex = designIndexToMoleculIndexMap[i];
 			double oneBody = arpMatrix.getIntraAndShellE(i, ASAANums[i], curStrRotNum[i]);
 			bestE += oneBody;//Add the intra-rotamer and shell energies for each rotamer
-			System.out.println("("+i+")"+" one body: "+oneBody);
+			System.out.println("("+iMolIndex+")"+" one body: "+oneBody);
 			for(int j=i+1;j<ASAANums.length;j++){ // Add the pairwise energies
+				int jMolIndex = designIndexToMoleculIndexMap[j];
 				InteractionGraph G = arpMatrix.G;
 				double twoBody = arpMatrix.getPairwiseE(i, ASAANums[i], curStrRotNum[i], j, ASAANums[j], curStrRotNum[j]);
-				if(G.edgeExists(i,j))
-					System.out.println("("+i+","+j+")"+" pairwise: "+twoBody);
+				if(G.edgeExists(iMolIndex,jMolIndex))
+					System.out.println("("+iMolIndex+","+jMolIndex+")"+" pairwise: "+twoBody);
 				else
 				{
-					System.out.println("OMITTED: ("+i+","+j+")"+" pairwise: "+twoBody);
+					System.out.println("OMITTED: ("+iMolIndex+","+jMolIndex+")"+" pairwise: "+twoBody);
 					missingEnergy += twoBody;
 				}
 				bestE += twoBody;
 			}
 		}
 		arpMatrix.doSparse = fullOrSparse;
-		System.out.println("Total energy: "+bestE+" Missing Energy: "+missingEnergy);
+		System.out.println("Total energy: "+bestE+" Sparse Energy: "+(bestE-missingEnergy)+" Missing Energy: "+missingEnergy);
 	}
 //// END HELPER FUNCTION SECTION
 

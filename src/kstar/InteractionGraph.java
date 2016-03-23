@@ -1,5 +1,15 @@
 package kstar;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.StringTokenizer;
+import BranchDecomposition.BranchNode;
+import BranchDecomposition.BranchTree;
+import BranchDecomposition.GraphVertices;
 
 
 public class InteractionGraph {
@@ -18,6 +28,62 @@ public class InteractionGraph {
 		maxEnergy = new float[numV][numV]; // SJ
 		minDistance = new float[numV][numV];
 		numAddedV = 0;
+	}
+	
+	public static InteractionGraph loadFromFile(String fileName)
+	{
+		ArrayList<Integer> leftColumn = new ArrayList<>();
+		ArrayList<Integer> rightColumn = new ArrayList<>();
+		BufferedReader bufread = null;
+		try {
+			File file = new File(fileName);		
+			FileReader fr = new FileReader(file);  
+			bufread = new BufferedReader(fr);
+		}
+		catch (FileNotFoundException e) {
+			System.out.println("ERROR: Residue interaction graph file not found");
+			System.exit(1);
+		}
+		
+		String str = null;
+		boolean done = false;
+		while (!done) {
+			try {
+				str = bufread.readLine();
+			}
+			catch ( Exception e ){
+				System.out.println("ERROR: An error occurred while reading input");
+				System.exit(1);
+			}
+
+			if (str == null) // stop if we've reached EOF
+				done = true;
+			
+			else if ( (!getToken(str,1).equalsIgnoreCase("PIG:0")) && (!str.equalsIgnoreCase("0 0")) ) { //not the first/last lines in file
+				
+				Integer v1 = Integer.valueOf(getToken(str,1));
+				Integer v2 = Integer.valueOf(getToken(str,2));
+				leftColumn.add(v1);
+				rightColumn.add(v2);
+				
+			}
+		}
+		
+
+		InteractionGraph graph = new InteractionGraph(leftColumn.size());
+		for(int i = 0; i < leftColumn.size(); i++)
+		{
+			Integer leftVertex = leftColumn.get(i);
+			graph.addV(leftVertex);
+			Integer rightVertex = rightColumn.get(i);
+			graph.addV(rightVertex);
+			
+			graph.addEdge(leftVertex, rightVertex);
+		}
+		
+		try { bufread.close(); } catch(Exception e){} //done, so close file for reading
+		
+		return graph;
 	}
 	
 	//Adds the vertex with molecule-relative number molResNum to the set of vertices for this graph
@@ -102,4 +168,31 @@ public class InteractionGraph {
 		}
 		return out;
 	}
+	
+	// This function returns the xth token in string s
+	private static String getToken(String s, int x) {
+	
+		int curNum = 1;	
+		StringTokenizer st = new StringTokenizer(s," ,;\t\n\r\f");
+		
+		while (curNum < x) {
+			curNum++;
+			if (st.hasMoreTokens())
+			  st.nextToken();
+			else {
+				System.out.println("ERROR: Unable to access argument " + x + " from input string");
+				System.exit(1);
+			}
+		}
+		
+		if (st.hasMoreTokens())		
+			return(st.nextToken());
+		
+		else {
+			System.out.println("ERROR: Unable to access argument " + x + " from input string");
+			System.exit(1);
+			return null;
+		}
+
+	} // end getToken
 }

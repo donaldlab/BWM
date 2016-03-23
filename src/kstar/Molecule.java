@@ -2412,6 +2412,15 @@ public class Molecule implements Serializable{
 		}
 		return -1;
 	}
+	
+	public int mapMolResNumToPDBResNum (int molResNum) {
+		for (int i=0; i<numberOfResidues; i++){
+			if (residue[i].moleculeResidueNumber == molResNum){
+				return residue[i].getResNumber();
+			}
+		}
+		return -1;
+	}
 
 	////////////////////////////////////////////////////////////
 	// Used by the SimpleMinimizer
@@ -3028,6 +3037,8 @@ public class Molecule implements Serializable{
             pert.curParam = ( pert.maxParams[pert.curState] + pert.minParams[pert.curState] )/2;
         }
     }
+
+
 
 
 }
