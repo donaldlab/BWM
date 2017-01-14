@@ -34,6 +34,7 @@ For the doBranchDGMEC run, -Xmx may have to be increased significantly in some c
 
 Additional commands:
 
+doBWM
 doBranchDGMEC 
 genSparseGraph
 prunedObjInfo - if DEE pruning objects have been computed previously, set to TRUE. Defaults to FALSE.
