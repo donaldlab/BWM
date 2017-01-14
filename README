@@ -12,6 +12,23 @@ http://www.cs.duke.edu/donaldlab/Supplementary/jcb15/bwmstar/
 
 OSPREY Protein Redesign Software Version 2.1 beta 
 Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
+OSPREY is free software: you can redistribute it and/or modify it under the terms of the GNU
+Lesser General Public License as published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version. The two parts of the license are attached below
+(Sec. 3). There are additional restrictions imposed on the use and distribution of this open-source
+code, including:
+• The header from Sec. 1 must be included in any modification or extension of the code;
+• Any publications, grant applications, or patents that use OSPREY must state that OSPREY
+was used, with a sentence such as ”We used the open-source OSPREY software [Ref] to
+design....”
+• Any publications, grant applications, or patents that use OSPREY must cite our papers. The
+citations for the various different modules of our software are described in Sec. 2.
+
+
+Section 1: Source Header
+
+OSPREY Protein Redesign Software Version 2.1 beta
+Copyright (C) 2001-2012 Bruce Donald Lab, Duke University
 OSPREY is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as
 published by the Free Software Foundation, either version 3 of
@@ -41,6 +58,61 @@ USA
 e-mail: www.cs.duke.edu/brd/
 <signature of Bruce Donald>, Mar 1, 2012
 Bruce Donald, Professor of Computer Science
+
+
+
+Section 2: Citation Requirements
+
+The citation requirements for the various different modules of our software are:
+• For a general citation, please use:
+C. Chen, I. Georgiev, A. C. Anderson, and B. R. Donald. Computational structure-based redesign
+of enzyme activity. PNAS USA, 106(10):3764–3769, 2009.
+P. Gainza, K. E. Roberts, I. Georgiev, R. H. Lilien, D. A. Keedy, C. Chen, F. Reza, A. C. Anderson,
+D. C. Richardson, J. S. Richardson, and B. R. Donald. OSPREY: Protein design with ensembles,
+flexibility, and provable algorithms. Methods in Enzymology, in press, 2012.
+• iMinDEE:
+P. Gainza, K.E. Roberts, and B.R. Donald. Protein Design using Continuous Rotamers PLoS
+Computational Biology, (1): e1002335. doi:10.1371/journal.pcbi.1002335, 2012.
+• Protein:Protein Interactions:
+K.E. Roberts, P.R. Kushing, P. Boisguerin, DR Madden, and B.R. Donald. Design of proteinprotein interactions with a novel ensemble-based scoring algorithm. Research in Computational
+Molecular Biology., volume 6577 of Lecture Notes in Computer Science. Heidelberg: Springer
+Berlin. pp. 361376. 2011
+K.E. Roberts, P.R. Kushing, P. Boisguerin, DR Madden, and B.R. Donald. Computational Design
+of a PDZ Domain Peptide Inhibitor that Rescues CFTR Activity. PLoS Computational Biology.,
+2012. In press.
+• MinDEE:
+I. Georgiev, R. Lilien, and B. R. Donald. The minimized dead-end elimination criterion and its
+application to protein redesign in a hybrid scoring and search algorithm for computing partition
+functions over molecular ensembles. J Comput Chem, 29(10):1527–42, 2008.
+• BD:
+I. Georgiev and B. R. Donald. Dead-end elimination with backbone flexibility. Bioinformatics,
+23(13):i185–94, 2007. Proc. International Conference on Intelligent Systems for Molecular
+Biology (ISMB), Vienna, Austria (2007).
+3
+• Brdee:
+I. Georgiev, D. Keedy, J. S. Richardson, D. C. Richardson, and B. R. Donald. Algorithm for
+backrub motions in protein design. Bioinformatics, 24(13):i196–204, 2008. Proc. International
+Conference on Intelligent Systems for Molecular Biology (ISMB), Toronto, Canada (2008).
+• DACS:
+I. Georgiev, R. Lilien, and B. R. Donald. Improved pruning algorithms and divide-and-conquer
+strategies for dead-end elimination, with application to protein design. Bioinformatics, 22(14):e174–
+183, 2006. Proc. International Conference on Intelligent Systems for Molecular Biology (ISMB),
+Fortaleza, Brazil (2006).
+• K∗ (current implementation):
+I. Georgiev, R. Lilien, and B. R. Donald. The minimized dead-end elimination criterion and its
+application to protein redesign in a hybrid scoring and search algorithm for computing partition
+functions over molecular ensembles. J Comput Chem, 29(10):1527–42, 2008.
+To cite the general idea of K∗, you can also cite:
+R. Lilien, B. Stevens, A. Anderson, and B. R. Donald. A novel ensemble-based scoring and
+search algorithm for protein redesign, and its application to modify the substrate specificity of
+the Gramicidin Synthetase A phenylalanine adenylation enzyme. J Comp Biol, 12(6–7):740–761,
+2005.
+• DEEPer:
+M. A. Hallen, D. A. Keedy, and B. R. Donald. Dead-End elimination with perturbations (DEEPer):
+A provable protein design algorithm with continuous sidechain and backbone flexibility. Proteins,
+in press, 2012.
+
+
 
 
 Technical details specific to running this paper-specific implementation follow.
