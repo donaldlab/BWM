@@ -1,3 +1,16 @@
+This repository contains code from the following publication: Jou JD, Jain S, Georgiev I, Donald BR. 
+BWM*: A novel, provable ensemble- based dynamic programming algorithm for sparse approximations of 
+computational protein design.  We recommend that this be used to test the hypothesis 
+and results of protein design with sparse residue interaction graphs as presented in this manuscript.
+For new empirical designs, we recommend using the latest version of OSPREY 2.1 
+available at http://www.cs.duke.edu/donaldlab/osprey.php that includes continuous sidechain and backbone 
+flexibility, ensemble-based design, and new and faster methods to calculate energy functions. 
+
+All the results on the 136 protein design problems and 6 retrospective protein design problems discussed 
+in this manuscript are available online at 
+http://www.cs.duke.edu/donaldlab/Supplementary/jcb15/bwmstar/
+
+
 The runs here are initial experiments to determine for what setups using doBranchDGMEC is most powerful. These runs should not be used for exact run time comparison; rather, these runs should be used to get a general idea of the computational bottlenecks and power of doBranchDGMEC and the related functions.
 
 All runs were performed on hexa.cs.duke.edu, which has 8 Dual Core AMD Opteron(tm) Processor 885 at 2613.712MHz, a total of 64GB RAM.
