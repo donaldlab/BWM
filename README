@@ -1,13 +1,12 @@
 This repository contains code from the following publication: Jou JD, Jain S, Georgiev I, Donald BR. 
 BWM*: A novel, provable ensemble- based dynamic programming algorithm for sparse approximations of 
-computational protein design.  We recommend that this be used to test the hypothesis 
+computational protein design. J Comput Biol. 2016 Jan 8.  We recommend that this be used to test the hypothesis 
 and results of protein design with sparse residue interaction graphs as presented in this manuscript.
 For new empirical designs, we recommend using the latest version of OSPREY 2.1 
 available at http://www.cs.duke.edu/donaldlab/osprey.php that includes continuous sidechain and backbone 
 flexibility, ensemble-based design, and new and faster methods to calculate energy functions. 
 
-All the results on the 136 protein design problems and 6 retrospective protein design problems discussed 
-in this manuscript are available online at 
+All the results on the 67 protein design problems discussed in this manuscript are available online at 
 http://www.cs.duke.edu/donaldlab/Supplementary/jcb15/bwmstar/
 
 
